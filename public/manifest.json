@@ -1,0 +1,21 @@
+{
+  "name": "WordQuest - Learn Through Play",
+  "short_name": "WordQuest",
+  "description": "Learn through Minecraft-style adventures!",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1a0a00",
+  "theme_color": "#FCDB05",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ],
+  "categories": ["education", "games"],
+  "lang": "en",
+  "prefer_related_applications": false
+}

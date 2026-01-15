@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#5D8C3E"/>
+      <stop offset="50%" style="stop-color:#8B5A2B"/>
+      <stop offset="100%" style="stop-color:#4A4A4A"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#FCDB05"/>
+      <stop offset="100%" style="stop-color:#D4A800"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="512" height="512" rx="64" fill="url(#bg)"/>
+
+  <!-- Pickaxe -->
+  <g transform="translate(256, 256) rotate(-45)">
+    <!-- Handle -->
+    <rect x="-20" y="-120" width="40" height="200" fill="#8B5A2B" stroke="#5D3A1A" stroke-width="4"/>
+
+    <!-- Head -->
+    <rect x="-80" y="-140" width="160" height="40" fill="#7F7F7F" stroke="#4A4A4A" stroke-width="4"/>
+
+    <!-- Diamond tip -->
+    <polygon points="-80,-140 -100,-100 -80,-100" fill="#4AEDD9"/>
+    <polygon points="80,-140 100,-100 80,-100" fill="#4AEDD9"/>
+  </g>
+
+  <!-- W letter -->
+  <text x="256" y="380" font-family="Arial Black, sans-serif" font-size="180" font-weight="bold" fill="url(#gold)" text-anchor="middle" stroke="#8B7000" stroke-width="4">W</text>
+
+  <!-- Sparkles -->
+  <circle cx="120" cy="120" r="12" fill="#FCDB05"/>
+  <circle cx="392" cy="120" r="12" fill="#4AEDD9"/>
+  <circle cx="100" cy="400" r="8" fill="#17D049"/>
+  <circle cx="412" cy="380" r="10" fill="#FCDB05"/>
+</svg>

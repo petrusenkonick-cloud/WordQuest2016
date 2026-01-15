@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WORDCRAFT - Misha's Adventure</title>
+    <link href="https://fonts.googleapis.com/css2?family=VT323&family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root { --dirt:#8B5A2B; --dirt-dark:#5D3A1A; --grass:#5D8C3E; --grass-light:#7EC850; --stone:#7F7F7F; --stone-dark:#4A4A4A; --diamond:#4AEDD9; --gold:#FCDB05; --emerald:#17D049; --redstone:#FF0000; --obsidian:#1B1B2F; --wood:#BA8C63; }
+        body { font-family: 'VT323', monospace; background: #000; min-height: 100vh; overflow-x: hidden; }
+        .loading-screen { position: fixed; inset: 0; background: linear-gradient(180deg, #1a0a00, #2d1810); z-index: 10000; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: all 0.5s; }
+        .loading-screen.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+        .loading-logo { font-family: 'Press Start 2P'; font-size: 2em; color: var(--gold); text-shadow: 4px 4px 0 #000, 0 0 20px var(--gold); margin-bottom: 40px; animation: logoFloat 2s ease-in-out infinite; }
+        @keyframes logoFloat { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-10px)} }
+        .loading-bar-container { width: 280px; height: 28px; background: #1B1B1B; border: 4px solid #373737; }
+        .loading-bar { height: 100%; background: linear-gradient(90deg, var(--emerald), var(--grass-light)); width: 0%; transition: width 0.3s; }
+        .loading-text { font-family: 'Press Start 2P'; font-size: 0.6em; color: #888; margin-top: 20px; }
+        .login-screen { position: fixed; inset: 0; background: repeating-linear-gradient(0deg, #1a1a2e 0px, #1a1a2e 32px, #16162a 32px, #16162a 64px); z-index: 9000; display: flex; align-items: center; justify-content: center; opacity: 0; visibility: hidden; transition: all 0.5s; }
+        .login-screen.active { opacity: 1; visibility: visible; }
+        .login-box { background: linear-gradient(180deg, var(--stone), var(--stone-dark)); border: 8px solid var(--obsidian); padding: 35px; text-align: center; box-shadow: inset 4px 4px 0 rgba(255,255,255,0.2), 0 0 50px rgba(0,0,0,0.8); animation: boxAppear 0.5s ease-out; }
+        @keyframes boxAppear { from{transform:scale(0.8);opacity:0} to{transform:scale(1);opacity:1} }
+        .login-box h1 { font-family: 'Press Start 2P'; font-size: 1.4em; color: var(--gold); text-shadow: 3px 3px 0 #000; margin-bottom: 8px; }
+        .login-box h2 { font-family: 'Press Start 2P'; font-size: 0.6em; color: var(--diamond); text-shadow: 2px 2px 0 #000; margin-bottom: 25px; }
+        .player-input { background: linear-gradient(180deg, #2D2D2D, #1B1B1B); border: 4px solid #373737; padding: 12px 18px; font-family: 'VT323'; font-size: 1.4em; color: white; text-align: center; width: 100%; }
+        .player-input:focus { outline: none; border-color: var(--diamond); box-shadow: 0 0 15px var(--diamond); }
+        .skin-select { display: flex; justify-content: center; gap: 8px; margin: 18px 0; flex-wrap: wrap; }
+        .skin-option { width: 50px; height: 50px; background: var(--stone); border: 4px solid #373737; cursor: pointer; font-size: 1.6em; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+        .skin-option:hover { transform: scale(1.1); border-color: var(--gold); }
+        .skin-option.selected { border-color: var(--emerald); box-shadow: 0 0 12px var(--emerald); }
+        .game-world { min-height: 100vh; display: none; background: linear-gradient(180deg, #87CEEB 0%, #87CEEB 50%, var(--grass-light) 50%, var(--grass) 52%, var(--dirt) 52%, var(--dirt) 70%, var(--stone) 70%, var(--stone-dark) 100%); }
+        .game-world.active { display: block; animation: worldFadeIn 0.8s ease-out; }
+        @keyframes worldFadeIn { from{opacity:0} to{opacity:1} }
+        .clouds-container { position: fixed; top: 0; left: 0; width: 100%; height: 140px; overflow: hidden; pointer-events: none; z-index: 1; }
+        .cloud { position: absolute; background: rgba(255,255,255,0.9); width: 12px; height: 12px; box-shadow: 16px 0 0 rgba(255,255,255,0.9), 32px 0 0 rgba(255,255,255,0.9), 48px 0 0 rgba(255,255,255,0.9), 8px -12px 0 rgba(255,255,255,0.9), 24px -12px 0 rgba(255,255,255,0.9), 40px -12px 0 rgba(255,255,255,0.9), 16px -24px 0 rgba(255,255,255,0.9), 32px -24px 0 rgba(255,255,255,0.9); animation: cloudFloat linear infinite; }
+        @keyframes cloudFloat { from{transform:translateX(-120px)} to{transform:translateX(calc(100vw + 120px))} }
+        .sun { position: fixed; top: 35px; right: 70px; width: 60px; height: 60px; background: radial-gradient(circle, #FFF9C4, #FFEB3B 50%, #FF9800); box-shadow: 0 0 40px #FFEB3B, 0 0 80px #FF9800; z-index: 0; animation: sunPulse 4s ease-in-out infinite; }
+        @keyframes sunPulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.05)} }
+        .hud { position: fixed; top: 0; left: 0; right: 0; z-index: 100; padding: 12px; background: linear-gradient(180deg, rgba(0,0,0,0.7), transparent); }
+        .hud-top { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 12px; }
+        .player-info { display: flex; align-items: center; gap: 12px; }
+        .player-avatar { width: 45px; height: 45px; background: var(--stone); border: 3px solid var(--obsidian); display: flex; align-items: center; justify-content: center; font-size: 1.6em; }
+        .player-details h3 { font-family: 'Press Start 2P'; font-size: 0.6em; color: white; text-shadow: 2px 2px 0 #000; }
+        .player-level { display: flex; align-items: center; gap: 6px; margin-top: 4px; }
+        .level-badge { background: var(--gold); color: #000; padding: 2px 6px; font-family: 'Press Start 2P'; font-size: 0.4em; }
+        .xp-bar-mini { width: 90px; height: 7px; background: #1B1B1B; border: 2px solid #373737; }
+        .xp-bar-mini-fill { height: 100%; background: var(--emerald); transition: width 0.5s; }
+        .currencies { display: flex; gap: 10px; flex-wrap: wrap; }
+        .currency-item { display: flex; align-items: center; gap: 6px; background: rgba(0,0,0,0.6); padding: 6px 12px; border: 3px solid; }
+        .currency-item.diamonds { border-color: var(--diamond); }
+        .currency-item.emeralds { border-color: var(--emerald); }
+        .currency-item.gold { border-color: var(--gold); }
+        .currency-item .icon { font-size: 1.1em; }
+        .currency-item .amount { font-family: 'Press Start 2P'; font-size: 0.5em; color: white; text-shadow: 2px 2px 0 #000; }
+        .main-container { position: relative; z-index: 10; max-width: 900px; margin: 0 auto; padding: 90px 15px 75px; }
+        .screen { display: none; }
+        .screen.active { display: block; animation: screenIn 0.4s ease-out; }
+        @keyframes screenIn { from{transform:translateY(25px);opacity:0} to{transform:translateY(0);opacity:1} }
+        .daily-banner { background: linear-gradient(135deg, #9966CC, #7B4BB8); border: 5px solid #5E3A8C; padding: 18px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; cursor: pointer; transition: all 0.3s; animation: bannerGlow 2s ease-in-out infinite; }
+        @keyframes bannerGlow { 0%,100%{box-shadow:0 0 15px #9966CC} 50%{box-shadow:0 0 35px #9966CC} }
+        .daily-banner:hover { transform: scale(1.02); }
+        .daily-banner h3 { font-family: 'Press Start 2P'; font-size: 0.7em; color: white; text-shadow: 2px 2px 0 #000; }
+        .daily-banner p { color: #DDD; font-size: 1em; margin-top: 4px; }
+        .daily-icon { font-size: 2.2em; animation: float 2s ease-in-out infinite; }
+        @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
+        .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px; }
+        .stat-card { background: linear-gradient(180deg, var(--stone), var(--stone-dark)); border: 4px solid var(--obsidian); padding: 12px; text-align: center; }
+        .stat-card .icon { font-size: 1.6em; margin-bottom: 6px; }
+        .stat-card .value { font-family: 'Press Start 2P'; font-size: 0.8em; color: var(--gold); text-shadow: 2px 2px 0 #000; }
+        .stat-card .label { font-size: 0.9em; color: #AAA; margin-top: 4px; }
+        .section-title { font-family: 'Press Start 2P'; font-size: 0.9em; color: white; text-shadow: 3px 3px 0 #000; margin-bottom: 18px; }
+        .level-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 15px; }
+        .level-card { background: linear-gradient(180deg, var(--grass-light) 0%, var(--grass) 8%, var(--dirt) 8%); border: 5px solid var(--dirt-dark); padding: 18px; cursor: pointer; transition: all 0.2s; position: relative; overflow: hidden; }
+        .level-card:hover { transform: translateY(-4px) scale(1.02); box-shadow: 0 12px 25px rgba(0,0,0,0.4); }
+        .level-card.locked { filter: grayscale(0.8); cursor: not-allowed; }
+        .level-card.completed { background: linear-gradient(180deg, var(--emerald) 0%, #0fa83a 8%, var(--dirt) 8%); }
+        .level-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+        .level-icon { font-size: 2em; animation: float 3s ease-in-out infinite; }
+        .level-rewards { display: flex; gap: 5px; }
+        .reward-tag { background: rgba(0,0,0,0.5); padding: 3px 6px; font-size: 0.8em; color: white; }
+        .level-card h3 { font-family: 'Press Start 2P'; font-size: 0.6em; color: white; text-shadow: 2px 2px 0 #000; margin-bottom: 6px; line-height: 1.4; }
+        .level-card p { color: #CCC; font-size: 0.95em; text-shadow: 1px 1px 0 #000; }
+        .level-progress { margin-top: 10px; display: flex; align-items: center; gap: 8px; }
+        .level-progress-bar { flex: 1; height: 9px; background: #1B1B1B; border: 2px solid #373737; }
+        .level-progress-fill { height: 100%; background: var(--diamond); transition: width 0.5s; }
+        .level-progress-text { font-family: 'Press Start 2P'; font-size: 0.4em; color: white; }
+        .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: linear-gradient(180deg, #2D2D2D, #1B1B1B); border-top: 4px solid #373737; padding: 6px; display: flex; justify-content: center; gap: 6px; z-index: 100; }
+        .nav-btn { background: linear-gradient(180deg, #5A5A5A, #3D3D3D); border: 3px solid #2D2D2D; padding: 6px 15px; cursor: pointer; transition: all 0.2s; display: flex; flex-direction: column; align-items: center; gap: 3px; }
+        .nav-btn:hover, .nav-btn.active { background: linear-gradient(180deg, var(--gold), #D4A800); border-color: #8B7000; }
+        .nav-btn .icon { font-size: 1.2em; }
+        .nav-btn .label { font-family: 'Press Start 2P'; font-size: 0.3em; color: white; }
+        .btn { padding: 12px 24px; font-family: 'Press Start 2P'; font-size: 0.6em; border: 4px solid; cursor: pointer; transition: all 0.1s; display: inline-flex; align-items: center; gap: 8px; }
+        .btn:hover { transform: translateY(-2px); }
+        .btn:active { transform: translateY(2px); }
+        .btn-primary { background: linear-gradient(180deg, #5A5, #383); border-color: #252; color: white; text-shadow: 2px 2px 0 #000; }
+        .particles { position: fixed; inset: 0; pointer-events: none; z-index: 9999; }
+        .particle { position: absolute; font-size: 1.6em; animation: fall 2s ease-out forwards; }
+        @keyframes fall { 0%{transform:translateY(0) rotate(0deg) scale(1);opacity:1} 100%{transform:translateY(100vh) rotate(720deg) scale(0);opacity:0} }
+        @media (max-width: 768px) { .stats-grid { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 480px) { .level-grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <div class="loading-screen" id="loadingScreen">
+        <div class="loading-logo">WORDCRAFT</div>
+        <div class="loading-bar-container"><div class="loading-bar" id="loadingBar"></div></div>
+        <div class="loading-text" id="loadingText">Loading world...</div>
+    </div>
+    <div class="login-screen" id="loginScreen">
+        <div class="login-box">
+            <h1>WORDCRAFT</h1>
+            <h2>English Learning Adventure</h2>
+            <input type="text" class="player-input" id="playerName" placeholder="Your name..." value="Misha">
+            <p style="color:#AAA; margin:12px 0 8px; font-size:1em;">Choose character:</p>
+            <div class="skin-select" id="skinSelect"></div>
+            <button class="btn btn-primary" id="playBtn" style="width:100%; justify-content:center; margin-top:12px;">PLAY</button>
+        </div>
+    </div>
+    <div class="game-world" id="gameWorld">
+        <div class="clouds-container">
+            <div class="cloud" style="top:25px; animation-duration:70s;"></div>
+            <div class="cloud" style="top:60px; animation-duration:90s; animation-delay:-25s;"></div>
+            <div class="cloud" style="top:45px; animation-duration:80s; animation-delay:-50s;"></div>
+        </div>
+        <div class="sun"></div>
+        <div class="hud">
+            <div class="hud-top">
+                <div class="player-info">
+                    <div class="player-avatar" id="playerAvatar"></div>
+                    <div class="player-details">
+                        <h3 id="playerNameDisplay">Misha</h3>
+                        <div class="player-level">
+                            <span class="level-badge">LVL <span id="playerLevel">1</span></span>
+                            <div class="xp-bar-mini"><div class="xp-bar-mini-fill" id="xpBarMini" style="width:0%"></div></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="currencies">
+                    <div class="currency-item diamonds"><span class="icon">D</span><span class="amount" id="diamondCount">0</span></div>
+                    <div class="currency-item emeralds"><span class="icon">E</span><span class="amount" id="emeraldCount">0</span></div>
+                    <div class="currency-item gold"><span class="icon">G</span><span class="amount" id="goldCount">0</span></div>
+                </div>
+            </div>
+        </div>
+        <div class="main-container">
+            <div class="screen active" id="homeScreen">
+                <div class="daily-banner" id="dailyBanner">
+                    <div><h3>DAILY REWARD!</h3><p>Claim free rewards!</p></div>
+                    <div class="daily-icon">BOX</div>
+                </div>
+                <div class="stats-grid">
+                    <div class="stat-card"><div class="icon">FIRE</div><div class="value" id="streakDays">0</div><div class="label">Streak</div></div>
+                    <div class="stat-card"><div class="icon">STAR</div><div class="value" id="totalStars">0</div><div class="label">Stars</div></div>
+                    <div class="stat-card"><div class="icon">BOOK</div><div class="value" id="wordsLearned">0</div><div class="label">Words</div></div>
+                    <div class="stat-card"><div class="icon">CUP</div><div class="value" id="questsCompleted">0</div><div class="label">Quests</div></div>
+                </div>
+                <h2 class="section-title">WEEKLY QUESTS - Week 12</h2>
+                <div class="level-grid" id="levelGrid"></div>
+            </div>
+        </div>
+        <div class="bottom-nav">
+            <div class="nav-btn active"><span class="icon">HOME</span><span class="label">HOME</span></div>
+            <div class="nav-btn"><span class="icon">SHOP</span><span class="label">SHOP</span></div>
+            <div class="nav-btn"><span class="icon">BAG</span><span class="label">BAG</span></div>
+            <div class="nav-btn"><span class="icon">AWARDS</span><span class="label">AWARDS</span></div>
+        </div>
+    </div>
+    <div class="particles" id="particles"></div>
+
+<script>
+// Game Data
+var LEVELS = [
+    {id:'suffix', name:'SUFFIX MINE', icon:'ROCK', desc:'Learn "-less" words', rewards:{diamonds:50, emeralds:20, xp:100}},
+    {id:'imperative', name:'COMMAND SCROLL', icon:'SCROLL', desc:'Command or Request?', rewards:{diamonds:50, emeralds:25, xp:120}},
+    {id:'interrogative', name:'QUESTION FORGE', icon:'?', desc:'Create questions', rewards:{diamonds:60, emeralds:30, xp:150}},
+    {id:'crossword', name:'WORD MAP', icon:'MAP', desc:'Vocabulary puzzle', rewards:{diamonds:80, emeralds:40, xp:200}},
+    {id:'vocabulary', name:'CRAFTING TABLE', icon:'BOX', desc:'Build sentences', rewards:{diamonds:70, emeralds:35, xp:180}},
+    {id:'story', name:'STORY QUEST', icon:'BOOK', desc:'Be a detective!', rewards:{diamonds:100, emeralds:50, xp:250}}
+];
+
+var SKINS = ['Person', 'Boy', 'Child', 'Hero', 'Wizard', 'Ninja'];
+
+// Player State
+var P = {name:'Misha', skinIndex:0, level:1, xp:0, xpNext:100, diamonds:50, emeralds:25, gold:10, streak:1, totalStars:0, wordsLearned:0, questsCompleted:0, completedLevels:{}};
+
+// Initialize
+function init() {
+    renderSkins();
+    simulateLoading();
+
+    document.getElementById('playBtn').addEventListener('click', startGame);
+    document.getElementById('dailyBanner').addEventListener('click', claimDaily);
+}
+
+function renderSkins() {
+    var container = document.getElementById('skinSelect');
+    SKINS.forEach(function(skin, i) {
+        var div = document.createElement('div');
+        div.className = 'skin-option' + (i === 0 ? ' selected' : '');
+        div.textContent = skin.charAt(0);
+        div.addEventListener('click', function() {
+            document.querySelectorAll('.skin-option').forEach(function(x) { x.classList.remove('selected'); });
+            div.classList.add('selected');
+            P.skinIndex = i;
+        });
+        container.appendChild(div);
+    });
+}
+
+function simulateLoading() {
+    var bar = document.getElementById('loadingBar');
+    var txt = document.getElementById('loadingText');
+    var texts = ['Loading world...', 'Generating terrain...', 'Spawning mobs...', 'Ready!'];
+    var prog = 0;
+    var int = setInterval(function() {
+        prog += Math.random() * 20 + 10;
+        if(prog > 100) prog = 100;
+        bar.style.width = prog + '%';
+        txt.textContent = texts[Math.floor((prog/100) * (texts.length-1))];
+        if(prog >= 100) {
+            clearInterval(int);
+            setTimeout(function() {
+                document.getElementById('loadingScreen').classList.add('hidden');
+                document.getElementById('loginScreen').classList.add('active');
+            }, 500);
+        }
+    }, 200);
+}
+
+function startGame() {
+    var name = document.getElementById('playerName').value.trim();
+    if(name) P.name = name;
+    document.getElementById('loginScreen').classList.remove('active');
+    document.getElementById('gameWorld').classList.add('active');
+    updateUI();
+    renderLevels();
+}
+
+function updateUI() {
+    document.getElementById('playerAvatar').textContent = SKINS[P.skinIndex].charAt(0);
+    document.getElementById('playerNameDisplay').textContent = P.name;
+    document.getElementById('playerLevel').textContent = P.level;
+    document.getElementById('xpBarMini').style.width = (P.xp/P.xpNext*100) + '%';
+    document.getElementById('diamondCount').textContent = P.diamonds;
+    document.getElementById('emeraldCount').textContent = P.emeralds;
+    document.getElementById('goldCount').textContent = P.gold;
+    document.getElementById('streakDays').textContent = P.streak;
+    document.getElementById('totalStars').textContent = P.totalStars;
+    document.getElementById('wordsLearned').textContent = P.wordsLearned;
+    document.getElementById('questsCompleted').textContent = P.questsCompleted;
+}
+
+function renderLevels() {
+    var grid = document.getElementById('levelGrid');
+    grid.textContent = '';
+    LEVELS.forEach(function(l, i) {
+        var prog = P.completedLevels[l.id] || {stars:0, done:false};
+        var locked = i > 0 && !(P.completedLevels[LEVELS[i-1].id] && P.completedLevels[LEVELS[i-1].id].done);
+
+        var card = document.createElement('div');
+        card.className = 'level-card' + (prog.done ? ' completed' : '') + (locked ? ' locked' : '');
+
+        var header = document.createElement('div');
+        header.className = 'level-header';
+
+        var icon = document.createElement('span');
+        icon.className = 'level-icon';
+        icon.textContent = l.icon;
+
+        var rewards = document.createElement('div');
+        rewards.className = 'level-rewards';
+
+        var tag1 = document.createElement('span');
+        tag1.className = 'reward-tag';
+        tag1.textContent = 'D' + l.rewards.diamonds;
+
+        var tag2 = document.createElement('span');
+        tag2.className = 'reward-tag';
+        tag2.textContent = l.rewards.xp + 'xp';
+
+        rewards.appendChild(tag1);
+        rewards.appendChild(tag2);
+        header.appendChild(icon);
+        header.appendChild(rewards);
+
+        var title = document.createElement('h3');
+        title.textContent = l.name;
+
+        var desc = document.createElement('p');
+        desc.textContent = l.desc;
+
+        var progress = document.createElement('div');
+        progress.className = 'level-progress';
+
+        var progBar = document.createElement('div');
+        progBar.className = 'level-progress-bar';
+
+        var progFill = document.createElement('div');
+        progFill.className = 'level-progress-fill';
+        progFill.style.width = (prog.done ? 100 : 0) + '%';
+
+        var progText = document.createElement('span');
+        progText.className = 'level-progress-text';
+        progText.textContent = prog.stars + '/3 STARS';
+
+        progBar.appendChild(progFill);
+        progress.appendChild(progBar);
+        progress.appendChild(progText);
+
+        card.appendChild(header);
+        card.appendChild(title);
+        card.appendChild(desc);
+        card.appendChild(progress);
+
+        if(locked) {
+            var lock = document.createElement('div');
+            lock.style.cssText = 'position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:2.2em;';
+            lock.textContent = 'LOCKED';
+            card.appendChild(lock);
+        }
+
+        if(!locked) {
+            card.addEventListener('click', function() {
+                completeLevel(l);
+            });
+        }
+
+        grid.appendChild(card);
+    });
+}
+
+function completeLevel(level) {
+    P.completedLevels[level.id] = {done:true, stars:3};
+    P.diamonds += level.rewards.diamonds;
+    P.emeralds += level.rewards.emeralds;
+    P.totalStars += 3;
+    P.questsCompleted++;
+    updateUI();
+    renderLevels();
+    spawnParticles();
+    alert(level.name + ' COMPLETE! +' + level.rewards.diamonds + ' Diamonds!');
+}
+
+function claimDaily() {
+    P.diamonds += 10;
+    updateUI();
+    spawnParticles();
+    alert('Daily Reward Claimed! +10 Diamonds!');
+}
+
+function spawnParticles() {
+    var container = document.getElementById('particles');
+    var symbols = ['*', '+', 'o', 'x'];
+    for(var i = 0; i < 15; i++) {
+        var p = document.createElement('div');
+        p.className = 'particle';
+        p.textContent = symbols[Math.floor(Math.random() * symbols.length)];
+        p.style.left = Math.random() * 100 + 'vw';
+        p.style.top = Math.random() * 50 + 'vh';
+        p.style.animationDelay = Math.random() * 0.5 + 's';
+        container.appendChild(p);
+        setTimeout(function() { p.remove(); }, 2500);
+    }
+}
+
+// Start
+init();
+</script>
+</body>
+</html>
