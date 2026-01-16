@@ -1,6 +1,23 @@
-import { clerkMiddleware } from "@clerk/nextjs/server";
+import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 
-export default clerkMiddleware();
+// Define public routes that don't require authentication
+const isPublicRoute = createRouteMatcher([
+  "/",
+  "/api/telegram/webhook",
+  "/api/telegram/send",
+  "/sign-in(.*)",
+  "/sign-up(.*)",
+]);
+
+export default clerkMiddleware(async (auth, request) => {
+  // Allow public routes without authentication
+  if (isPublicRoute(request)) {
+    return;
+  }
+
+  // For protected routes, you can add auth.protect() if needed
+  // For now, we just let Clerk handle it passively
+});
 
 export const config = {
   matcher: [
