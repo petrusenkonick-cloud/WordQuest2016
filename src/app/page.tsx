@@ -274,6 +274,54 @@ function levenshteinDistance(a: string, b: string): number {
   return matrix[b.length][a.length];
 }
 
+// Helper function to generate options for questions that don't have them
+function generateOptionsForQuestion(q: { text: string; correct: string; type?: string; options?: string[] }): string[] {
+  // If already has valid options, use them
+  if (q.options && q.options.length >= 2) {
+    return q.options;
+  }
+
+  const correct = q.correct.toLowerCase().trim();
+  const text = q.text.toLowerCase();
+
+  // Classification: command vs request
+  if (text.includes('command') && text.includes('request')) {
+    return ['Command', 'Request'];
+  }
+  // True/False questions
+  if (correct === 'true' || correct === 'false' || q.type === 'true_false') {
+    return ['True', 'False'];
+  }
+  // Yes/No questions
+  if (correct === 'yes' || correct === 'no') {
+    return ['Yes', 'No'];
+  }
+  // Singular/Plural
+  if (text.includes('singular') && text.includes('plural')) {
+    return ['Singular', 'Plural'];
+  }
+  // Past/Present/Future tense
+  if (text.includes('tense')) {
+    if (correct.includes('past') || correct.includes('present') || correct.includes('future')) {
+      return ['Past', 'Present', 'Future'];
+    }
+  }
+  // Noun/Verb/Adjective/Adverb
+  if (text.includes('part of speech') || text.includes('noun') || text.includes('verb')) {
+    return ['Noun', 'Verb', 'Adjective', 'Adverb'];
+  }
+  // Positive/Negative
+  if (text.includes('positive') && text.includes('negative')) {
+    return ['Positive', 'Negative'];
+  }
+  // Subject/Object
+  if (text.includes('subject') && text.includes('object')) {
+    return ['Subject', 'Object'];
+  }
+  // Default: include the correct answer as an option
+  return [q.correct];
+}
+
 export default function Home() {
   // Convex sync
   const {
@@ -547,15 +595,18 @@ export default function Home() {
       totalPages: 1,
       gameName: homework.gameName,
       gameIcon: homework.gameIcon,
-      questions: validQuestions.map(q => ({
-        text: q.text,
-        type: q.type as "multiple_choice" | "fill_blank" | "true_false",
-        options: q.options || [],
-        correct: q.correct,
-        explanation: q.explanation,
-        hint: q.hint,
-        pageRef: q.pageRef,
-      })),
+      questions: validQuestions.map(q => {
+        const options = generateOptionsForQuestion(q);
+        return {
+          text: q.text,
+          type: options.length >= 2 ? "multiple_choice" as const : q.type as "multiple_choice" | "fill_blank" | "true_false",
+          options: options,
+          correct: q.correct,
+          explanation: q.explanation,
+          hint: q.hint,
+          pageRef: q.pageRef,
+        };
+      }),
     };
 
     // Set the homework session ID for completion tracking
@@ -631,6 +682,21 @@ export default function Home() {
   }, []);
 
   const handleAIComplete = useCallback(async (result: AIAnalysisResult) => {
+    // Process questions to ensure they have proper options
+    const processedQuestions = result.questions.map(q => {
+      const options = generateOptionsForQuestion(q);
+      return {
+        ...q,
+        type: options.length >= 2 ? "multiple_choice" as const : q.type,
+        options: options,
+      };
+    });
+
+    const processedResult: AIAnalysisResult = {
+      ...result,
+      questions: processedQuestions,
+    };
+
     // Save homework session to database
     try {
       const sessionId = await createHomeworkSession({
@@ -643,7 +709,7 @@ export default function Home() {
         topics: result.topics,
         gameName: result.gameName,
         gameIcon: result.gameIcon,
-        questions: result.questions.map(q => ({
+        questions: processedQuestions.map(q => ({
           text: q.text,
           type: q.type,
           options: q.options,
@@ -658,7 +724,7 @@ export default function Home() {
       console.error("Failed to save homework session:", error);
     }
 
-    setAiGameData(result);
+    setAiGameData(processedResult);
     setShowAIProcessing(false);
     setIsPlayingAIGame(true);
     setAiGameProgress({ current: 0, correct: 0, mistakes: 0 });
