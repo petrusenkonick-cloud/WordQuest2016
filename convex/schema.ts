@@ -132,4 +132,53 @@ export default defineSchema({
     voiceEnabled: v.boolean(),
     updatedAt: v.string(),
   }).index("by_player", ["playerId"]),
+
+  // Parent-child connections for Telegram bot
+  parentLinks: defineTable({
+    playerId: v.id("players"),
+    telegramChatId: v.string(),
+    telegramUsername: v.optional(v.string()),
+    linkCode: v.string(), // 6-digit code for linking
+    linkedAt: v.string(),
+    notificationsEnabled: v.boolean(),
+    dailyReportTime: v.optional(v.string()), // e.g., "18:00"
+    weeklyReportDay: v.optional(v.number()), // 0=Sunday, 6=Saturday
+  })
+    .index("by_player", ["playerId"])
+    .index("by_telegram", ["telegramChatId"])
+    .index("by_code", ["linkCode"]),
+
+  // Pending link codes (before parent connects)
+  pendingLinkCodes: defineTable({
+    playerId: v.id("players"),
+    code: v.string(),
+    createdAt: v.string(),
+    expiresAt: v.string(),
+  })
+    .index("by_code", ["code"])
+    .index("by_player", ["playerId"]),
+
+  // Notification log
+  parentNotifications: defineTable({
+    parentLinkId: v.id("parentLinks"),
+    type: v.string(), // "daily_report", "weekly_report", "achievement", "milestone", "inactive"
+    message: v.string(),
+    sentAt: v.string(),
+  }).index("by_parent", ["parentLinkId"]),
+
+  // Daily statistics for reports
+  dailyStats: defineTable({
+    playerId: v.id("players"),
+    date: v.string(), // YYYY-MM-DD
+    sessionsPlayed: v.number(),
+    questionsAnswered: v.number(),
+    correctAnswers: v.number(),
+    xpEarned: v.number(),
+    timeSpentMinutes: v.number(),
+    topicsStudied: v.array(v.string()),
+    weakTopics: v.array(v.string()),
+    achievementsUnlocked: v.array(v.string()),
+  })
+    .index("by_player", ["playerId"])
+    .index("by_player_date", ["playerId", "date"]),
 });

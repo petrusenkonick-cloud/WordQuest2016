@@ -11,6 +11,7 @@
 import type * as achievements from "../achievements.js";
 import type * as learning from "../learning.js";
 import type * as levels from "../levels.js";
+import type * as parents from "../parents.js";
 import type * as players from "../players.js";
 import type * as shop from "../shop.js";
 
@@ -24,6 +25,7 @@ declare const fullApi: ApiFromModules<{
   achievements: typeof achievements;
   learning: typeof learning;
   levels: typeof levels;
+  parents: typeof parents;
   players: typeof players;
   shop: typeof shop;
 }>;

@@ -1,0 +1,300 @@
+import { v } from "convex/values";
+import { mutation, query } from "./_generated/server";
+
+// Generate a link code for parent to connect
+export const generateLinkCode = mutation({
+  args: { playerId: v.id("players") },
+  handler: async (ctx, args) => {
+    // Delete any existing codes for this player
+    const existing = await ctx.db
+      .query("pendingLinkCodes")
+      .withIndex("by_player", (q) => q.eq("playerId", args.playerId))
+      .collect();
+
+    for (const code of existing) {
+      await ctx.db.delete(code._id);
+    }
+
+    // Generate 6-digit code
+    const code = Math.random().toString().slice(2, 8);
+
+    // Create expiring code (24 hours)
+    const now = new Date();
+    const expires = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+
+    await ctx.db.insert("pendingLinkCodes", {
+      playerId: args.playerId,
+      code,
+      createdAt: now.toISOString(),
+      expiresAt: expires.toISOString(),
+    });
+
+    return { code, expiresAt: expires.toISOString() };
+  },
+});
+
+// Link parent via Telegram (called when parent sends code to bot)
+export const linkParent = mutation({
+  args: {
+    code: v.string(),
+    telegramChatId: v.string(),
+    telegramUsername: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    // Find pending code
+    const pending = await ctx.db
+      .query("pendingLinkCodes")
+      .withIndex("by_code", (q) => q.eq("code", args.code))
+      .first();
+
+    if (!pending) {
+      return { success: false, error: "Invalid code" };
+    }
+
+    // Check if expired
+    if (new Date(pending.expiresAt) < new Date()) {
+      await ctx.db.delete(pending._id);
+      return { success: false, error: "Code expired" };
+    }
+
+    // Check if already linked
+    const existingLink = await ctx.db
+      .query("parentLinks")
+      .withIndex("by_player", (q) => q.eq("playerId", pending.playerId))
+      .first();
+
+    if (existingLink) {
+      // Update existing link
+      await ctx.db.patch(existingLink._id, {
+        telegramChatId: args.telegramChatId,
+        telegramUsername: args.telegramUsername,
+        linkCode: args.code,
+        linkedAt: new Date().toISOString(),
+      });
+    } else {
+      // Create new link
+      await ctx.db.insert("parentLinks", {
+        playerId: pending.playerId,
+        telegramChatId: args.telegramChatId,
+        telegramUsername: args.telegramUsername,
+        linkCode: args.code,
+        linkedAt: new Date().toISOString(),
+        notificationsEnabled: true,
+        dailyReportTime: "18:00",
+        weeklyReportDay: 0, // Sunday
+      });
+    }
+
+    // Delete the pending code
+    await ctx.db.delete(pending._id);
+
+    // Get player info
+    const player = await ctx.db.get(pending.playerId);
+
+    return {
+      success: true,
+      playerName: player?.name || "Unknown",
+      playerId: pending.playerId,
+    };
+  },
+});
+
+// Get parent link status for player
+export const getParentLink = query({
+  args: { playerId: v.id("players") },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("parentLinks")
+      .withIndex("by_player", (q) => q.eq("playerId", args.playerId))
+      .first();
+  },
+});
+
+// Get player by telegram chat ID
+export const getPlayerByTelegram = query({
+  args: { telegramChatId: v.string() },
+  handler: async (ctx, args) => {
+    const link = await ctx.db
+      .query("parentLinks")
+      .withIndex("by_telegram", (q) => q.eq("telegramChatId", args.telegramChatId))
+      .first();
+
+    if (!link) return null;
+
+    const player = await ctx.db.get(link.playerId);
+    return player;
+  },
+});
+
+// Update notification settings
+export const updateNotificationSettings = mutation({
+  args: {
+    telegramChatId: v.string(),
+    notificationsEnabled: v.optional(v.boolean()),
+    dailyReportTime: v.optional(v.string()),
+    weeklyReportDay: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const link = await ctx.db
+      .query("parentLinks")
+      .withIndex("by_telegram", (q) => q.eq("telegramChatId", args.telegramChatId))
+      .first();
+
+    if (!link) return { success: false };
+
+    await ctx.db.patch(link._id, {
+      ...(args.notificationsEnabled !== undefined && {
+        notificationsEnabled: args.notificationsEnabled,
+      }),
+      ...(args.dailyReportTime && { dailyReportTime: args.dailyReportTime }),
+      ...(args.weeklyReportDay !== undefined && {
+        weeklyReportDay: args.weeklyReportDay,
+      }),
+    });
+
+    return { success: true };
+  },
+});
+
+// Unlink parent
+export const unlinkParent = mutation({
+  args: { playerId: v.id("players") },
+  handler: async (ctx, args) => {
+    const link = await ctx.db
+      .query("parentLinks")
+      .withIndex("by_player", (q) => q.eq("playerId", args.playerId))
+      .first();
+
+    if (link) {
+      await ctx.db.delete(link._id);
+    }
+
+    return { success: true };
+  },
+});
+
+// Get daily stats for a player
+export const getDailyStats = query({
+  args: {
+    playerId: v.id("players"),
+    date: v.string(),
+  },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("dailyStats")
+      .withIndex("by_player_date", (q) =>
+        q.eq("playerId", args.playerId).eq("date", args.date)
+      )
+      .first();
+  },
+});
+
+// Get weekly stats
+export const getWeeklyStats = query({
+  args: { playerId: v.id("players") },
+  handler: async (ctx, args) => {
+    // Get last 7 days
+    const dates: string[] = [];
+    for (let i = 0; i < 7; i++) {
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      dates.push(date.toISOString().split("T")[0]);
+    }
+
+    const stats = await ctx.db
+      .query("dailyStats")
+      .withIndex("by_player", (q) => q.eq("playerId", args.playerId))
+      .collect();
+
+    return stats.filter((s) => dates.includes(s.date));
+  },
+});
+
+// Update or create daily stats
+export const updateDailyStats = mutation({
+  args: {
+    playerId: v.id("players"),
+    questionsAnswered: v.optional(v.number()),
+    correctAnswers: v.optional(v.number()),
+    xpEarned: v.optional(v.number()),
+    timeSpentMinutes: v.optional(v.number()),
+    topic: v.optional(v.string()),
+    achievement: v.optional(v.string()),
+    isWeakTopic: v.optional(v.boolean()),
+  },
+  handler: async (ctx, args) => {
+    const today = new Date().toISOString().split("T")[0];
+
+    const existing = await ctx.db
+      .query("dailyStats")
+      .withIndex("by_player_date", (q) =>
+        q.eq("playerId", args.playerId).eq("date", today)
+      )
+      .first();
+
+    if (existing) {
+      // Update existing
+      const updates: Partial<typeof existing> = {};
+
+      if (args.questionsAnswered) {
+        updates.questionsAnswered =
+          existing.questionsAnswered + args.questionsAnswered;
+      }
+      if (args.correctAnswers) {
+        updates.correctAnswers = existing.correctAnswers + args.correctAnswers;
+      }
+      if (args.xpEarned) {
+        updates.xpEarned = existing.xpEarned + args.xpEarned;
+      }
+      if (args.timeSpentMinutes) {
+        updates.timeSpentMinutes =
+          existing.timeSpentMinutes + args.timeSpentMinutes;
+      }
+      if (args.topic && !existing.topicsStudied.includes(args.topic)) {
+        updates.topicsStudied = [...existing.topicsStudied, args.topic];
+      }
+      if (args.isWeakTopic && args.topic && !existing.weakTopics.includes(args.topic)) {
+        updates.weakTopics = [...existing.weakTopics, args.topic];
+      }
+      if (args.achievement && !existing.achievementsUnlocked.includes(args.achievement)) {
+        updates.achievementsUnlocked = [
+          ...existing.achievementsUnlocked,
+          args.achievement,
+        ];
+      }
+
+      await ctx.db.patch(existing._id, updates);
+    } else {
+      // Create new
+      await ctx.db.insert("dailyStats", {
+        playerId: args.playerId,
+        date: today,
+        sessionsPlayed: 1,
+        questionsAnswered: args.questionsAnswered || 0,
+        correctAnswers: args.correctAnswers || 0,
+        xpEarned: args.xpEarned || 0,
+        timeSpentMinutes: args.timeSpentMinutes || 0,
+        topicsStudied: args.topic ? [args.topic] : [],
+        weakTopics: args.isWeakTopic && args.topic ? [args.topic] : [],
+        achievementsUnlocked: args.achievement ? [args.achievement] : [],
+      });
+    }
+  },
+});
+
+// Log notification sent
+export const logNotification = mutation({
+  args: {
+    parentLinkId: v.id("parentLinks"),
+    type: v.string(),
+    message: v.string(),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.insert("parentNotifications", {
+      parentLinkId: args.parentLinkId,
+      type: args.type,
+      message: args.message,
+      sentAt: new Date().toISOString(),
+    });
+  },
+});
