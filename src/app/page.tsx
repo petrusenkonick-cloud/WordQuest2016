@@ -802,11 +802,11 @@ export default function Home() {
           }
         }
 
-        // Show mining overlay after a brief delay
+        // Move to next question after a brief delay (mining disabled for now)
         setTimeout(() => {
           setShowFeedback(false);
-          setShowMiningOverlay(true);
-        }, 1000);
+          moveToNextQuestion(true);
+        }, 1200);
       } else {
         // Track the error for personalized practice
         if (playerId && aiGameData) {
@@ -844,6 +844,7 @@ export default function Home() {
         }, 1000);
       }
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- moveToNextQuestion accessed via closure in setTimeout
     [aiGameData, aiGameProgress, showFeedback, awardCurrency, spawnParticles, playerId, trackError, currentHomeworkSessionId, addToSpellBook, currentPracticeQuestId, answerPracticeQuestion, updateTopicProgress]
   );
 
