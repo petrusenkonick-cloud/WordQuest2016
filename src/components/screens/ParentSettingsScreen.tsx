@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { Id } from "../../../convex/_generated/dataModel";
+import { AudioSettingsPanel } from "../ui/AudioControls";
 
 // Time options for daily reports (UTC hours displayed as local approximation)
 const DAILY_REPORT_TIMES = [
@@ -153,12 +154,20 @@ export function ParentSettingsScreen({ playerId, onBack }: ParentSettingsScreenP
           Back
         </button>
         <div>
-          <h1 style={{ margin: 0, fontSize: "1.4em" }}>PARENT NOTIFICATIONS</h1>
+          <h1 style={{ margin: 0, fontSize: "1.4em" }}>SETTINGS</h1>
           <p style={{ margin: 0, color: "#AAA", fontSize: "0.9em" }}>
-            Telegram notification settings
+            Audio and notification settings
           </p>
         </div>
       </div>
+
+      {/* Audio Settings */}
+      <AudioSettingsPanel />
+
+      {/* Parent Notifications Section */}
+      <h2 style={{ fontSize: "1.1em", color: "#c4b5fd", marginBottom: "15px" }}>
+        PARENT NOTIFICATIONS
+      </h2>
 
       {/* Instructions */}
       <div style={{

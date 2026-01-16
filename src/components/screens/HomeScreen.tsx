@@ -6,6 +6,7 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { Id } from "../../../convex/_generated/dataModel";
 import { useEffect } from "react";
+import { AudioControls } from "../ui/AudioControls";
 
 // Level data
 const LEVELS = [
@@ -154,37 +155,43 @@ export function HomeScreen({
             </div>
           </div>
         </div>
-        {isSignedIn && (
-          <UserButton
-            afterSignOutUrl="/"
-            appearance={{
-              elements: {
-                avatarBox: {
-                  width: "40px",
-                  height: "40px",
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <AudioControls compact />
+          {isSignedIn && (
+            <UserButton
+              afterSignOutUrl="/"
+              appearance={{
+                elements: {
+                  avatarBox: {
+                    width: "40px",
+                    height: "40px",
+                  },
                 },
-              },
-            }}
-          />
-        )}
+              }}
+            />
+          )}
+        </div>
         {!isSignedIn && (
-          <div
-            onClick={onLogout}
-            style={{
-              padding: "8px 12px",
-              background: "rgba(239, 68, 68, 0.2)",
-              borderRadius: "8px",
-              fontSize: "0.85em",
-              color: "#fca5a5",
-              cursor: "pointer",
-              border: "1px solid #ef444440",
-              display: "flex",
-              alignItems: "center",
-              gap: "6px",
-            }}
-          >
-            <span>Guest</span>
-            <span style={{ fontSize: "0.9em" }}>↪</span>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <AudioControls compact />
+            <div
+              onClick={onLogout}
+              style={{
+                padding: "8px 12px",
+                background: "rgba(239, 68, 68, 0.2)",
+                borderRadius: "8px",
+                fontSize: "0.85em",
+                color: "#fca5a5",
+                cursor: "pointer",
+                border: "1px solid #ef444440",
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+              }}
+            >
+              <span>Guest</span>
+              <span style={{ fontSize: "0.9em" }}>↪</span>
+            </div>
           </div>
         )}
       </div>

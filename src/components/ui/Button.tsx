@@ -1,8 +1,9 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { ButtonHTMLAttributes, forwardRef, ReactNode } from "react";
+import { forwardRef, ReactNode } from "react";
 import { motion, HTMLMotionProps } from "framer-motion";
+import { useAudio } from "@/hooks/useAudio";
 
 interface ButtonProps extends Omit<HTMLMotionProps<"button">, "size" | "children"> {
   children?: ReactNode;
@@ -10,10 +11,20 @@ interface ButtonProps extends Omit<HTMLMotionProps<"button">, "size" | "children
   size?: "sm" | "md" | "lg" | "xl";
   glow?: boolean;
   pixelBorder?: boolean;
+  silent?: boolean; // Disable click sound
 }
 
 const Button = forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant = "grass", size = "md", glow = false, pixelBorder = true, children, disabled, ...props }, ref) => {
+  ({ className, variant = "grass", size = "md", glow = false, pixelBorder = true, silent = false, children, disabled, onClick, ...props }, ref) => {
+    const { playSound } = useAudio();
+
+    const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+      if (!disabled && !silent) {
+        playSound("click");
+      }
+      onClick?.(e);
+    };
+
     const baseStyles = `
       relative font-pixel cursor-pointer select-none
       inline-flex items-center justify-center gap-2
@@ -137,6 +148,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
           className
         )}
         disabled={disabled}
+        onClick={handleClick}
         {...props}
       >
         {/* Inner highlight line */}

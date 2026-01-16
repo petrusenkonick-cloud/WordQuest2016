@@ -4,6 +4,7 @@ import { ClerkProviderWrapper } from "@/components/providers/ClerkProviderWrappe
 import { ConvexClientProvider } from "@/components/providers/ConvexClientProvider";
 import { ServiceWorkerRegistration } from "@/components/providers/ServiceWorkerRegistration";
 import { GlobalEffects } from "@/components/effects/GlobalEffects";
+import { AudioProvider } from "@/components/providers/AudioProvider";
 
 export const metadata: Metadata = {
   title: "WordCraft - Misha's Adventure",
@@ -55,9 +56,11 @@ export default function RootLayout({
       <body className="font-game antialiased">
         <ClerkProviderWrapper>
           <ConvexClientProvider>
-            <ServiceWorkerRegistration />
-            <GlobalEffects />
-            {children}
+            <AudioProvider>
+              <ServiceWorkerRegistration />
+              <GlobalEffects />
+              {children}
+            </AudioProvider>
           </ConvexClientProvider>
         </ClerkProviderWrapper>
       </body>

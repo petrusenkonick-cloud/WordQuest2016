@@ -1,0 +1,52 @@
+WORDQUEST AUDIO FILES NEEDED
+=============================
+
+Download free audio from these sources:
+- Kenney.nl: https://kenney.nl/assets/interface-sounds (CC0 - free)
+- Pixabay: https://pixabay.com/music/ (Royalty-free)
+- Mixkit: https://mixkit.co/free-sound-effects/ (Free)
+
+SOUND EFFECTS (put in /public/audio/sfx/)
+-----------------------------------------
+click.mp3          - Button click sound (~50ms, short click/tap)
+correct.mp3        - Correct answer sound (~200ms, positive chime)
+wrong.mp3          - Wrong answer sound (~300ms, error buzz)
+level-complete.mp3 - Level complete fanfare (~2s, celebratory)
+achievement.mp3    - Achievement unlocked (~1.5s, special)
+reward.mp3         - Coin/reward collect (~300ms, bling)
+daily-reward.mp3   - Daily reward claim (~1s, special chime)
+hint.mp3           - Hint reveal (~200ms, soft notification)
+transition.mp3     - Page/screen transition (~150ms, whoosh)
+countdown.mp3      - Timer tick (~100ms, tick sound)
+
+BACKGROUND MUSIC (put in /public/audio/music/)
+----------------------------------------------
+menu-theme.mp3     - Main menu music (calm, magical, ~2-3 min loop)
+game-loop.mp3      - In-game music (light, not distracting, ~2-3 min loop)
+boss-battle.mp3    - Boss level music (exciting, tense, ~2-3 min loop)
+victory.mp3        - Victory music (triumphant, ~5-10 seconds)
+
+RECOMMENDED FREE PACKS:
+1. Kenney Interface Sounds: https://kenney.nl/assets/interface-sounds
+   - Perfect for UI clicks, correct/wrong sounds
+   - CC0 license (completely free, no attribution needed)
+
+2. Kenney Music Jingles: https://kenney.nl/assets/music-jingles
+   - Short victory/level complete sounds
+   - CC0 license
+
+3. Pixabay Game Music:
+   - Search "game music" or "fantasy game"
+   - Filter by "Royalty-free"
+   - Good for background loops
+
+FILE FORMAT:
+- MP3 format preferred (smaller file size)
+- Sample rate: 44100 Hz
+- Bitrate: 128-192 kbps is sufficient
+- Keep files small for fast loading
+
+NOTES:
+- Audio system will gracefully handle missing files
+- Files will be preloaded on app start
+- Mobile browsers require user interaction before playing audio

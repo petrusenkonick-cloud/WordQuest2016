@@ -74,6 +74,14 @@ export interface FloatingReward {
   y: number;
 }
 
+// Audio state
+export interface AudioState {
+  musicEnabled: boolean;
+  sfxEnabled: boolean;
+  musicVolume: number; // 0-1
+  sfxVolume: number; // 0-1
+}
+
 interface AppStore {
   // Player
   player: PlayerState;
@@ -107,6 +115,10 @@ interface AppStore {
   particles: { id: string; emoji: string; x: number; delay: number }[];
   spawnParticles: (emojis: string[]) => void;
   clearParticles: () => void;
+
+  // Audio
+  audio: AudioState;
+  setAudioSettings: (settings: Partial<AudioState>) => void;
 }
 
 const initialPlayerState: PlayerState = {
@@ -144,6 +156,13 @@ const initialUIState: UIState = {
   showAchievement: false,
   achievementToShow: null,
   levelCompleteData: null,
+};
+
+const initialAudioState: AudioState = {
+  musicEnabled: true,
+  sfxEnabled: true,
+  musicVolume: 0.5,
+  sfxVolume: 0.7,
 };
 
 export const useAppStore = create<AppStore>((set, get) => ({
@@ -228,4 +247,9 @@ export const useAppStore = create<AppStore>((set, get) => ({
     setTimeout(() => get().clearParticles(), 2500);
   },
   clearParticles: () => set({ particles: [] }),
+
+  // Audio
+  audio: initialAudioState,
+  setAudioSettings: (settings) =>
+    set((state) => ({ audio: { ...state.audio, ...settings } })),
 }));
