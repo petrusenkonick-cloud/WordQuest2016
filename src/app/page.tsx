@@ -392,6 +392,11 @@ export default function Home() {
     explanation?: string;
     hint?: string;
   } | null>(null);
+  // Multiple attempts system: track attempts per question
+  const [currentQuestionAttempts, setCurrentQuestionAttempts] = useState(0);
+  const [showHint, setShowHint] = useState(false);
+  const [currentHint, setCurrentHint] = useState<string | null>(null);
+  const [mustAnswerCorrectly, setMustAnswerCorrectly] = useState(false); // After 2nd wrong, must get it right
   const [isSpeaking, setIsSpeaking] = useState(false);
 
   // Store
@@ -742,7 +747,7 @@ export default function Home() {
     setCapturedImages([]);
   }, []);
 
-  // Handle answer selection in AI game
+  // Handle answer selection in AI game - Multiple attempts system
   const handleAnswerSelect = useCallback(
     async (answer: string) => {
       if (showFeedback || !aiGameData) return;
@@ -754,17 +759,8 @@ export default function Home() {
       setFeedbackCorrect(isCorrect);
       setShowFeedback(true);
 
-      // Track homework answers for the summary screen
-      if (currentHomeworkSessionId) {
-        setHomeworkAnswers(prev => [...prev, {
-          questionIndex: aiGameProgress.current,
-          userAnswer: answer,
-          isCorrect,
-        }]);
-      }
-
-      // Track practice quest progress if playing a practice quest
-      if (currentPracticeQuestId) {
+      // Track practice quest progress if playing a practice quest (only on first attempt)
+      if (currentPracticeQuestId && currentQuestionAttempts === 0) {
         try {
           await answerPracticeQuestion({
             questId: currentPracticeQuestId,
@@ -777,8 +773,8 @@ export default function Home() {
         }
       }
 
-      // Update topic progress for adaptive learning
-      if (playerId && aiGameData) {
+      // Update topic progress for adaptive learning (only on first attempt)
+      if (playerId && aiGameData && currentQuestionAttempts === 0) {
         try {
           const topic = detectTopic(currentQ.text, aiGameData.subject);
           await updateTopicProgress({
@@ -793,12 +789,29 @@ export default function Home() {
       }
 
       if (isCorrect) {
-        // Award currency via Convex
-        await awardCurrency("diamonds", 5);
-        spawnParticles(["💎", "✨"]);
+        // Track final answer for homework summary (correct after any attempts)
+        if (currentHomeworkSessionId) {
+          setHomeworkAnswers(prev => {
+            // Remove any previous answer for this question and add the correct one
+            const filtered = prev.filter(a => a.questionIndex !== aiGameProgress.current);
+            return [...filtered, {
+              questionIndex: aiGameProgress.current,
+              userAnswer: answer,
+              isCorrect: true,
+            }];
+          });
+        }
 
-        // Add word to Spell Book (for language subjects)
-        if (playerId && aiGameData) {
+        // Award currency based on attempts
+        // 1st try correct = 5 diamonds, 2nd try = 2 diamonds, after explanation = 0
+        const reward = currentQuestionAttempts === 0 ? 5 : currentQuestionAttempts === 1 ? 2 : 0;
+        if (reward > 0) {
+          await awardCurrency("diamonds", reward);
+          spawnParticles(reward === 5 ? ["💎", "✨"] : ["💎"]);
+        }
+
+        // Add word to Spell Book (for language subjects) - only on first attempt
+        if (playerId && aiGameData && currentQuestionAttempts === 0) {
           try {
             const wordData = extractWordFromQuestion(currentQ, aiGameData.subject);
             if (wordData) {
@@ -807,7 +820,7 @@ export default function Home() {
                 word: wordData.word,
                 category: wordData.category,
                 definition: wordData.definition,
-                exampleSentence: currentQ.text, // Use the question as example
+                exampleSentence: currentQ.text,
               });
             }
           } catch (err) {
@@ -815,18 +828,33 @@ export default function Home() {
           }
         }
 
-        // Move to next question after a brief delay (mining disabled for now)
+        // Reset attempt state and move to next question
         setTimeout(() => {
           setShowFeedback(false);
-          moveToNextQuestion(true);
+          setShowHint(false);
+          setCurrentHint(null);
+          setMustAnswerCorrectly(false);
+          setCurrentQuestionAttempts(0);
+          moveToNextQuestion(currentQuestionAttempts === 0); // Only count as "correct" if first try
         }, 1200);
       } else {
-        // Track the error for personalized practice
-        if (playerId && aiGameData) {
-          try {
-            // Determine topic from question content or use subject
-            const topic = detectTopic(currentQ.text, aiGameData.subject);
+        // WRONG ANSWER - Multiple attempts system
+        const newAttempts = currentQuestionAttempts + 1;
+        setCurrentQuestionAttempts(newAttempts);
 
+        // Track homework answer only on first wrong attempt
+        if (currentHomeworkSessionId && currentQuestionAttempts === 0) {
+          setHomeworkAnswers(prev => [...prev, {
+            questionIndex: aiGameProgress.current,
+            userAnswer: answer,
+            isCorrect: false,
+          }]);
+        }
+
+        // Track error only on first wrong attempt
+        if (playerId && aiGameData && currentQuestionAttempts === 0) {
+          try {
+            const topic = detectTopic(currentQ.text, aiGameData.subject);
             await trackError({
               playerId,
               topic,
@@ -843,22 +871,42 @@ export default function Home() {
           }
         }
 
-        // Show explanation screen for wrong answers
-        setTimeout(() => {
-          setExplanationData({
-            question: currentQ.text,
-            userAnswer: answer,
-            correctAnswer: currentQ.correct,
-            explanation: currentQ.explanation,
-            hint: currentQ.hint,
-          });
-          setShowExplanation(true);
-          setShowFeedback(false);
-        }, 1000);
+        if (newAttempts === 1) {
+          // FIRST WRONG: Show hint and let them try again
+          setTimeout(() => {
+            setShowFeedback(false);
+            setSelectedAnswer(null);
+            setCurrentHint(currentQ.hint || "Think about this more carefully...");
+            setShowHint(true);
+          }, 1000);
+        } else if (newAttempts === 2) {
+          // SECOND WRONG: Show full explanation, then they must answer correctly
+          setTimeout(() => {
+            setExplanationData({
+              question: currentQ.text,
+              userAnswer: answer,
+              correctAnswer: currentQ.correct,
+              explanation: currentQ.explanation,
+              hint: currentQ.hint,
+            });
+            setShowExplanation(true);
+            setShowFeedback(false);
+            setMustAnswerCorrectly(true);
+          }, 1000);
+        } else {
+          // 3+ WRONG (mustAnswerCorrectly mode): Keep showing they need to pick correct
+          setTimeout(() => {
+            setShowFeedback(false);
+            setSelectedAnswer(null);
+            // Show a message that they need to pick the correct answer
+            setCurrentHint(`The correct answer is: ${currentQ.correct}. Select it to continue!`);
+            setShowHint(true);
+          }, 800);
+        }
       }
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- moveToNextQuestion accessed via closure in setTimeout
-    [aiGameData, aiGameProgress, showFeedback, awardCurrency, spawnParticles, playerId, trackError, currentHomeworkSessionId, addToSpellBook, currentPracticeQuestId, answerPracticeQuestion, updateTopicProgress]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [aiGameData, aiGameProgress, showFeedback, awardCurrency, spawnParticles, playerId, trackError, currentHomeworkSessionId, addToSpellBook, currentPracticeQuestId, answerPracticeQuestion, updateTopicProgress, currentQuestionAttempts]
   );
 
   // Move to next question helper
@@ -936,12 +984,19 @@ export default function Home() {
     [aiGameData, aiGameProgress, completeLevelSync, addWordsLearned, spawnParticles, currentHomeworkSessionId, completeHomeworkSession, homeworkAnswers]
   );
 
-  // Handle continue from explanation screen
+  // Handle continue from explanation screen - now returns to question for retry
   const handleExplanationContinue = useCallback(() => {
     setShowExplanation(false);
     setExplanationData(null);
-    moveToNextQuestion(false);
-  }, [moveToNextQuestion]);
+    setSelectedAnswer(null);
+    // Don't move to next question - child must answer correctly now
+    // mustAnswerCorrectly is already set to true, hint will show the correct answer
+    if (aiGameData) {
+      const currentQ = aiGameData.questions[aiGameProgress.current];
+      setCurrentHint(`Now select the correct answer: ${currentQ.correct}`);
+      setShowHint(true);
+    }
+  }, [aiGameData, aiGameProgress]);
 
   // Handle mining complete
   const handleMiningComplete = useCallback((gemsFound: { gemType: string; isWhole: boolean; rarity: string }[]) => {
@@ -1009,6 +1064,12 @@ export default function Home() {
     setCapturedImages([]);
     setCurrentPracticeQuestId(null);
     setCurrentHomeworkSessionId(null);
+    // Reset attempt tracking state
+    setCurrentQuestionAttempts(0);
+    setShowHint(false);
+    setCurrentHint(null);
+    setMustAnswerCorrectly(false);
+    setHomeworkAnswers([]);
     setScreen("home");
   }, [setScreen]);
 
@@ -1101,8 +1162,54 @@ export default function Home() {
 
         {showFeedback && (
           <div className={`feedback-banner ${feedbackCorrect ? "correct" : "wrong"}`}>
-            {feedbackCorrect ? "✅ Correct! +5💎" : `❌ Wrong! Answer: ${currentQ.correct}`}
-            {currentQ.explanation && <p>{currentQ.explanation}</p>}
+            {feedbackCorrect
+              ? currentQuestionAttempts === 0
+                ? "✅ Correct! +5💎"
+                : currentQuestionAttempts === 1
+                  ? "✅ Correct! +2💎"
+                  : "✅ That's right!"
+              : currentQuestionAttempts === 0
+                ? "❌ Not quite... Try again!"
+                : "❌ Wrong!"}
+          </div>
+        )}
+
+        {/* Hint banner - shows after first wrong attempt */}
+        {showHint && currentHint && !showFeedback && (
+          <div style={{
+            background: mustAnswerCorrectly
+              ? "linear-gradient(135deg, rgba(34, 197, 94, 0.2) 0%, rgba(16, 185, 129, 0.2) 100%)"
+              : "linear-gradient(135deg, rgba(251, 191, 36, 0.2) 0%, rgba(245, 158, 11, 0.2) 100%)",
+            border: mustAnswerCorrectly
+              ? "2px solid rgba(34, 197, 94, 0.5)"
+              : "2px solid rgba(251, 191, 36, 0.5)",
+            borderRadius: "12px",
+            padding: "12px 16px",
+            marginBottom: "16px",
+            display: "flex",
+            alignItems: "center",
+            gap: "12px",
+          }}>
+            <span style={{ fontSize: "1.5em" }}>
+              {mustAnswerCorrectly ? "👆" : "💡"}
+            </span>
+            <div>
+              <p style={{
+                margin: 0,
+                color: mustAnswerCorrectly ? "#22c55e" : "#fbbf24",
+                fontWeight: "bold",
+                fontSize: "0.9em"
+              }}>
+                {mustAnswerCorrectly ? "Select the correct answer" : "Hint:"}
+              </p>
+              <p style={{
+                margin: "4px 0 0 0",
+                color: "#e2e8f0",
+                fontSize: "0.85em"
+              }}>
+                {currentHint}
+              </p>
+            </div>
           </div>
         )}
 
