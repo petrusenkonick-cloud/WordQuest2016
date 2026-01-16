@@ -517,6 +517,28 @@ export default function Home() {
       pageRef?: number;
     }[];
   }) => {
+    // VALIDATION: Check if homework has questions
+    if (!homework.questions || homework.questions.length === 0) {
+      console.error("Homework has no questions:", homework);
+      alert("Ошибка: в домашке нет вопросов! Попробуй отсканировать снова.");
+      return;
+    }
+
+    // VALIDATION: Filter out invalid questions
+    const validQuestions = homework.questions.filter(q => {
+      // Must have text and correct answer
+      if (!q.text || !q.correct) return false;
+      // For multiple choice, must have at least 2 options
+      if (q.type === 'multiple_choice' && (!q.options || q.options.length < 2)) return false;
+      return true;
+    });
+
+    if (validQuestions.length === 0) {
+      console.error("No valid questions in homework:", homework);
+      alert("Ошибка: вопросы домашки повреждены! Попробуй отсканировать снова.");
+      return;
+    }
+
     // Convert homework session to AIAnalysisResult format
     const gameData: AIAnalysisResult = {
       subject: homework.subject,
@@ -525,10 +547,10 @@ export default function Home() {
       totalPages: 1,
       gameName: homework.gameName,
       gameIcon: homework.gameIcon,
-      questions: homework.questions.map(q => ({
+      questions: validQuestions.map(q => ({
         text: q.text,
         type: q.type as "multiple_choice" | "fill_blank" | "true_false",
-        options: q.options,
+        options: q.options || [],
         correct: q.correct,
         explanation: q.explanation,
         hint: q.hint,
@@ -940,16 +962,24 @@ export default function Home() {
     const currentQ = aiGameData.questions[aiGameProgress.current];
     if (!currentQ) return null;
 
+    // Determine game mode for visual styling
+    const isHomework = !!currentHomeworkSessionId;
+    const isPractice = !!currentPracticeQuestId;
+    const modeClass = isHomework ? 'homework-mode' : isPractice ? 'practice-mode' : '';
+
     return (
-      <div className="game-area">
-        <div className="game-header">
-          <h2 className="game-title">
-            {aiGameData.gameIcon} {aiGameData.gameName}
-          </h2>
-          <button className="btn btn-secondary" onClick={handleExitAIGame}>
-            ← EXIT
-          </button>
-        </div>
+      <div className="screen active">
+        <div className={`game-area ${modeClass}`}>
+          <div className="game-header">
+            <h2 className="game-title">
+              {isHomework && "📚 "}
+              {isPractice && "⚔️ "}
+              {aiGameData.gameIcon} {aiGameData.gameName}
+            </h2>
+            <button className="btn btn-secondary" onClick={handleExitAIGame}>
+              ← EXIT
+            </button>
+          </div>
 
         <div className="xp-progress">
           <div
@@ -1029,6 +1059,7 @@ export default function Home() {
             ))}
           </div>
         )}
+        </div>
       </div>
     );
   };
