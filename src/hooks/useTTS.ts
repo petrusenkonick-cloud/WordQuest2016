@@ -38,6 +38,39 @@ const VOICE_PRIORITIES: Record<string, string[]> = {
   uk: ["uk-UA", "uk"],
 };
 
+// Preferred voice names (high quality, native English speakers)
+const PREFERRED_ENGLISH_VOICES = [
+  // Google voices (Chrome/Android) - native speakers
+  "Google US English",
+  "Google UK English Female",
+  "Google UK English Male",
+  // Microsoft voices (Edge/Windows) - native speakers
+  "Microsoft Mark",
+  "Microsoft David",
+  "Microsoft Zira",
+  "Microsoft Jenny",
+  "Microsoft Aria",
+  "Microsoft Guy",
+  // Apple voices (macOS/iOS) - native speakers
+  "Samantha",
+  "Alex",
+  "Karen",
+  "Daniel",
+  "Moira",
+  "Tessa",
+  "Fiona",
+  // Generic names
+  "English (Canada)",
+  "English (United States)",
+  "English United States",
+];
+
+// Voice patterns to AVOID for English (often have accents)
+const AVOID_FOR_ENGLISH = [
+  /multilingual/i,
+  /^Google\s+\w+$/i, // Just "Google X" without language specification
+];
+
 /**
  * Custom hook for Text-to-Speech functionality
  *
@@ -111,7 +144,60 @@ export function useTTS(options: UseTTSOptions = {}): UseTTSReturn {
       // Get priority list for this language
       const priorities = VOICE_PRIORITIES[langBase] || [lang, langBase];
 
-      // Try each priority in order
+      // For English: first try to find a preferred high-quality voice
+      if (langBase === "en") {
+        // Filter to only English voices
+        const englishVoices = availableVoices.filter(
+          (v) => v.lang.startsWith("en")
+        );
+
+        // Filter out voices to avoid
+        const goodVoices = englishVoices.filter(
+          (v) => !AVOID_FOR_ENGLISH.some((pattern) => pattern.test(v.name))
+        );
+
+        // First priority: preferred voice names
+        for (const preferredName of PREFERRED_ENGLISH_VOICES) {
+          const voice = goodVoices.find(
+            (v) => v.name.toLowerCase().includes(preferredName.toLowerCase())
+          );
+          if (voice) {
+            console.log("TTS: Selected preferred voice:", voice.name, voice.lang);
+            return voice;
+          }
+        }
+
+        // Second priority: any en-CA or en-US local voice
+        for (const priority of ["en-CA", "en-US", "en-GB"]) {
+          const localVoice = goodVoices.find(
+            (v) => v.lang === priority && v.localService
+          );
+          if (localVoice) {
+            console.log("TTS: Selected local voice:", localVoice.name, localVoice.lang);
+            return localVoice;
+          }
+        }
+
+        // Third priority: any en-CA or en-US voice
+        for (const priority of ["en-CA", "en-US", "en-GB", "en-AU"]) {
+          const voice = goodVoices.find((v) => v.lang === priority);
+          if (voice) {
+            console.log("TTS: Selected by lang:", voice.name, voice.lang);
+            return voice;
+          }
+        }
+
+        // Fourth: any English voice that starts with priority
+        for (const priority of priorities) {
+          const voice = goodVoices.find((v) => v.lang.startsWith(priority));
+          if (voice) {
+            console.log("TTS: Selected fallback:", voice.name, voice.lang);
+            return voice;
+          }
+        }
+      }
+
+      // Non-English or fallback: use original logic
       for (const priority of priorities) {
         // Prefer local service voices (better quality)
         const localVoice = availableVoices.find(
