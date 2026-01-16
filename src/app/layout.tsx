@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
-import { ClerkProvider } from "@clerk/nextjs";
+import { ClerkProviderWrapper } from "@/components/providers/ClerkProviderWrapper";
 import { ConvexClientProvider } from "@/components/providers/ConvexClientProvider";
 import { ServiceWorkerRegistration } from "@/components/providers/ServiceWorkerRegistration";
 import { GlobalEffects } from "@/components/effects/GlobalEffects";
@@ -50,13 +50,13 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
       </head>
       <body className="font-game antialiased">
-        <ClerkProvider>
+        <ClerkProviderWrapper>
           <ConvexClientProvider>
             <ServiceWorkerRegistration />
             <GlobalEffects />
             {children}
           </ConvexClientProvider>
-        </ClerkProvider>
+        </ClerkProviderWrapper>
       </body>
     </html>
   );
