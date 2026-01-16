@@ -36,6 +36,12 @@ import { DailyRewardModal } from "@/components/modals/DailyRewardModal";
 import { LevelCompleteModal } from "@/components/modals/LevelCompleteModal";
 import { AchievementModal } from "@/components/modals/AchievementModal";
 
+// Game Components
+import { MiningOverlay } from "@/components/game/MiningOverlay";
+
+// Hooks
+import { useGemDrop } from "@/hooks/useGemDrop";
+
 export default function Home() {
   // Convex sync
   const {
@@ -105,6 +111,11 @@ export default function Home() {
     icon: string;
     reward: { diamonds?: number; emeralds?: number; gold?: number };
   } | null>(null);
+
+  // Mining overlay state
+  const [showMiningOverlay, setShowMiningOverlay] = useState(false);
+  const [miningDepth, setMiningDepth] = useState(0);
+  const { checkGemDrop } = useGemDrop({ playerId, enabled: true });
 
   // Use Convex data for completed levels, inventory, and owned items
   const completedLevels = levelProgress;
@@ -331,10 +342,11 @@ export default function Home() {
         await awardCurrency("diamonds", 5);
         spawnParticles(["💎", "✨"]);
 
-        // Move to next question after delay for correct answers
+        // Show mining overlay after a brief delay
         setTimeout(() => {
-          moveToNextQuestion(isCorrect);
-        }, 1500);
+          setShowFeedback(false);
+          setShowMiningOverlay(true);
+        }, 1000);
       } else {
         // Show explanation screen for wrong answers
         setTimeout(() => {
@@ -428,6 +440,22 @@ export default function Home() {
     setExplanationData(null);
     moveToNextQuestion(false);
   }, [moveToNextQuestion]);
+
+  // Handle mining complete
+  const handleMiningComplete = useCallback((gemsFound: { gemType: string; isWhole: boolean; rarity: string }[]) => {
+    setShowMiningOverlay(false);
+    // Update depth for next time
+    setMiningDepth((d) => d + 3);
+    // Move to next question
+    moveToNextQuestion(true);
+  }, [moveToNextQuestion]);
+
+  // Handle gem drop during mining
+  const handleMiningDig = useCallback(async () => {
+    if (!playerId) return null;
+    const result = await checkGemDrop(player.streak, 1, "mining");
+    return result;
+  }, [playerId, checkGemDrop, player.streak]);
 
   // Text-to-speech for questions
   const speakQuestion = useCallback((text: string, options?: string[]) => {
@@ -753,6 +781,15 @@ export default function Home() {
         claimed={player.dailyClaimed}
         streak={player.streak}
         onClaim={handleClaimDailyReward}
+      />
+
+      {/* Mining Overlay - shows after correct answer */}
+      <MiningOverlay
+        isOpen={showMiningOverlay}
+        onComplete={handleMiningComplete}
+        currentDepth={miningDepth}
+        onDepthChange={setMiningDepth}
+        checkGemDrop={handleMiningDig}
       />
 
       {/* Level Complete Modal */}

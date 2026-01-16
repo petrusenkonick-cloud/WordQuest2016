@@ -14,7 +14,9 @@ export type SoundEffect =
   | "dailyReward"
   | "hint"
   | "transition"
-  | "countdown";
+  | "countdown"
+  | "dig"
+  | "gemFound";
 
 // Background music tracks
 export type MusicTrack = "menu" | "game" | "boss" | "victory";
@@ -31,6 +33,8 @@ const SFX_PATHS: Record<SoundEffect, string> = {
   hint: "/audio/sfx/hint.mp3",
   transition: "/audio/sfx/transition.mp3",
   countdown: "/audio/sfx/countdown.mp3",
+  dig: "/audio/sfx/dig.mp3",
+  gemFound: "/audio/sfx/gem-found.mp3",
 };
 
 const MUSIC_PATHS: Record<MusicTrack, string> = {

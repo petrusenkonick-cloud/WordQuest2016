@@ -99,6 +99,14 @@ export interface GemState {
   sessionGemsFound: number;
 }
 
+// Mining state
+export interface MiningState {
+  isActive: boolean;
+  currentDepth: number;
+  digsRemaining: number;
+  foundGems: GemDrop[];
+}
+
 interface AppStore {
   // Player
   player: PlayerState;
@@ -146,6 +154,14 @@ interface AppStore {
   setGemInventoryOpen: (open: boolean) => void;
   incrementSessionGems: () => void;
   resetSessionGems: () => void;
+
+  // Mining
+  mining: MiningState;
+  startMining: () => void;
+  endMining: () => void;
+  setMiningDepth: (depth: number) => void;
+  addMiningGem: (gem: GemDrop) => void;
+  clearMiningGems: () => void;
 }
 
 const initialPlayerState: PlayerState = {
@@ -197,6 +213,13 @@ const initialGemState: GemState = {
   showGemInventory: false,
   lastDropTime: 0,
   sessionGemsFound: 0,
+};
+
+const initialMiningState: MiningState = {
+  isActive: false,
+  currentDepth: 0,
+  digsRemaining: 3,
+  foundGems: [],
 };
 
 export const useAppStore = create<AppStore>((set, get) => ({
@@ -326,5 +349,28 @@ export const useAppStore = create<AppStore>((set, get) => ({
   resetSessionGems: () =>
     set((state) => ({
       gems: { ...state.gems, sessionGemsFound: 0 },
+    })),
+
+  // Mining
+  mining: initialMiningState,
+  startMining: () =>
+    set((state) => ({
+      mining: { ...initialMiningState, isActive: true, currentDepth: state.mining.currentDepth },
+    })),
+  endMining: () =>
+    set((state) => ({
+      mining: { ...state.mining, isActive: false, digsRemaining: 3, foundGems: [] },
+    })),
+  setMiningDepth: (depth) =>
+    set((state) => ({
+      mining: { ...state.mining, currentDepth: depth },
+    })),
+  addMiningGem: (gem) =>
+    set((state) => ({
+      mining: { ...state.mining, foundGems: [...state.mining.foundGems, gem] },
+    })),
+  clearMiningGems: () =>
+    set((state) => ({
+      mining: { ...state.mining, foundGems: [] },
     })),
 }));
