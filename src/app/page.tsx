@@ -124,6 +124,125 @@ function detectErrorType(questionText: string, wrongAnswer: string, correctAnswe
   return "general";
 }
 
+// Helper function to extract word from question for Spell Book
+function extractWordFromQuestion(
+  question: { text: string; correct: string; type: string; explanation?: string },
+  subject: string
+): { word: string; category: string; definition: string } | null {
+  const text = question.text.toLowerCase();
+  const correct = question.correct;
+
+  // Try to extract meaningful word from correct answer
+  // For suffix/prefix questions, the correct answer often IS the word
+  if (text.includes("suffix") || text.includes("prefix")) {
+    // Extract the base word or result word
+    const words = correct.match(/[a-zA-Z]{4,}/g);
+    if (words && words.length > 0) {
+      // Take the longest word as the target
+      const word = words.reduce((a, b) => (a.length > b.length ? a : b));
+      return {
+        word: word.toLowerCase(),
+        category: text.includes("suffix") ? "noun" : "verb", // suffixes often create nouns
+        definition: question.explanation || `A word formed with a ${text.includes("suffix") ? "suffix" : "prefix"}`,
+      };
+    }
+  }
+
+  // For vocabulary questions, extract word from correct answer
+  if (text.includes("meaning") || text.includes("define") || text.includes("synonym")) {
+    const word = correct.match(/[a-zA-Z]{3,}/)?.[0];
+    if (word) {
+      return {
+        word: word.toLowerCase(),
+        category: "noun",
+        definition: question.explanation || question.text,
+      };
+    }
+  }
+
+  // For grammar questions, detect part of speech
+  if (text.includes("verb") || text.includes("action word")) {
+    const word = correct.match(/[a-zA-Z]{3,}/)?.[0];
+    if (word) {
+      return {
+        word: word.toLowerCase(),
+        category: "verb",
+        definition: question.explanation || `A verb meaning to ${word}`,
+      };
+    }
+  }
+
+  if (text.includes("adjective") || text.includes("describing")) {
+    const word = correct.match(/[a-zA-Z]{3,}/)?.[0];
+    if (word) {
+      return {
+        word: word.toLowerCase(),
+        category: "adjective",
+        definition: question.explanation || `An adjective describing something`,
+      };
+    }
+  }
+
+  if (text.includes("noun") || text.includes("naming word")) {
+    const word = correct.match(/[a-zA-Z]{3,}/)?.[0];
+    if (word) {
+      return {
+        word: word.toLowerCase(),
+        category: "noun",
+        definition: question.explanation || `A noun`,
+      };
+    }
+  }
+
+  if (text.includes("adverb")) {
+    const word = correct.match(/[a-zA-Z]{3,}/)?.[0];
+    if (word) {
+      return {
+        word: word.toLowerCase(),
+        category: "adverb",
+        definition: question.explanation || `An adverb`,
+      };
+    }
+  }
+
+  // For spelling questions, the correct answer is the word
+  if (text.includes("spell") || text.includes("spelling")) {
+    const word = correct.match(/[a-zA-Z]{3,}/)?.[0];
+    if (word) {
+      return {
+        word: word.toLowerCase(),
+        category: "noun", // default category for spelling words
+        definition: question.explanation || `Correctly spelled word`,
+      };
+    }
+  }
+
+  // Generic extraction: take a meaningful word from correct answer
+  // Skip math/numeric answers
+  if (subject.toLowerCase() === "english" || subject.toLowerCase() === "grammar" || subject.toLowerCase() === "spelling") {
+    const word = correct.match(/[a-zA-Z]{4,}/)?.[0];
+    if (word && word.length >= 4) {
+      // Detect category from question content
+      let category = "noun"; // default
+      if (text.includes("verb") || text.includes("action")) category = "verb";
+      else if (text.includes("adjective") || text.includes("describ")) category = "adjective";
+      else if (text.includes("adverb")) category = "adverb";
+      else if (text.includes("preposition")) category = "preposition";
+      else if (text.includes("conjunction")) category = "conjunction";
+      else if (text.includes("pronoun")) category = "pronoun";
+      else if (text.includes("phrase")) category = "phrase";
+
+      return {
+        word: word.toLowerCase(),
+        category,
+        definition: question.explanation || question.text.slice(0, 100),
+      };
+    }
+  }
+
+  return null;
+}
+
 // Simple Levenshtein distance for spell checking
 function levenshteinDistance(a: string, b: string): number {
   if (a.length === 0) return b.length;
@@ -182,6 +301,9 @@ export default function Home() {
 
   // Error tracking mutation
   const trackError = useMutation(api.errors.trackError);
+
+  // Spell Book mutation - add words when correct answers given
+  const addToSpellBook = useMutation(api.quests.addToSpellBook);
 
   // Camera/AI states
   const [showCamera, setShowCamera] = useState(false);
@@ -275,9 +397,9 @@ export default function Home() {
   }, [convexLoading, isLoggedIn]);
 
   const handleLogin = useCallback(
-    async (name: string, skin: string) => {
-      // Create player in Convex
-      await initializePlayer(name, skin);
+    async (name: string, skin: string, ageData?: { ageGroup: string; gradeLevel: number }) => {
+      // Create player in Convex with age data
+      await initializePlayer(name, skin, ageData);
       setPlayer({ name, skin });
       setPhase("game");
     },
@@ -466,6 +588,24 @@ export default function Home() {
         await awardCurrency("diamonds", 5);
         spawnParticles(["💎", "✨"]);
 
+        // Add word to Spell Book (for language subjects)
+        if (playerId && aiGameData) {
+          try {
+            const wordData = extractWordFromQuestion(currentQ, aiGameData.subject);
+            if (wordData) {
+              await addToSpellBook({
+                playerId,
+                word: wordData.word,
+                category: wordData.category,
+                definition: wordData.definition,
+                exampleSentence: currentQ.text, // Use the question as example
+              });
+            }
+          } catch (err) {
+            console.error("Failed to add word to spell book:", err);
+          }
+        }
+
         // Show mining overlay after a brief delay
         setTimeout(() => {
           setShowFeedback(false);
@@ -508,7 +648,7 @@ export default function Home() {
         }, 1000);
       }
     },
-    [aiGameData, aiGameProgress, showFeedback, awardCurrency, spawnParticles, playerId, trackError, currentHomeworkSessionId]
+    [aiGameData, aiGameProgress, showFeedback, awardCurrency, spawnParticles, playerId, trackError, currentHomeworkSessionId, addToSpellBook]
   );
 
   // Move to next question helper

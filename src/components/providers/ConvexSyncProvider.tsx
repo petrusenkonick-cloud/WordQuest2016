@@ -29,7 +29,7 @@ interface ConvexSyncContextType {
   ownedItems: string[];
 
   // Actions
-  initializePlayer: (name: string, skin: string) => Promise<Id<"players"> | null>;
+  initializePlayer: (name: string, skin: string, ageData?: { ageGroup: string; gradeLevel: number }) => Promise<Id<"players"> | null>;
   awardXP: (amount: number) => Promise<void>;
   awardCurrency: (currency: "diamonds" | "emeralds" | "gold", amount: number) => Promise<void>;
   claimDailyReward: () => Promise<{ diamonds: number; emeralds: number; gold: number } | null>;
@@ -153,12 +153,18 @@ export function ConvexSyncProvider({ children }: { children: ReactNode }) {
   }, [convexPlayer, isInitialized, setPlayer, checkDailyLoginMutation]);
 
   // Create player
-  const initializePlayer = async (name: string, skin: string): Promise<Id<"players"> | null> => {
+  const initializePlayer = async (
+    name: string,
+    skin: string,
+    ageData?: { ageGroup: string; gradeLevel: number }
+  ): Promise<Id<"players"> | null> => {
     try {
       const newPlayerId = await createPlayerMutation({
         clerkId: effectiveUserId,
         name,
         skin,
+        ageGroup: ageData?.ageGroup,
+        gradeLevel: ageData?.gradeLevel,
       });
 
       if (newPlayerId) {

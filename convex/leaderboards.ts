@@ -375,3 +375,378 @@ export const distributeRewards = internalMutation({
     return { success: true, rewardsCreated: rewardsCreated.length };
   },
 });
+
+// ========== AGE-BASED LEAGUES ==========
+
+/**
+ * Age group display names and emojis
+ */
+const AGE_GROUP_INFO: Record<string, { name: string; emoji: string; description: string }> = {
+  "6-8": { name: "Юные Искатели", emoji: "🐣", description: "1-2 класс" },
+  "9-11": { name: "Умные Лисы", emoji: "🦊", description: "3-5 класс" },
+  "12+": { name: "Мудрые Волки", emoji: "🐺", description: "6+ класс" },
+};
+
+/**
+ * Get leaderboard for a specific age group (league)
+ */
+export const getAgeLeagueLeaderboard = query({
+  args: {
+    ageGroup: v.string(),
+    type: v.optional(v.string()), // "daily", "weekly", "monthly", "all_time"
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const type = args.type || "weekly";
+    const limit = args.limit || 50;
+
+    // Get cached leaderboard
+    const leaderboard = await ctx.db
+      .query("leaderboards")
+      .withIndex("by_type_age", (q) =>
+        q.eq("type", type).eq("ageGroup", args.ageGroup)
+      )
+      .first();
+
+    const leagueInfo = AGE_GROUP_INFO[args.ageGroup] || {
+      name: "Unknown League",
+      emoji: "🏆",
+      description: "",
+    };
+
+    if (leaderboard) {
+      return {
+        type,
+        ageGroup: args.ageGroup,
+        leagueName: leagueInfo.name,
+        leagueEmoji: leagueInfo.emoji,
+        leagueDescription: leagueInfo.description,
+        entries: leaderboard.entries.slice(0, limit),
+        totalPlayers: leaderboard.entries.length,
+        periodStart: leaderboard.periodStart,
+        periodEnd: leaderboard.periodEnd,
+        lastUpdated: leaderboard.lastUpdated,
+      };
+    }
+
+    // Calculate on-the-fly if no cache
+    const players = await ctx.db.query("players").collect();
+    const filteredPlayers = players.filter(
+      (p) =>
+        p.competitionOptIn &&
+        p.normalizedScore !== undefined &&
+        p.ageGroup === args.ageGroup
+    );
+
+    filteredPlayers.sort(
+      (a, b) => (b.normalizedScore || 0) - (a.normalizedScore || 0)
+    );
+
+    const entries = filteredPlayers.slice(0, limit).map((p, index) => ({
+      playerId: p._id,
+      displayName: p.displayName || "Anonymous",
+      normalizedScore: p.normalizedScore || 0,
+      rawScore: p.totalRawScore || 0,
+      accuracy: 0,
+      streak: p.streak || 0,
+      wordsLearned: p.wordsLearned || 0,
+      rank: index + 1,
+    }));
+
+    const today = new Date();
+    return {
+      type,
+      ageGroup: args.ageGroup,
+      leagueName: leagueInfo.name,
+      leagueEmoji: leagueInfo.emoji,
+      leagueDescription: leagueInfo.description,
+      entries,
+      totalPlayers: filteredPlayers.length,
+      periodStart: today.toISOString(),
+      periodEnd: today.toISOString(),
+      lastUpdated: today.toISOString(),
+    };
+  },
+});
+
+/**
+ * Get all age leagues summary (for league selector UI)
+ */
+export const getAgeLeaguesSummary = query({
+  args: {},
+  handler: async (ctx) => {
+    const players = await ctx.db.query("players").collect();
+    const competitivePlayers = players.filter(
+      (p) => p.competitionOptIn && p.ageGroup
+    );
+
+    const leagues = [];
+    for (const [ageGroup, info] of Object.entries(AGE_GROUP_INFO)) {
+      const leaguePlayers = competitivePlayers.filter(
+        (p) => p.ageGroup === ageGroup
+      );
+      const topPlayer = leaguePlayers.sort(
+        (a, b) => (b.normalizedScore || 0) - (a.normalizedScore || 0)
+      )[0];
+
+      leagues.push({
+        ageGroup,
+        name: info.name,
+        emoji: info.emoji,
+        description: info.description,
+        playerCount: leaguePlayers.length,
+        topPlayer: topPlayer
+          ? {
+              displayName: topPlayer.displayName || "Anonymous",
+              normalizedScore: topPlayer.normalizedScore || 0,
+            }
+          : null,
+      });
+    }
+
+    return leagues;
+  },
+});
+
+// ========== IMPROVEMENT SCORES ==========
+
+/**
+ * Calculate and get improvement-based leaderboard
+ * Ranks players by how much they improved this week/month
+ */
+export const getImprovementLeaderboard = query({
+  args: {
+    period: v.string(), // "weekly" or "monthly"
+    ageGroup: v.optional(v.string()),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const limit = args.limit || 20;
+
+    // Calculate period start
+    const now = new Date();
+    const periodStart = new Date();
+    if (args.period === "weekly") {
+      periodStart.setDate(now.getDate() - 7);
+    } else {
+      periodStart.setDate(now.getDate() - 30);
+    }
+    const periodStartStr = periodStart.toISOString().split("T")[0];
+
+    // Get all daily stats
+    const allDailyStats = await ctx.db.query("dailyStats").collect();
+
+    // Get all players
+    let players = await ctx.db.query("players").collect();
+    players = players.filter((p) => p.competitionOptIn);
+
+    if (args.ageGroup) {
+      players = players.filter((p) => p.ageGroup === args.ageGroup);
+    }
+
+    // Calculate improvement for each player
+    const improvements = [];
+    for (const player of players) {
+      const playerStats = allDailyStats.filter(
+        (ds) => ds.playerId === player._id && ds.date >= periodStartStr
+      );
+
+      if (playerStats.length < 2) continue;
+
+      // Sort by date
+      playerStats.sort((a, b) => a.date.localeCompare(b.date));
+
+      // Calculate metrics
+      const totalQuestions = playerStats.reduce(
+        (sum, ds) => sum + ds.questionsAnswered,
+        0
+      );
+      const totalCorrect = playerStats.reduce(
+        (sum, ds) => sum + ds.correctAnswers,
+        0
+      );
+      const avgAccuracy =
+        totalQuestions > 0 ? (totalCorrect / totalQuestions) * 100 : 0;
+
+      // Calculate accuracy improvement (compare first half vs second half)
+      const midpoint = Math.floor(playerStats.length / 2);
+      const firstHalf = playerStats.slice(0, midpoint);
+      const secondHalf = playerStats.slice(midpoint);
+
+      const firstHalfAccuracy =
+        firstHalf.reduce((sum, ds) => sum + ds.questionsAnswered, 0) > 0
+          ? (firstHalf.reduce((sum, ds) => sum + ds.correctAnswers, 0) /
+              firstHalf.reduce((sum, ds) => sum + ds.questionsAnswered, 0)) *
+            100
+          : 0;
+
+      const secondHalfAccuracy =
+        secondHalf.reduce((sum, ds) => sum + ds.questionsAnswered, 0) > 0
+          ? (secondHalf.reduce((sum, ds) => sum + ds.correctAnswers, 0) /
+              secondHalf.reduce((sum, ds) => sum + ds.questionsAnswered, 0)) *
+            100
+          : 0;
+
+      const accuracyImprovement = secondHalfAccuracy - firstHalfAccuracy;
+
+      // Calculate engagement improvement
+      const daysActive = playerStats.length;
+      const expectedDays = args.period === "weekly" ? 7 : 30;
+      const consistencyScore = (daysActive / expectedDays) * 100;
+
+      // Combined improvement score
+      const improvementScore = Math.round(
+        accuracyImprovement * 0.5 + // Weight accuracy improvement
+          consistencyScore * 0.3 + // Weight consistency
+          Math.min(totalQuestions / 10, 20) // Weight activity (capped)
+      );
+
+      improvements.push({
+        playerId: player._id,
+        displayName: player.displayName || "Anonymous",
+        ageGroup: player.ageGroup,
+        improvementScore,
+        accuracyImprovement: Math.round(accuracyImprovement),
+        avgAccuracy: Math.round(avgAccuracy),
+        daysActive,
+        totalQuestions,
+        streak: player.streak,
+      });
+    }
+
+    // Sort by improvement score
+    improvements.sort((a, b) => b.improvementScore - a.improvementScore);
+
+    // Add ranks
+    const entries = improvements.slice(0, limit).map((imp, index) => ({
+      ...imp,
+      rank: index + 1,
+    }));
+
+    const leagueInfo = args.ageGroup
+      ? AGE_GROUP_INFO[args.ageGroup]
+      : null;
+
+    return {
+      period: args.period,
+      ageGroup: args.ageGroup || "all",
+      leagueName: leagueInfo?.name || "Все игроки",
+      leagueEmoji: leagueInfo?.emoji || "🏆",
+      entries,
+      periodStart: periodStartStr,
+      periodEnd: now.toISOString().split("T")[0],
+    };
+  },
+});
+
+// ========== PERSONAL RECORDS ==========
+
+/**
+ * Get player's personal records and comparison with past performance
+ */
+export const getPlayerPersonalRecords = query({
+  args: { playerId: v.id("players") },
+  handler: async (ctx, args) => {
+    const player = await ctx.db.get(args.playerId);
+    if (!player) return null;
+
+    // Get all daily stats
+    const dailyStats = await ctx.db
+      .query("dailyStats")
+      .withIndex("by_player", (q) => q.eq("playerId", args.playerId))
+      .collect();
+
+    if (dailyStats.length === 0) {
+      return {
+        hasData: false,
+        message: "Начни играть, чтобы увидеть свои рекорды!",
+      };
+    }
+
+    // Calculate records
+    const bestAccuracyDay = dailyStats
+      .filter((ds) => ds.questionsAnswered >= 5)
+      .sort((a, b) => {
+        const accA = (a.correctAnswers / a.questionsAnswered) * 100;
+        const accB = (b.correctAnswers / b.questionsAnswered) * 100;
+        return accB - accA;
+      })[0];
+
+    const mostQuestionsDay = dailyStats.sort(
+      (a, b) => b.questionsAnswered - a.questionsAnswered
+    )[0];
+
+    const longestSessionDay = dailyStats.sort(
+      (a, b) => b.timeSpentMinutes - a.timeSpentMinutes
+    )[0];
+
+    // Compare with recent performance
+    const now = new Date();
+    const weekAgo = new Date(now);
+    weekAgo.setDate(now.getDate() - 7);
+    const monthAgo = new Date(now);
+    monthAgo.setDate(now.getDate() - 30);
+
+    const lastWeekStats = dailyStats.filter(
+      (ds) => new Date(ds.date) >= weekAgo
+    );
+    const lastMonthStats = dailyStats.filter(
+      (ds) => new Date(ds.date) >= monthAgo
+    );
+
+    const calcAvgAccuracy = (stats: typeof dailyStats) => {
+      const total = stats.reduce((sum, ds) => sum + ds.questionsAnswered, 0);
+      const correct = stats.reduce((sum, ds) => sum + ds.correctAnswers, 0);
+      return total > 0 ? Math.round((correct / total) * 100) : 0;
+    };
+
+    const weeklyAvgAccuracy = calcAvgAccuracy(lastWeekStats);
+    const monthlyAvgAccuracy = calcAvgAccuracy(lastMonthStats);
+    const allTimeAvgAccuracy = calcAvgAccuracy(dailyStats);
+
+    return {
+      hasData: true,
+      records: {
+        bestAccuracy: bestAccuracyDay
+          ? {
+              date: bestAccuracyDay.date,
+              accuracy: Math.round(
+                (bestAccuracyDay.correctAnswers /
+                  bestAccuracyDay.questionsAnswered) *
+                  100
+              ),
+            }
+          : null,
+        mostQuestions: mostQuestionsDay
+          ? {
+              date: mostQuestionsDay.date,
+              count: mostQuestionsDay.questionsAnswered,
+            }
+          : null,
+        longestSession: longestSessionDay
+          ? {
+              date: longestSessionDay.date,
+              minutes: longestSessionDay.timeSpentMinutes,
+            }
+          : null,
+        longestStreak: player.streak, // Current streak is often the longest
+      },
+      comparison: {
+        weeklyAvgAccuracy,
+        monthlyAvgAccuracy,
+        allTimeAvgAccuracy,
+        trend:
+          weeklyAvgAccuracy > monthlyAvgAccuracy
+            ? "improving"
+            : weeklyAvgAccuracy < monthlyAvgAccuracy
+              ? "declining"
+              : "stable",
+      },
+      totalDaysPlayed: dailyStats.length,
+      totalQuestions: dailyStats.reduce(
+        (sum, ds) => sum + ds.questionsAnswered,
+        0
+      ),
+    };
+  },
+});
