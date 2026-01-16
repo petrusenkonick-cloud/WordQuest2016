@@ -7,7 +7,52 @@ import { api } from "../../../convex/_generated/api";
 import { Id } from "../../../convex/_generated/dataModel";
 import { useEffect } from "react";
 import { AudioControls } from "../ui/AudioControls";
-import { motion } from "framer-motion";
+
+// Level data
+const LEVELS = [
+  {
+    id: "suffix",
+    name: "SUFFIX MINE",
+    icon: "🪨",
+    desc: 'Learn "-less" words',
+    rewards: { diamonds: 50, emeralds: 20, xp: 100 },
+  },
+  {
+    id: "imperative",
+    name: "COMMAND SCROLL",
+    icon: "📜",
+    desc: "Command or Request?",
+    rewards: { diamonds: 50, emeralds: 25, xp: 120 },
+  },
+  {
+    id: "interrogative",
+    name: "QUESTION FORGE",
+    icon: "❓",
+    desc: "Create questions",
+    rewards: { diamonds: 60, emeralds: 30, xp: 150 },
+  },
+  {
+    id: "crossword",
+    name: "WORD MAP",
+    icon: "🗺️",
+    desc: "Vocabulary puzzle",
+    rewards: { diamonds: 80, emeralds: 40, xp: 200 },
+  },
+  {
+    id: "vocabulary",
+    name: "CRAFTING TABLE",
+    icon: "⚒️",
+    desc: "Build sentences",
+    rewards: { diamonds: 70, emeralds: 35, xp: 180 },
+  },
+  {
+    id: "story",
+    name: "STORY QUEST",
+    icon: "📖",
+    desc: "Be a detective!",
+    rewards: { diamonds: 100, emeralds: 50, xp: 250 },
+  },
+];
 
 interface HomeworkSession {
   _id: Id<"homeworkSessions">;
@@ -42,6 +87,7 @@ interface HomeScreenProps {
   onLogout?: () => void;
   weakTopicsCount?: number;
   onPlayHomework?: (homework: HomeworkSession) => void;
+  onWeeklyQuests?: () => void;
 }
 
 export function HomeScreen({
@@ -58,6 +104,7 @@ export function HomeScreen({
   onLogout,
   weakTopicsCount = 0,
   onPlayHomework,
+  onWeeklyQuests,
 }: HomeScreenProps) {
   const player = useAppStore((state) => state.player);
   const showDailyReward = useAppStore((state) => state.showDailyRewardModal);
@@ -85,6 +132,12 @@ export function HomeScreen({
     playerId ? { playerId } : "skip"
   );
 
+  // Weekly quests data
+  const weeklyQuests = useQuery(
+    api.weeklyQuests.getWeeklyQuests,
+    playerId ? { playerId } : "skip"
+  );
+
   // Initialize wizard profile and daily quests
   const initWizard = useMutation(api.quests.initializeWizardProfile);
   const generateDailyQuests = useMutation(api.quests.generateDailyQuests);
@@ -106,36 +159,25 @@ export function HomeScreen({
   const completedDailyQuests = dailyQuests?.filter(q => q.isCompleted).length || 0;
   const totalDailyQuests = dailyQuests?.length || 4;
 
-  // Get active and completed homework counts
-  const activeHomeworkCount = homeworkSessions?.length || 0;
-
-  // Fetch completed homework
-  const completedHomework = useQuery(
-    api.homework.getCompletedHomeworkSessions,
-    playerId ? { playerId, limit: 10 } : "skip"
-  );
-  const completedHomeworkCount = completedHomework?.length || 0;
-
-  // Fetch weak topics for Practice Arena
-  const weakTopics = useQuery(
-    api.errors.getWeakTopics,
-    playerId ? { playerId } : "skip"
-  );
-  const currentWeakTopicsCount = weakTopics?.length || weakTopicsCount || 0;
+  // Calculate weekly quest progress
+  const weeklyQuestsList = weeklyQuests?.quests || [];
+  const completedWeeklyQuests = weeklyQuestsList.filter(q => q.completedAt).length;
+  const totalWeeklyQuests = weeklyQuestsList.length;
 
   return (
-    <div className="screen active" style={{ padding: "16px", overflowY: "auto" }}>
+    <div className="screen active">
       {/* Player Header with Auth */}
-      <div style={{
+      <div className="player-header" style={{
         display: "flex",
         justifyContent: "space-between",
         alignItems: "center",
-        marginBottom: "16px",
+        padding: "10px 0",
+        marginBottom: "10px",
       }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
           <div style={{
-            width: "48px",
-            height: "48px",
+            width: "45px",
+            height: "45px",
             borderRadius: "50%",
             background: "linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%)",
             display: "flex",
@@ -147,9 +189,7 @@ export function HomeScreen({
             🧙
           </div>
           <div>
-            <div style={{ fontWeight: "bold", color: "white", fontSize: "1.1em" }}>
-              Hi, {player.name}!
-            </div>
+            <div style={{ fontWeight: "bold", color: "white" }}>{player.name}</div>
             <div style={{ fontSize: "0.8em", color: "#a5b4fc" }}>
               {wizardProfile?.wizardTitle || "Apprentice"} • Lvl {wizardProfile?.academyLevel || 1}
             </div>
@@ -157,355 +197,66 @@ export function HomeScreen({
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
           <AudioControls compact />
-          {isSignedIn ? (
+          {isSignedIn && (
             <UserButton
               afterSignOutUrl="/"
               appearance={{
-                elements: { avatarBox: { width: "36px", height: "36px" } },
+                elements: {
+                  avatarBox: {
+                    width: "40px",
+                    height: "40px",
+                  },
+                },
               }}
             />
-          ) : (
+          )}
+        </div>
+        {!isSignedIn && (
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <AudioControls compact />
             <div
               onClick={onLogout}
               style={{
-                padding: "6px 12px",
+                padding: "8px 12px",
                 background: "rgba(239, 68, 68, 0.2)",
                 borderRadius: "8px",
-                fontSize: "0.8em",
+                fontSize: "0.85em",
                 color: "#fca5a5",
                 cursor: "pointer",
                 border: "1px solid #ef444440",
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
               }}
             >
-              Guest ↪
+              <span>Guest</span>
+              <span style={{ fontSize: "0.9em" }}>↪</span>
             </div>
-          )}
-        </div>
-      </div>
-
-      {/* Currency Bar */}
-      <div style={{
-        display: "flex",
-        justifyContent: "space-around",
-        background: "rgba(0,0,0,0.3)",
-        borderRadius: "12px",
-        padding: "10px",
-        marginBottom: "16px",
-      }}>
-        <div style={{ textAlign: "center" }}>
-          <div style={{ fontSize: "1.2em" }}>💎</div>
-          <div style={{ color: "#22d3ee", fontWeight: "bold" }}>{player.diamonds}</div>
-        </div>
-        <div style={{ textAlign: "center" }}>
-          <div style={{ fontSize: "1.2em" }}>🟢</div>
-          <div style={{ color: "#22c55e", fontWeight: "bold" }}>{player.emeralds}</div>
-        </div>
-        <div style={{ textAlign: "center" }}>
-          <div style={{ fontSize: "1.2em" }}>🔥</div>
-          <div style={{ color: "#f59e0b", fontWeight: "bold" }}>{player.streak} day</div>
-        </div>
-        <div style={{ textAlign: "center" }}>
-          <div style={{ fontSize: "1.2em" }}>⭐</div>
-          <div style={{ color: "#fbbf24", fontWeight: "bold" }}>{player.totalStars}</div>
-        </div>
-      </div>
-
-      {/* ========== MAIN SECTION 1: HOMEWORK ADVENTURES ========== */}
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        onClick={onQuestMap}
-        style={{
-          background: "linear-gradient(135deg, rgba(99, 102, 241, 0.3) 0%, rgba(30, 27, 75, 0.9) 100%)",
-          borderRadius: "16px",
-          padding: "20px",
-          marginBottom: "12px",
-          border: "2px solid #6366f1",
-          cursor: "pointer",
-          boxShadow: "0 4px 20px rgba(99, 102, 241, 0.3)",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: "15px", marginBottom: "12px" }}>
-          <motion.div
-            style={{ fontSize: "2.5em" }}
-            animate={{ y: [0, -5, 0] }}
-            transition={{ duration: 2, repeat: Infinity }}
-          >
-            🗺️
-          </motion.div>
-          <div style={{ flex: 1 }}>
-            <h2 style={{ margin: 0, fontSize: "1.1em", color: "white" }}>HOMEWORK ADVENTURES</h2>
-            <p style={{ margin: "4px 0 0", color: "#a5b4fc", fontSize: "0.85em" }}>
-              Turn homework into exciting quests!
-            </p>
           </div>
-        </div>
-        <div style={{ display: "flex", gap: "15px", marginBottom: "12px" }}>
-          <div style={{
-            flex: 1,
-            background: "rgba(0,0,0,0.3)",
-            borderRadius: "10px",
-            padding: "10px",
-            textAlign: "center",
-          }}>
-            <div style={{ fontSize: "1.5em", fontWeight: "bold", color: "#818cf8" }}>{activeHomeworkCount}</div>
-            <div style={{ fontSize: "0.75em", color: "#a5b4fc" }}>Active Quests</div>
-          </div>
-          <div style={{
-            flex: 1,
-            background: "rgba(0,0,0,0.3)",
-            borderRadius: "10px",
-            padding: "10px",
-            textAlign: "center",
-          }}>
-            <div style={{ fontSize: "1.5em", fontWeight: "bold", color: "#22c55e" }}>{completedHomeworkCount}</div>
-            <div style={{ fontSize: "0.75em", color: "#a5b4fc" }}>Completed</div>
-          </div>
-        </div>
-        <div style={{
-          background: "#6366f1",
-          color: "white",
-          borderRadius: "10px",
-          padding: "10px",
-          textAlign: "center",
-          fontWeight: "bold",
-        }}>
-          OPEN MAP →
-        </div>
-      </motion.div>
-
-      {/* ========== MAIN SECTION 2: PRACTICE ARENA ========== */}
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
-        onClick={onPracticeMode}
-        style={{
-          background: currentWeakTopicsCount > 0
-            ? "linear-gradient(135deg, rgba(245, 158, 11, 0.3) 0%, rgba(30, 27, 75, 0.9) 100%)"
-            : "linear-gradient(135deg, rgba(34, 197, 94, 0.2) 0%, rgba(30, 27, 75, 0.9) 100%)",
-          borderRadius: "16px",
-          padding: "20px",
-          marginBottom: "12px",
-          border: `2px solid ${currentWeakTopicsCount > 0 ? "#f59e0b" : "#22c55e"}`,
-          cursor: "pointer",
-          boxShadow: currentWeakTopicsCount > 0
-            ? "0 4px 20px rgba(245, 158, 11, 0.3)"
-            : "0 4px 20px rgba(34, 197, 94, 0.2)",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: "15px", marginBottom: "12px" }}>
-          <motion.div
-            style={{ fontSize: "2.5em" }}
-            animate={currentWeakTopicsCount > 0 ? { rotate: [0, -10, 10, 0] } : {}}
-            transition={{ duration: 0.5, repeat: currentWeakTopicsCount > 0 ? Infinity : 0, repeatDelay: 2 }}
-          >
-            ⚔️
-          </motion.div>
-          <div style={{ flex: 1 }}>
-            <h2 style={{ margin: 0, fontSize: "1.1em", color: "white" }}>PRACTICE ARENA</h2>
-            <p style={{ margin: "4px 0 0", color: currentWeakTopicsCount > 0 ? "#fcd34d" : "#86efac", fontSize: "0.85em" }}>
-              {currentWeakTopicsCount > 0
-                ? `${currentWeakTopicsCount} topics need practice based on YOUR mistakes!`
-                : "All topics mastered! Keep it up!"}
-            </p>
-          </div>
-          {currentWeakTopicsCount > 0 && (
-            <div style={{
-              background: "#f59e0b",
-              color: "#000",
-              borderRadius: "50%",
-              width: "36px",
-              height: "36px",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontWeight: "bold",
-              fontSize: "1.1em",
-            }}>
-              {currentWeakTopicsCount}
-            </div>
-          )}
-        </div>
-        <div style={{
-          background: currentWeakTopicsCount > 0 ? "#f59e0b" : "#22c55e",
-          color: "#000",
-          borderRadius: "10px",
-          padding: "10px",
-          textAlign: "center",
-          fontWeight: "bold",
-        }}>
-          {currentWeakTopicsCount > 0 ? "TRAIN NOW →" : "VIEW PROGRESS →"}
-        </div>
-      </motion.div>
-
-      {/* ========== SCAN HOMEWORK BUTTON ========== */}
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
-        onClick={onScanHomework}
-        style={{
-          background: "linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%)",
-          borderRadius: "16px",
-          padding: "20px",
-          marginBottom: "16px",
-          cursor: "pointer",
-          display: "flex",
-          alignItems: "center",
-          gap: "15px",
-          boxShadow: "0 4px 20px rgba(139, 92, 246, 0.4)",
-        }}
-      >
-        <motion.div
-          style={{ fontSize: "2.5em" }}
-          animate={{ scale: [1, 1.1, 1] }}
-          transition={{ duration: 1.5, repeat: Infinity }}
-        >
-          📸
-        </motion.div>
-        <div style={{ flex: 1 }}>
-          <h2 style={{ margin: 0, fontSize: "1.1em", color: "white" }}>SCAN NEW HOMEWORK</h2>
-          <p style={{ margin: "4px 0 0", color: "#c4b5fd", fontSize: "0.85em" }}>
-            AI turns your homework into a game!
-          </p>
-        </div>
-        <div style={{ color: "white", fontSize: "1.5em" }}>→</div>
-      </motion.div>
-
-      {/* Daily Reward Banner */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.3 }}
-        onClick={showDailyReward}
-        style={{
-          background: "linear-gradient(135deg, rgba(234, 179, 8, 0.3) 0%, rgba(30, 27, 75, 0.9) 100%)",
-          borderRadius: "12px",
-          padding: "12px 16px",
-          marginBottom: "16px",
-          border: "2px solid #eab308",
-          cursor: "pointer",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-          <motion.span
-            style={{ fontSize: "1.8em" }}
-            animate={{ rotate: [0, -10, 10, 0] }}
-            transition={{ duration: 0.5, repeat: Infinity, repeatDelay: 3 }}
-          >
-            🎁
-          </motion.span>
-          <div>
-            <div style={{ fontWeight: "bold", color: "white", fontSize: "0.95em" }}>DAILY REWARD!</div>
-            <div style={{ color: "#fcd34d", fontSize: "0.8em" }}>Claim free rewards</div>
-          </div>
-        </div>
-        <div style={{
-          background: "#eab308",
-          color: "#000",
-          borderRadius: "8px",
-          padding: "6px 12px",
-          fontWeight: "bold",
-          fontSize: "0.85em",
-        }}>
-          CLAIM
-        </div>
-      </motion.div>
-
-      {/* Quick Actions Grid */}
-      <div style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(4, 1fr)",
-        gap: "10px",
-        marginBottom: "16px",
-      }}>
-        {/* Spell Book */}
-        <div
-          onClick={onSpellBook}
-          style={{
-            background: "rgba(168, 85, 247, 0.2)",
-            borderRadius: "12px",
-            padding: "12px 8px",
-            cursor: "pointer",
-            border: "1px solid #a855f740",
-            textAlign: "center",
-          }}
-        >
-          <div style={{ fontSize: "1.5em", marginBottom: "4px" }}>📖</div>
-          <div style={{ fontSize: "0.7em", color: "#c4b5fd" }}>Spells</div>
-        </div>
-
-        {/* Dashboard */}
-        <div
-          onClick={onDashboard}
-          style={{
-            background: "rgba(59, 130, 246, 0.2)",
-            borderRadius: "12px",
-            padding: "12px 8px",
-            cursor: "pointer",
-            border: "1px solid #3b82f640",
-            textAlign: "center",
-          }}
-        >
-          <div style={{ fontSize: "1.5em", marginBottom: "4px" }}>📊</div>
-          <div style={{ fontSize: "0.7em", color: "#93c5fd" }}>Stats</div>
-        </div>
-
-        {/* Leaderboard */}
-        <div
-          onClick={onLeaderboard}
-          style={{
-            background: "rgba(234, 179, 8, 0.2)",
-            borderRadius: "12px",
-            padding: "12px 8px",
-            cursor: "pointer",
-            border: "1px solid #eab30840",
-            textAlign: "center",
-          }}
-        >
-          <div style={{ fontSize: "1.5em", marginBottom: "4px" }}>🏆</div>
-          <div style={{ fontSize: "0.7em", color: "#fde047" }}>Rank</div>
-        </div>
-
-        {/* Parent Settings */}
-        <div
-          onClick={onParentSettings}
-          style={{
-            background: "rgba(239, 68, 68, 0.2)",
-            borderRadius: "12px",
-            padding: "12px 8px",
-            cursor: "pointer",
-            border: "1px solid #ef444440",
-            textAlign: "center",
-          }}
-        >
-          <div style={{ fontSize: "1.5em", marginBottom: "4px" }}>👨‍👩‍👧</div>
-          <div style={{ fontSize: "0.7em", color: "#fca5a5" }}>Parents</div>
-        </div>
+        )}
       </div>
 
       {/* Daily Quests Progress */}
       {dailyQuests && dailyQuests.length > 0 && (
         <div style={{
-          background: "rgba(139, 92, 246, 0.1)",
+          background: "linear-gradient(135deg, rgba(139, 92, 246, 0.2) 0%, rgba(30, 27, 75, 0.4) 100%)",
           borderRadius: "12px",
           padding: "12px 15px",
-          marginBottom: "16px",
-          border: "1px solid #8b5cf620",
+          marginBottom: "15px",
+          border: "1px solid #8b5cf640",
         }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
-            <span style={{ color: "#c4b5fd", fontWeight: "bold", fontSize: "0.85em" }}>
-              📋 Daily Quests
+            <span style={{ color: "#c4b5fd", fontWeight: "bold", fontSize: "0.9em" }}>
+              Daily Quests
             </span>
-            <span style={{ color: "#8b5cf6", fontSize: "0.8em" }}>
-              {completedDailyQuests}/{totalDailyQuests} done
+            <span style={{ color: "#8b5cf6", fontSize: "0.85em" }}>
+              {completedDailyQuests}/{totalDailyQuests}
             </span>
           </div>
-          <div style={{ display: "flex", gap: "4px" }}>
+          <div style={{
+            display: "flex",
+            gap: "5px",
+          }}>
             {dailyQuests.map((quest, i) => (
               <div
                 key={i}
@@ -514,6 +265,7 @@ export function HomeScreen({
                   height: "6px",
                   borderRadius: "3px",
                   background: quest.isCompleted ? "#8b5cf6" : "rgba(0,0,0,0.4)",
+                  transition: "background 0.3s ease",
                 }}
               />
             ))}
@@ -521,17 +273,388 @@ export function HomeScreen({
         </div>
       )}
 
-      {/* Tip at bottom */}
+      {/* Quick Actions - Academy Features */}
       <div style={{
-        background: "rgba(139, 92, 246, 0.1)",
-        borderRadius: "10px",
-        padding: "12px",
-        textAlign: "center",
-        border: "1px solid rgba(139, 92, 246, 0.2)",
+        display: "grid",
+        gridTemplateColumns: "1fr 1fr",
+        gap: "10px",
+        marginBottom: "15px",
       }}>
-        <span style={{ color: "#a5b4fc", fontSize: "0.85em" }}>
-          💡 Scan your homework to turn it into a fun adventure!
-        </span>
+        {/* Quest Map */}
+        <div
+          onClick={onQuestMap}
+          style={{
+            background: "linear-gradient(135deg, rgba(99, 102, 241, 0.3) 0%, rgba(30, 27, 75, 0.4) 100%)",
+            borderRadius: "12px",
+            padding: "15px",
+            cursor: "pointer",
+            border: "2px solid #6366f1",
+            display: "flex",
+            alignItems: "center",
+            gap: "12px",
+          }}
+        >
+          <span style={{ fontSize: "2em" }}>🗺️</span>
+          <div>
+            <div style={{ fontWeight: "bold", fontSize: "0.95em" }}>QUEST MAP</div>
+            <div style={{ color: "#a5b4fc", fontSize: "0.8em" }}>
+              Ch. {wizardProfile?.currentChapter || 1}
+            </div>
+          </div>
+        </div>
+
+        {/* Spell Book */}
+        <div
+          onClick={onSpellBook}
+          style={{
+            background: "linear-gradient(135deg, rgba(168, 85, 247, 0.3) 0%, rgba(30, 27, 75, 0.4) 100%)",
+            borderRadius: "12px",
+            padding: "15px",
+            cursor: "pointer",
+            border: "2px solid #a855f7",
+            display: "flex",
+            alignItems: "center",
+            gap: "12px",
+          }}
+        >
+          <span style={{ fontSize: "2em" }}>📖</span>
+          <div>
+            <div style={{ fontWeight: "bold", fontSize: "0.95em" }}>SPELL BOOK</div>
+            <div style={{ color: "#c4b5fd", fontSize: "0.8em" }}>
+              {spellBookStats?.totalSpells || 0} Words
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Dashboard & Leaderboard Row */}
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: "1fr 1fr",
+        gap: "10px",
+        marginBottom: "15px",
+      }}>
+        {/* Dashboard */}
+        <div
+          onClick={onDashboard}
+          style={{
+            background: "linear-gradient(135deg, rgba(59, 130, 246, 0.3) 0%, rgba(30, 27, 75, 0.4) 100%)",
+            borderRadius: "12px",
+            padding: "15px",
+            cursor: "pointer",
+            border: "2px solid #3b82f6",
+            display: "flex",
+            alignItems: "center",
+            gap: "12px",
+          }}
+        >
+          <span style={{ fontSize: "2em" }}>📊</span>
+          <div>
+            <div style={{ fontWeight: "bold", fontSize: "0.95em" }}>DASHBOARD</div>
+            <div style={{ color: "#93c5fd", fontSize: "0.8em" }}>
+              Your Stats
+            </div>
+          </div>
+        </div>
+
+        {/* Leaderboard */}
+        <div
+          onClick={onLeaderboard}
+          style={{
+            background: "linear-gradient(135deg, rgba(234, 179, 8, 0.3) 0%, rgba(30, 27, 75, 0.4) 100%)",
+            borderRadius: "12px",
+            padding: "15px",
+            cursor: "pointer",
+            border: "2px solid #eab308",
+            display: "flex",
+            alignItems: "center",
+            gap: "12px",
+          }}
+        >
+          <span style={{ fontSize: "2em" }}>🏆</span>
+          <div>
+            <div style={{ fontWeight: "bold", fontSize: "0.95em" }}>LEADERBOARD</div>
+            <div style={{ color: "#fde047", fontSize: "0.8em" }}>
+              Top Wizards
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Daily Banner */}
+      <div className="daily-banner" onClick={showDailyReward}>
+        <div>
+          <h3>DAILY REWARD!</h3>
+          <p>Claim free rewards!</p>
+        </div>
+        <div className="daily-icon">🎁</div>
+      </div>
+
+      {/* Stats Grid */}
+      <div className="stats-grid">
+        <div className="stat-card">
+          <div className="icon" style={{ fontSize: "1.2em" }}>🔥</div>
+          <div className="value">{player.streak}</div>
+          <div className="label">Streak</div>
+        </div>
+        <div className="stat-card">
+          <div className="icon" style={{ fontSize: "1.2em" }}>⭐</div>
+          <div className="value">{player.totalStars}</div>
+          <div className="label">Stars</div>
+        </div>
+        <div className="stat-card">
+          <div className="icon" style={{ fontSize: "1.2em" }}>✨</div>
+          <div className="value">{wizardProfile?.totalSpellsLearned || 0}</div>
+          <div className="label">Spells</div>
+        </div>
+        <div className="stat-card">
+          <div className="icon" style={{ fontSize: "1.2em" }}>🏆</div>
+          <div className="value">{player.questsCompleted}</div>
+          <div className="label">Quests</div>
+        </div>
+      </div>
+
+      {/* MAIN FEATURE: Scan Homework Button */}
+      <div className="scan-homework-btn" onClick={onScanHomework}>
+        <span className="camera-icon">📸</span>
+        <h3>SCAN HOMEWORK</h3>
+        <p>AI creates a game from your homework!</p>
+      </div>
+
+      {/* Practice Arena Button - Based on weak topics */}
+      {totalWeeklyQuests > 0 && (
+        <div
+          onClick={onWeeklyQuests}
+          style={{
+            background: "linear-gradient(135deg, rgba(245, 158, 11, 0.3) 0%, rgba(217, 119, 6, 0.3) 100%)",
+            borderRadius: "15px",
+            padding: "15px 20px",
+            margin: "15px 0",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            cursor: "pointer",
+            border: "2px solid #f59e0b",
+            transition: "transform 0.2s ease",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: "15px" }}>
+            <span style={{ fontSize: "2em" }}>⚔️</span>
+            <div>
+              <h3 style={{ margin: 0, fontSize: "1.1em" }}>PRACTICE ARENA</h3>
+              <p style={{ margin: 0, color: "#fbbf24", fontSize: "0.9em" }}>
+                {completedWeeklyQuests}/{totalWeeklyQuests} exercises based on YOUR mistakes
+              </p>
+            </div>
+          </div>
+          <div style={{
+            background: "#f59e0b",
+            color: "#000",
+            borderRadius: "50%",
+            width: "30px",
+            height: "30px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontWeight: "bold",
+          }}>
+            {totalWeeklyQuests - completedWeeklyQuests}
+          </div>
+        </div>
+      )}
+
+      {/* Practice Mode Button */}
+      <div
+        onClick={onPracticeMode}
+        style={{
+          background: weakTopicsCount > 0
+            ? "linear-gradient(135deg, rgba(34, 197, 94, 0.2) 0%, rgba(22, 163, 74, 0.2) 100%)"
+            : "linear-gradient(135deg, rgba(34, 197, 94, 0.2) 0%, rgba(22, 163, 74, 0.2) 100%)",
+          borderRadius: "15px",
+          padding: "15px 20px",
+          margin: "15px 0",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          cursor: "pointer",
+          border: "2px solid #22c55e",
+          transition: "transform 0.2s ease",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: "15px" }}>
+          <span style={{ fontSize: "2em" }}>🎯</span>
+          <div>
+            <h3 style={{ margin: 0, fontSize: "1.1em" }}>PRACTICE MODE</h3>
+            <p style={{ margin: 0, color: "#AAA", fontSize: "0.9em" }}>
+              {weakTopicsCount > 0
+                ? `${weakTopicsCount} topic${weakTopicsCount > 1 ? "s" : ""} need practice`
+                : "All topics mastered!"}
+            </p>
+          </div>
+        </div>
+        {weakTopicsCount > 0 && (
+          <div style={{
+            background: "#22c55e",
+            color: "#000",
+            borderRadius: "50%",
+            width: "30px",
+            height: "30px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontWeight: "bold",
+          }}>
+            {weakTopicsCount}
+          </div>
+        )}
+      </div>
+
+      {/* Parent Settings Quick Link */}
+      <div
+        onClick={onParentSettings}
+        style={{
+          background: "rgba(0,0,0,0.3)",
+          borderRadius: "10px",
+          padding: "12px 15px",
+          display: "flex",
+          alignItems: "center",
+          gap: "12px",
+          cursor: "pointer",
+          marginBottom: "15px",
+        }}
+      >
+        <span style={{ fontSize: "1.5em" }}>👨‍👩‍👧</span>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: "0.9em" }}>Parent Notifications</div>
+          <div style={{ color: "#888", fontSize: "0.8em" }}>Link Telegram for progress reports</div>
+        </div>
+        <span style={{ color: "#888" }}>→</span>
+      </div>
+
+      {/* Section Title */}
+      <h2 className="section-title">📜 WEEKLY QUESTS - Week 12</h2>
+
+      {/* Active Homework Sessions */}
+      {homeworkSessions && homeworkSessions.length > 0 && (
+        <div style={{ marginBottom: "15px" }}>
+          <div style={{
+            color: "#c4b5fd",
+            fontSize: "0.85em",
+            marginBottom: "10px",
+            display: "flex",
+            alignItems: "center",
+            gap: "6px",
+          }}>
+            <span>📚</span>
+            <span>YOUR HOMEWORK</span>
+            <span style={{
+              background: "#8b5cf6",
+              color: "white",
+              borderRadius: "10px",
+              padding: "2px 8px",
+              fontSize: "0.85em",
+            }}>
+              {homeworkSessions.length}
+            </span>
+          </div>
+          <div style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: "10px",
+          }}>
+            {homeworkSessions.map((hw) => (
+              <div
+                key={hw._id}
+                onClick={() => onPlayHomework?.(hw as HomeworkSession)}
+                style={{
+                  background: "linear-gradient(135deg, rgba(168, 85, 247, 0.3) 0%, rgba(30, 27, 75, 0.4) 100%)",
+                  borderRadius: "12px",
+                  padding: "15px",
+                  cursor: "pointer",
+                  border: "2px solid #a855f7",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "15px",
+                  transition: "transform 0.2s ease, box-shadow 0.2s ease",
+                }}
+              >
+                <div style={{
+                  width: "50px",
+                  height: "50px",
+                  borderRadius: "12px",
+                  background: "rgba(168, 85, 247, 0.3)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: "1.8em",
+                }}>
+                  {hw.gameIcon}
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: "bold", fontSize: "1em", marginBottom: "4px" }}>
+                    {hw.gameName}
+                  </div>
+                  <div style={{ color: "#c4b5fd", fontSize: "0.85em", marginBottom: "4px" }}>
+                    {hw.subject} • {hw.grade}
+                  </div>
+                  <div style={{ color: "#8b5cf6", fontSize: "0.8em" }}>
+                    {hw.questions.length} questions
+                  </div>
+                </div>
+                <div style={{
+                  background: "linear-gradient(135deg, #8b5cf6 0%, #a855f7 100%)",
+                  borderRadius: "8px",
+                  padding: "8px 16px",
+                  fontSize: "0.85em",
+                  fontWeight: "bold",
+                }}>
+                  PLAY
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Level Grid */}
+      <div className="level-grid">
+        {LEVELS.map((level, index) => {
+          const progress = completedLevels[level.id] || { stars: 0, done: false };
+          const prevLevel = index > 0 ? LEVELS[index - 1] : null;
+          const locked = prevLevel ? !completedLevels[prevLevel.id]?.done : false;
+
+          return (
+            <div
+              key={level.id}
+              className={`level-card ${locked ? "locked" : ""} ${progress.done ? "completed" : ""}`}
+              onClick={() => !locked && onStartLevel(level.id)}
+            >
+              {locked && <div className="lock-overlay">🔒</div>}
+              <div className="level-header">
+                <div className="level-icon">{level.icon}</div>
+                <div className="level-rewards">
+                  <span className="reward-tag">💎 {level.rewards.diamonds}</span>
+                  <span className="reward-tag">⭐ {level.rewards.xp}</span>
+                </div>
+              </div>
+              <h3>{level.name}</h3>
+              <p>{level.desc}</p>
+              {progress.done && (
+                <div className="level-progress">
+                  <div className="level-progress-bar">
+                    <div
+                      className="level-progress-fill"
+                      style={{ width: `${(progress.stars / 3) * 100}%` }}
+                    />
+                  </div>
+                  <span className="level-progress-text">
+                    {"⭐".repeat(progress.stars)}
+                  </span>
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );

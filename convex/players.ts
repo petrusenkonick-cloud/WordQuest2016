@@ -45,6 +45,8 @@ export const createPlayer = mutation({
     clerkId: v.string(),
     name: v.string(),
     skin: v.string(),
+    ageGroup: v.optional(v.string()), // "6-8", "9-11", "12+"
+    gradeLevel: v.optional(v.number()), // 1-11
   },
   handler: async (ctx, args) => {
     const trimmedName = args.name.trim();
@@ -54,6 +56,19 @@ export const createPlayer = mutation({
       throw new Error("Name must be 2-20 characters");
     }
 
+    // Validate grade level if provided
+    if (args.gradeLevel !== undefined) {
+      if (args.gradeLevel < 1 || args.gradeLevel > 11) {
+        throw new Error("Grade level must be between 1 and 11");
+      }
+    }
+
+    // Validate age group if provided
+    const validAgeGroups = ["6-8", "9-11", "12+"];
+    if (args.ageGroup && !validAgeGroups.includes(args.ageGroup)) {
+      throw new Error("Invalid age group");
+    }
+
     // Check if player already exists with this clerkId
     const existingByClerk = await ctx.db
       .query("players")
@@ -61,6 +76,13 @@ export const createPlayer = mutation({
       .first();
 
     if (existingByClerk) {
+      // Update age info if provided and player exists
+      if (args.ageGroup || args.gradeLevel) {
+        await ctx.db.patch(existingByClerk._id, {
+          ...(args.ageGroup && { ageGroup: args.ageGroup }),
+          ...(args.gradeLevel !== undefined && { gradeLevel: args.gradeLevel }),
+        });
+      }
       return existingByClerk._id;
     }
 
@@ -74,7 +96,15 @@ export const createPlayer = mutation({
       throw new Error("This name is already taken");
     }
 
-    // Create new player with default values
+    // Generate anonymous display name for leaderboards
+    const adjectives = ["Happy", "Brave", "Clever", "Swift", "Mighty", "Wise", "Lucky", "Cosmic"];
+    const animals = ["Fox", "Wolf", "Eagle", "Tiger", "Dragon", "Phoenix", "Bear", "Owl"];
+    const randomAdj = adjectives[Math.floor(Math.random() * adjectives.length)];
+    const randomAnimal = animals[Math.floor(Math.random() * animals.length)];
+    const randomNum = Math.floor(Math.random() * 1000);
+    const displayName = `${randomAdj}${randomAnimal}${randomNum}`;
+
+    // Create new player with default values and age data
     const playerId = await ctx.db.insert("players", {
       clerkId: args.clerkId,
       name: args.name,
@@ -93,6 +123,15 @@ export const createPlayer = mutation({
       perfectLevels: 0,
       dailyDay: 1,
       dailyClaimed: false,
+      // Age-related fields
+      ageGroup: args.ageGroup,
+      gradeLevel: args.gradeLevel,
+      // Competition fields
+      displayName,
+      competitionOptIn: true,
+      profileCompleted: !!(args.ageGroup && args.gradeLevel),
+      normalizedScore: 0,
+      totalRawScore: 0,
     });
 
     // Add default skin to inventory
@@ -101,6 +140,14 @@ export const createPlayer = mutation({
       itemId: "steve",
       itemType: "skin",
       equipped: true,
+    });
+
+    // Create initial learning profile
+    await ctx.db.insert("learningProfile", {
+      playerId,
+      hintsEnabled: true,
+      voiceEnabled: true,
+      updatedAt: new Date().toISOString(),
     });
 
     return playerId;

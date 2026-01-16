@@ -584,4 +584,119 @@ export default defineSchema({
   })
     .index("by_player", ["playerId"])
     .index("by_player_week", ["playerId", "weekStart"]),
+
+  // ========== SPACED REPETITION SYSTEM ==========
+
+  // Spaced repetition tracking for intelligent review scheduling
+  spacedRepetition: defineTable({
+    playerId: v.id("players"),
+    topic: v.string(), // e.g., "verbs", "past_tense", "multiplication"
+    subject: v.string(), // "English", "Math"
+    level: v.number(), // 1-5 (mastery level)
+    easeFactor: v.number(), // 2.5 default, adjusted based on performance
+    interval: v.number(), // Days until next review
+    nextReviewDate: v.string(), // ISO date string
+    lastReviewDate: v.string(), // Last practice date
+    repetitions: v.number(), // Number of successful reviews
+    totalReviews: v.number(), // Total review attempts
+    correctReviews: v.number(), // Successful reviews
+    lastQuality: v.optional(v.number()), // Last answer quality 0-5
+  })
+    .index("by_player", ["playerId"])
+    .index("by_player_topic", ["playerId", "topic"])
+    .index("by_player_due", ["playerId", "nextReviewDate"])
+    .index("by_player_subject", ["playerId", "subject"]),
+
+  // ========== AI INSIGHTS & ANALYTICS ==========
+
+  // AI-generated insights for players and parents
+  playerInsights: defineTable({
+    playerId: v.id("players"),
+    insightType: v.string(), // "strength", "weakness", "recommendation", "pattern", "milestone"
+    category: v.string(), // "learning_style", "time_pattern", "topic_mastery", "progress"
+    title: v.string(), // Short insight title
+    description: v.string(), // Detailed explanation
+    actionItems: v.optional(v.array(v.string())), // Suggested actions
+    relatedTopics: v.optional(v.array(v.string())), // Related topics
+    confidence: v.number(), // 0-100 confidence score
+    priority: v.number(), // 1-5 priority level
+    isRead: v.boolean(),
+    generatedAt: v.string(),
+    expiresAt: v.optional(v.string()), // Some insights are time-limited
+  })
+    .index("by_player", ["playerId"])
+    .index("by_player_type", ["playerId", "insightType"])
+    .index("by_player_unread", ["playerId", "isRead"]),
+
+  // Weekly insights summary (for parent reports)
+  weeklyInsightsSummary: defineTable({
+    playerId: v.id("players"),
+    weekStart: v.string(), // YYYY-MM-DD
+    overallProgress: v.string(), // "excellent", "good", "needs_attention"
+    summaryText: v.string(), // AI-generated summary paragraph
+    strongTopics: v.array(v.string()),
+    weakTopics: v.array(v.string()),
+    suggestedFocus: v.array(v.string()),
+    timeSpentMinutes: v.number(),
+    questionsAnswered: v.number(),
+    averageAccuracy: v.number(),
+    streakDays: v.number(),
+    bestTimeOfDay: v.optional(v.string()), // "morning", "afternoon", "evening"
+    engagementScore: v.number(), // 0-100
+    generatedAt: v.string(),
+  })
+    .index("by_player", ["playerId"])
+    .index("by_player_week", ["playerId", "weekStart"]),
+
+  // Learning session analytics (detailed per-session tracking)
+  learningSessionAnalytics: defineTable({
+    playerId: v.id("players"),
+    sessionId: v.string(), // Unique session identifier
+    startTime: v.string(),
+    endTime: v.optional(v.string()),
+    durationMinutes: v.number(),
+    questionsAttempted: v.number(),
+    questionsCorrect: v.number(),
+    topicsStudied: v.array(v.string()),
+    difficultyLevels: v.array(v.string()), // Difficulties encountered
+    averageResponseTime: v.optional(v.number()), // Milliseconds
+    hintsUsed: v.number(),
+    explanationsViewed: v.number(),
+    frustrationEvents: v.optional(v.number()), // Multiple wrong answers in row
+    engagementDropoff: v.optional(v.boolean()), // Left mid-session
+  })
+    .index("by_player", ["playerId"])
+    .index("by_player_date", ["playerId", "startTime"]),
+
+  // ========== PERSONALIZED LEARNING PATHS ==========
+
+  // Learning path progress
+  learningPaths: defineTable({
+    playerId: v.id("players"),
+    pathId: v.string(), // "beginner_english", "intermediate_math"
+    pathName: v.string(),
+    pathDescription: v.string(),
+    targetAgeGroup: v.string(), // "6-8", "9-11", "12+"
+    subject: v.string(),
+    totalMilestones: v.number(),
+    completedMilestones: v.number(),
+    currentMilestone: v.number(),
+    milestones: v.array(
+      v.object({
+        id: v.string(),
+        name: v.string(),
+        description: v.string(),
+        topics: v.array(v.string()),
+        isCompleted: v.boolean(),
+        completedAt: v.optional(v.string()),
+        requiredAccuracy: v.number(), // 0-100
+      })
+    ),
+    isActive: v.boolean(),
+    startedAt: v.string(),
+    completedAt: v.optional(v.string()),
+  })
+    .index("by_player", ["playerId"])
+    .index("by_player_active", ["playerId", "isActive"])
+    .index("by_player_path", ["playerId", "pathId"]),
 });

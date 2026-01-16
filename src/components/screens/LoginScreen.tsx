@@ -7,8 +7,26 @@ import { api } from "../../../convex/_generated/api";
 
 const SKINS = ["🧑", "👦", "🧒", "🦸", "🧙", "🥷"];
 
+// Age groups with fun animal mascots
+const AGE_GROUPS = [
+  { id: "5-6", label: "5-6 лет", sublabel: "1 класс", emoji: "🐣", color: "#FFE066" },
+  { id: "7-8", label: "7-8 лет", sublabel: "2-3 класс", emoji: "🐥", color: "#4ECDC4" },
+  { id: "9-10", label: "9-10 лет", sublabel: "4-5 класс", emoji: "🦊", color: "#FF6B6B" },
+  { id: "11-12", label: "11-12 лет", sublabel: "6-7 класс", emoji: "🦁", color: "#45B7D1" },
+  { id: "13+", label: "13+ лет", sublabel: "8+ класс", emoji: "🐺", color: "#96CEB4" },
+];
+
+// Map to grade ranges for backend
+const ageGroupToGradeRange: Record<string, { minGrade: number; maxGrade: number; ageGroup: string }> = {
+  "5-6": { minGrade: 1, maxGrade: 1, ageGroup: "6-8" },
+  "7-8": { minGrade: 2, maxGrade: 3, ageGroup: "6-8" },
+  "9-10": { minGrade: 4, maxGrade: 5, ageGroup: "9-11" },
+  "11-12": { minGrade: 6, maxGrade: 7, ageGroup: "9-11" },
+  "13+": { minGrade: 8, maxGrade: 11, ageGroup: "12+" },
+};
+
 interface LoginScreenProps {
-  onStart: (name: string, skin: string) => void;
+  onStart: (name: string, skin: string, ageData?: { ageGroup: string; gradeLevel: number }) => void;
   defaultName?: string;
 }
 
@@ -16,7 +34,8 @@ export function LoginScreen({ onStart, defaultName = "" }: LoginScreenProps) {
   const [name, setName] = useState(defaultName);
   const [selectedSkin, setSelectedSkin] = useState("🧑");
   const [active, setActive] = useState(true);
-  const [mode, setMode] = useState<"choice" | "guest">("choice");
+  const [mode, setMode] = useState<"choice" | "age-select" | "guest">("choice");
+  const [selectedAge, setSelectedAge] = useState<string | null>(null);
   const [nameError, setNameError] = useState<string | null>(null);
   const [isCheckingName, setIsCheckingName] = useState(false);
   const { isSignedIn } = useAuth();
@@ -52,20 +71,35 @@ export function LoginScreen({ onStart, defaultName = "" }: LoginScreenProps) {
   }, [name, nameCheck]);
 
   const handleStart = useCallback(() => {
-    if (name.trim() && !nameError && !isCheckingName) {
+    if (name.trim() && !nameError && !isCheckingName && selectedAge) {
       setActive(false);
-      setTimeout(() => onStart(name.trim(), selectedSkin), 500);
+      const ageMapping = ageGroupToGradeRange[selectedAge];
+      const ageData = {
+        ageGroup: ageMapping.ageGroup,
+        gradeLevel: Math.floor((ageMapping.minGrade + ageMapping.maxGrade) / 2), // Use middle grade
+      };
+      setTimeout(() => onStart(name.trim(), selectedSkin, ageData), 500);
     }
-  }, [name, nameError, isCheckingName, onStart, selectedSkin]);
+  }, [name, nameError, isCheckingName, onStart, selectedSkin, selectedAge]);
 
-  // If signed in with Clerk, go directly to character creation
+  const handleAgeSelect = (ageId: string) => {
+    setSelectedAge(ageId);
+  };
+
+  const handleContinueToCharacter = () => {
+    if (selectedAge) {
+      setMode("guest");
+    }
+  };
+
+  // If signed in with Clerk, go directly to age selection (not character creation)
   useEffect(() => {
     if (isSignedIn && mode === "choice") {
-      setMode("guest");
+      setMode("age-select");
     }
   }, [isSignedIn, mode]);
 
-  const canPlay = name.trim().length >= 2 && !nameError && !isCheckingName;
+  const canPlay = name.trim().length >= 2 && !nameError && !isCheckingName && selectedAge;
 
   return (
     <div className={`login-screen ${active ? "active" : ""}`}>
@@ -103,7 +137,7 @@ export function LoginScreen({ onStart, defaultName = "" }: LoginScreenProps) {
 
             <button
               className="btn"
-              onClick={() => setMode("guest")}
+              onClick={() => setMode("age-select")}
               style={{
                 width: "100%",
                 justifyContent: "center",
@@ -117,15 +151,131 @@ export function LoginScreen({ onStart, defaultName = "" }: LoginScreenProps) {
           </>
         )}
 
+        {mode === "age-select" && (
+          <>
+            <p style={{ color: "#4ECDC4", margin: "15px 0 10px", fontSize: "1.1em", fontWeight: "bold" }}>
+              Сколько тебе лет?
+            </p>
+            <p style={{ color: "#AAA", margin: "0 0 15px", fontSize: "0.9em" }}>
+              Мы подберём задания специально для тебя!
+            </p>
+
+            <div style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(2, 1fr)",
+              gap: "10px",
+              marginBottom: "15px",
+            }}>
+              {AGE_GROUPS.map((age) => (
+                <button
+                  key={age.id}
+                  onClick={() => handleAgeSelect(age.id)}
+                  style={{
+                    padding: "12px 8px",
+                    borderRadius: "12px",
+                    border: selectedAge === age.id ? `3px solid ${age.color}` : "2px solid #444",
+                    background: selectedAge === age.id ? `${age.color}22` : "rgba(0,0,0,0.3)",
+                    cursor: "pointer",
+                    transition: "all 0.2s ease",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    gap: "4px",
+                  }}
+                >
+                  <span style={{ fontSize: "2em" }}>{age.emoji}</span>
+                  <span style={{
+                    color: selectedAge === age.id ? age.color : "#FFF",
+                    fontWeight: "bold",
+                    fontSize: "0.9em"
+                  }}>
+                    {age.label}
+                  </span>
+                  <span style={{ color: "#888", fontSize: "0.75em" }}>
+                    {age.sublabel}
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            <button
+              className="btn btn-primary"
+              onClick={handleContinueToCharacter}
+              disabled={!selectedAge}
+              style={{
+                width: "100%",
+                justifyContent: "center",
+                marginTop: "10px",
+                opacity: selectedAge ? 1 : 0.5,
+                cursor: selectedAge ? "pointer" : "not-allowed",
+              }}
+            >
+              Далее →
+            </button>
+
+            {!isSignedIn && (
+              <button
+                className="btn"
+                onClick={() => { setMode("choice"); setSelectedAge(null); }}
+                style={{
+                  width: "100%",
+                  justifyContent: "center",
+                  marginTop: "10px",
+                  background: "transparent",
+                  border: "none",
+                  color: "#888",
+                  fontSize: "0.9em",
+                }}
+              >
+                ← Назад
+              </button>
+            )}
+          </>
+        )}
+
         {mode === "guest" && (
           <>
+            {/* Show selected age */}
+            {selectedAge && (
+              <div style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "8px",
+                padding: "8px 12px",
+                background: "rgba(78, 205, 196, 0.15)",
+                borderRadius: "8px",
+                marginBottom: "15px",
+              }}>
+                <span style={{ fontSize: "1.5em" }}>
+                  {AGE_GROUPS.find(a => a.id === selectedAge)?.emoji}
+                </span>
+                <span style={{ color: "#4ECDC4", fontSize: "0.9em" }}>
+                  {AGE_GROUPS.find(a => a.id === selectedAge)?.label}
+                </span>
+                <button
+                  onClick={() => setMode("age-select")}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    color: "#888",
+                    cursor: "pointer",
+                    padding: "2px 6px",
+                    fontSize: "0.8em",
+                  }}
+                >
+                  изменить
+                </button>
+              </div>
+            )}
+
             <div style={{ position: "relative", width: "100%" }}>
               <input
                 type="text"
                 className="player-input"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="Your name..."
+                placeholder="Твоё имя..."
                 onKeyDown={(e) => e.key === "Enter" && canPlay && handleStart()}
                 maxLength={20}
                 style={{
@@ -170,7 +320,7 @@ export function LoginScreen({ onStart, defaultName = "" }: LoginScreenProps) {
             )}
 
             <p style={{ color: "#AAA", margin: "15px 0 10px", fontSize: "1.1em" }}>
-              Choose character:
+              Выбери персонажа:
             </p>
 
             <div className="skin-select">
@@ -198,26 +348,24 @@ export function LoginScreen({ onStart, defaultName = "" }: LoginScreenProps) {
                 cursor: canPlay ? "pointer" : "not-allowed",
               }}
             >
-              ▶️ PLAY
+              ▶️ ИГРАТЬ
             </button>
 
-            {!isSignedIn && (
-              <button
-                className="btn"
-                onClick={() => setMode("choice")}
-                style={{
-                  width: "100%",
-                  justifyContent: "center",
-                  marginTop: "10px",
-                  background: "transparent",
-                  border: "none",
-                  color: "#888",
-                  fontSize: "0.9em",
-                }}
-              >
-                ← Back to sign in options
-              </button>
-            )}
+            <button
+              className="btn"
+              onClick={() => setMode("age-select")}
+              style={{
+                width: "100%",
+                justifyContent: "center",
+                marginTop: "10px",
+                background: "transparent",
+                border: "none",
+                color: "#888",
+                fontSize: "0.9em",
+              }}
+            >
+              ← Назад
+            </button>
           </>
         )}
       </div>
