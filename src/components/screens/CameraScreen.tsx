@@ -7,24 +7,92 @@ interface CameraScreenProps {
   onCancel: () => void;
 }
 
+// Step indicator component
+function StepIndicator({ currentStep, totalSteps }: { currentStep: number; totalSteps: number }) {
+  return (
+    <div style={{
+      display: "flex",
+      justifyContent: "center",
+      gap: "8px",
+      marginBottom: "15px",
+    }}>
+      {Array.from({ length: totalSteps }).map((_, i) => (
+        <div
+          key={i}
+          style={{
+            width: i === currentStep ? "30px" : "10px",
+            height: "10px",
+            borderRadius: "5px",
+            background: i <= currentStep
+              ? "linear-gradient(90deg, #8b5cf6, #6366f1)"
+              : "rgba(255,255,255,0.2)",
+            transition: "all 0.3s ease",
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+// Animated tip component
+function AnimatedTip({ emoji, text }: { emoji: string; text: string }) {
+  return (
+    <div style={{
+      display: "flex",
+      alignItems: "center",
+      gap: "12px",
+      background: "rgba(139, 92, 246, 0.2)",
+      borderRadius: "12px",
+      padding: "12px 16px",
+      border: "1px solid rgba(139, 92, 246, 0.3)",
+      animation: "pulse 2s infinite",
+    }}>
+      <span style={{ fontSize: "1.5em" }}>{emoji}</span>
+      <span style={{ color: "#c4b5fd", fontSize: "0.95em" }}>{text}</span>
+    </div>
+  );
+}
+
 export function CameraScreen({ onCapture, onCancel }: CameraScreenProps) {
-  const [mode, setMode] = useState<"camera" | "preview">("camera");
+  const [step, setStep] = useState<"intro" | "camera" | "preview" | "processing">("intro");
   const [capturedImages, setCapturedImages] = useState<string[]>([]);
   const [isCapturing, setIsCapturing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [cameraError, setCameraError] = useState<string | null>(null);
+  const [processingText, setProcessingText] = useState("Analyzing your homework...");
 
-  // Auto-start camera on mount
+  // Processing animation texts
   useEffect(() => {
-    startCamera();
+    if (step === "processing") {
+      const texts = [
+        "Reading your homework...",
+        "Finding the topics...",
+        "Creating fun questions...",
+        "Adding magic to the game...",
+        "Almost ready!",
+      ];
+      let i = 0;
+      const interval = setInterval(() => {
+        i = (i + 1) % texts.length;
+        setProcessingText(texts[i]);
+      }, 2000);
+      return () => clearInterval(interval);
+    }
+  }, [step]);
+
+  // Start camera when entering camera step
+  useEffect(() => {
+    if (step === "camera") {
+      startCamera();
+    }
     return () => {
       if (stream) {
         stream.getTracks().forEach((track) => track.stop());
       }
     };
-  }, []);
+  }, [step]);
 
   // Start camera
   const startCamera = useCallback(async () => {
@@ -40,7 +108,7 @@ export function CameraScreen({ onCapture, onCancel }: CameraScreenProps) {
       setCameraError(null);
     } catch (err) {
       console.error("Camera error:", err);
-      setCameraError("Cannot access camera. Please use gallery instead.");
+      setCameraError("Camera not available - use the gallery button!");
     }
   }, []);
 
@@ -85,7 +153,7 @@ export function CameraScreen({ onCapture, onCancel }: CameraScreenProps) {
             processed++;
             if (processed === files.length) {
               setCapturedImages((prev) => [...prev, ...newImages]);
-              setMode("preview");
+              setStep("preview");
             }
           };
           reader.readAsDataURL(file);
@@ -95,18 +163,22 @@ export function CameraScreen({ onCapture, onCancel }: CameraScreenProps) {
     [stopCamera]
   );
 
-  // Go to preview mode
+  // Go to preview step
   const goToPreview = useCallback(() => {
     if (capturedImages.length > 0) {
       stopCamera();
-      setMode("preview");
+      setStep("preview");
     }
   }, [capturedImages.length, stopCamera]);
 
   // Confirm and send images
   const confirmImages = useCallback(() => {
     if (capturedImages.length > 0) {
-      onCapture(capturedImages);
+      setStep("processing");
+      // Small delay to show processing animation
+      setTimeout(() => {
+        onCapture(capturedImages);
+      }, 3000);
     }
   }, [capturedImages, onCapture]);
 
@@ -117,7 +189,7 @@ export function CameraScreen({ onCapture, onCancel }: CameraScreenProps) {
 
   // Add more photos
   const addMore = useCallback(() => {
-    setMode("camera");
+    setStep("camera");
     startCamera();
   }, [startCamera]);
 
@@ -127,6 +199,22 @@ export function CameraScreen({ onCapture, onCancel }: CameraScreenProps) {
     onCancel();
   }, [stopCamera, onCancel]);
 
+  // Start scanning
+  const startScanning = useCallback(() => {
+    setStep("camera");
+  }, []);
+
+  // Get current step number for indicator
+  const getStepNumber = () => {
+    switch (step) {
+      case "intro": return 0;
+      case "camera": return 1;
+      case "preview": return 2;
+      case "processing": return 3;
+      default: return 0;
+    }
+  };
+
   return (
     <div className="camera-screen active">
       {/* Header */}
@@ -134,9 +222,14 @@ export function CameraScreen({ onCapture, onCancel }: CameraScreenProps) {
         <button className="camera-close-btn" onClick={handleCancel}>
           ✕
         </button>
-        <h2>📸 SCAN HOMEWORK</h2>
+        <h2>
+          {step === "intro" && "📸 HOMEWORK SCANNER"}
+          {step === "camera" && "📸 TAKE PHOTOS"}
+          {step === "preview" && "👀 CHECK PHOTOS"}
+          {step === "processing" && "🔮 CREATING GAME"}
+        </h2>
         <div style={{ width: "40px" }}>
-          {capturedImages.length > 0 && mode === "camera" && (
+          {capturedImages.length > 0 && step === "camera" && (
             <button
               className="camera-close-btn"
               onClick={goToPreview}
@@ -148,13 +241,107 @@ export function CameraScreen({ onCapture, onCancel }: CameraScreenProps) {
         </div>
       </div>
 
-      {/* Camera View */}
-      {mode === "camera" && (
+      {/* Step Indicator */}
+      <StepIndicator currentStep={getStepNumber()} totalSteps={4} />
+
+      {/* STEP 1: Intro */}
+      {step === "intro" && (
+        <div style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          flex: 1,
+          padding: "20px",
+          gap: "20px",
+          textAlign: "center",
+        }}>
+          <div style={{
+            fontSize: "4em",
+            animation: "bounce 1s infinite",
+          }}>
+            📸
+          </div>
+
+          <h2 style={{
+            fontSize: "1.5em",
+            color: "white",
+            margin: 0,
+          }}>
+            Turn Homework into a Game!
+          </h2>
+
+          <p style={{
+            color: "#a5b4fc",
+            fontSize: "1em",
+            maxWidth: "280px",
+            lineHeight: 1.5,
+          }}>
+            Take a photo of your homework and I will create a fun game just for you!
+          </p>
+
+          <div style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: "12px",
+            width: "100%",
+            maxWidth: "300px",
+            marginTop: "10px",
+          }}>
+            <AnimatedTip emoji="1️⃣" text="Take a photo of your homework" />
+            <AnimatedTip emoji="2️⃣" text="AI reads and understands it" />
+            <AnimatedTip emoji="3️⃣" text="Play and learn!" />
+          </div>
+
+          <button
+            onClick={startScanning}
+            style={{
+              marginTop: "20px",
+              padding: "16px 40px",
+              fontSize: "1.2em",
+              fontWeight: "bold",
+              background: "linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%)",
+              border: "none",
+              borderRadius: "16px",
+              color: "white",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: "10px",
+              boxShadow: "0 4px 20px rgba(139, 92, 246, 0.4)",
+            }}
+          >
+            <span>Let&apos;s Start!</span>
+            <span style={{ fontSize: "1.2em" }}>🚀</span>
+          </button>
+
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            style={{
+              padding: "12px 24px",
+              fontSize: "0.95em",
+              background: "rgba(255,255,255,0.1)",
+              border: "1px solid rgba(255,255,255,0.2)",
+              borderRadius: "12px",
+              color: "#a5b4fc",
+              cursor: "pointer",
+            }}
+          >
+            🖼️ Or pick from gallery
+          </button>
+        </div>
+      )}
+
+      {/* STEP 2: Camera View */}
+      {step === "camera" && (
         <div className="camera-view">
           {cameraError ? (
             <div className="camera-error">
-              <div className="camera-error-icon">📷</div>
-              <p>{cameraError}</p>
+              <div style={{ fontSize: "3em", marginBottom: "15px" }}>📱</div>
+              <p style={{ color: "#fca5a5", marginBottom: "5px" }}>{cameraError}</p>
+              <p style={{ color: "#a5b4fc", fontSize: "0.9em", marginBottom: "20px" }}>
+                No worries! Just pick photos from your gallery
+              </p>
               <button
                 className="btn btn-diamond"
                 onClick={() => fileInputRef.current?.click()}
@@ -178,7 +365,11 @@ export function CameraScreen({ onCapture, onCancel }: CameraScreenProps) {
                 <div className="viewfinder-corner tr" />
                 <div className="viewfinder-corner bl" />
                 <div className="viewfinder-corner br" />
-                <div className="viewfinder-hint">Point at your homework</div>
+                <div className="viewfinder-hint">
+                  {capturedImages.length === 0
+                    ? "Point at your homework page"
+                    : "Add more pages if needed"}
+                </div>
               </div>
 
               {/* Flash effect */}
@@ -186,16 +377,30 @@ export function CameraScreen({ onCapture, onCancel }: CameraScreenProps) {
 
               {/* Image counter badge */}
               {capturedImages.length > 0 && (
-                <div className="capture-badge">{capturedImages.length} pages</div>
+                <div className="capture-badge">
+                  {capturedImages.length} page{capturedImages.length > 1 ? "s" : ""} captured!
+                </div>
               )}
             </>
           )}
         </div>
       )}
 
-      {/* Preview Mode */}
-      {mode === "preview" && (
+      {/* STEP 3: Preview Mode */}
+      {step === "preview" && (
         <div className="camera-preview-multi">
+          <div style={{
+            textAlign: "center",
+            marginBottom: "15px",
+          }}>
+            <p style={{ color: "#22c55e", fontSize: "1.1em", margin: 0 }}>
+              Great job! Check your photos
+            </p>
+            <p style={{ color: "#a5b4fc", fontSize: "0.85em", marginTop: "5px" }}>
+              Tap ✕ on any photo to remove it
+            </p>
+          </div>
+
           <div className="preview-grid">
             {capturedImages.map((img, index) => (
               <div key={index} className="preview-item">
@@ -210,54 +415,128 @@ export function CameraScreen({ onCapture, onCancel }: CameraScreenProps) {
               </div>
             ))}
           </div>
-          <p className="preview-hint">
-            {capturedImages.length} page{capturedImages.length > 1 ? "s" : ""} captured
-            {capturedImages.length > 1 && " • AI will process them in order"}
+
+          <p className="preview-hint" style={{ marginTop: "15px" }}>
+            {capturedImages.length} page{capturedImages.length > 1 ? "s" : ""} ready
+            {capturedImages.length > 1 && " - AI will read them in order"}
+          </p>
+        </div>
+      )}
+
+      {/* STEP 4: Processing */}
+      {step === "processing" && (
+        <div style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          flex: 1,
+          padding: "20px",
+          gap: "25px",
+          textAlign: "center",
+        }}>
+          <div style={{
+            fontSize: "4em",
+            animation: "spin 2s linear infinite",
+          }}>
+            🔮
+          </div>
+
+          <h2 style={{
+            fontSize: "1.4em",
+            color: "white",
+            margin: 0,
+          }}>
+            Magic in Progress!
+          </h2>
+
+          <p style={{
+            color: "#c4b5fd",
+            fontSize: "1.1em",
+            animation: "pulse 2s infinite",
+          }}>
+            {processingText}
+          </p>
+
+          <div style={{
+            width: "200px",
+            height: "6px",
+            background: "rgba(255,255,255,0.1)",
+            borderRadius: "3px",
+            overflow: "hidden",
+          }}>
+            <div style={{
+              height: "100%",
+              background: "linear-gradient(90deg, #8b5cf6, #6366f1)",
+              borderRadius: "3px",
+              animation: "loading 2s ease-in-out infinite",
+            }} />
+          </div>
+
+          <p style={{
+            color: "#a5b4fc",
+            fontSize: "0.9em",
+            maxWidth: "250px",
+          }}>
+            This might take a moment...
+            <br />
+            Your game will be extra fun!
           </p>
         </div>
       )}
 
       {/* Controls */}
-      <div className="camera-controls">
-        {mode === "camera" ? (
-          <>
-            {/* Gallery button */}
-            <button
-              className="camera-btn gallery-btn"
-              onClick={() => fileInputRef.current?.click()}
-            >
-              🖼️
-            </button>
-
-            {/* Capture button */}
-            <button
-              className={`camera-btn capture-btn ${stream ? "active" : ""}`}
-              onClick={capturePhoto}
-              disabled={!stream}
-            >
-              <span className="capture-inner">📸</span>
-            </button>
-
-            {/* Done / Next */}
-            {capturedImages.length > 0 ? (
-              <button className="camera-btn done-btn" onClick={goToPreview}>
-                ✓
+      {(step === "camera" || step === "preview") && (
+        <div className="camera-controls">
+          {step === "camera" ? (
+            <>
+              {/* Gallery button */}
+              <button
+                className="camera-btn gallery-btn"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                🖼️
               </button>
-            ) : (
-              <div style={{ width: "60px" }} />
-            )}
-          </>
-        ) : (
-          <>
-            <button className="btn btn-secondary" onClick={addMore}>
-              📷 Add More
-            </button>
-            <button className="btn btn-emerald" onClick={confirmImages}>
-              ⚡ Create Game!
-            </button>
-          </>
-        )}
-      </div>
+
+              {/* Capture button */}
+              <button
+                className={`camera-btn capture-btn ${stream ? "active" : ""}`}
+                onClick={capturePhoto}
+                disabled={!stream}
+              >
+                <span className="capture-inner">📸</span>
+              </button>
+
+              {/* Done / Next */}
+              {capturedImages.length > 0 ? (
+                <button className="camera-btn done-btn" onClick={goToPreview}>
+                  ✓
+                </button>
+              ) : (
+                <div style={{ width: "60px" }} />
+              )}
+            </>
+          ) : (
+            <>
+              <button className="btn btn-secondary" onClick={addMore}>
+                📷 Add More
+              </button>
+              <button
+                className="btn btn-emerald"
+                onClick={confirmImages}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                }}
+              >
+                <span>Create Game!</span>
+                <span style={{ fontSize: "1.2em" }}>🎮</span>
+              </button>
+            </>
+          )}
+        </div>
+      )}
 
       {/* Hidden file input (multiple) */}
       <input
@@ -270,11 +549,36 @@ export function CameraScreen({ onCapture, onCancel }: CameraScreenProps) {
       />
 
       {/* Bottom hint */}
-      <div className="camera-hint">
-        {mode === "camera"
-          ? "Take photos of all homework pages in order"
-          : "Review pages • AI will understand the sequence"}
-      </div>
+      {(step === "camera" || step === "preview") && (
+        <div className="camera-hint">
+          {step === "camera"
+            ? capturedImages.length === 0
+              ? "Tap the camera button to take a photo"
+              : "Tap ✓ when you have all pages"
+            : "Tap 'Create Game!' when ready"}
+        </div>
+      )}
+
+      {/* CSS animations */}
+      <style jsx>{`
+        @keyframes bounce {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-10px); }
+        }
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.7; }
+        }
+        @keyframes loading {
+          0% { width: 0%; margin-left: 0; }
+          50% { width: 70%; margin-left: 15%; }
+          100% { width: 0%; margin-left: 100%; }
+        }
+      `}</style>
     </div>
   );
 }
