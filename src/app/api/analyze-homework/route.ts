@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
-// Use Gemini 2.5 Flash - latest stable with vision support
-const GEMINI_MODEL = "gemini-2.5-flash-preview-05-20";
+// Use Gemini 2.0 Flash - stable multimodal model
+const GEMINI_MODEL = "gemini-2.0-flash";
 const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
 // Maximum photos allowed (must match frontend)
