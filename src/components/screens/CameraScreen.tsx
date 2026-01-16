@@ -277,11 +277,12 @@ export function CameraScreen({ onCapture, onCancel }: CameraScreenProps) {
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
-          justifyContent: "center",
           flex: 1,
           padding: "20px",
+          paddingBottom: "40px",
           gap: "16px",
           textAlign: "center",
+          overflowY: "auto",
         }}>
           <div style={{
             fontSize: "3.5em",
