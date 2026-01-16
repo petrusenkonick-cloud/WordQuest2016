@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
 
     if (!images || !Array.isArray(images) || images.length === 0) {
       return NextResponse.json(
-        { error: "Нет фотографий. Сделай хотя бы одно фото домашки!" },
+        { error: "No photos provided. Take at least one photo of your homework!" },
         { status: 400 }
       );
     }
@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
     // Validate photo limit
     if (images.length > MAX_PHOTOS) {
       return NextResponse.json(
-        { error: `Слишком много фото! Максимум ${MAX_PHOTOS}, а у тебя ${images.length}.` },
+        { error: `Too many photos! Maximum is ${MAX_PHOTOS}, you have ${images.length}.` },
         { status: 400 }
       );
     }
@@ -49,55 +49,83 @@ export async function POST(request: NextRequest) {
       };
     });
 
-    // Calculate how many questions to generate based on number of pages
-    const questionsPerPage = 3; // Generate ~3 questions per page
-    const minQuestions = 5;
-    const maxQuestions = 30; // Cap at 30 for performance
-    const targetQuestions = Math.min(maxQuestions, Math.max(minQuestions, images.length * questionsPerPage));
+    // This prompt extracts EXACT questions from homework to help children solve and write answers on paper
+    const prompt = `You are a homework helper AI. Analyze these ${images.length} images and determine if they contain REAL SCHOOL HOMEWORK.
 
-    const prompt = `You are analyzing homework pages for a children's educational game. Analyze these ${images.length} homework images and create an educational quiz game.
+## STEP 1: VALIDATION - Is this actual homework?
 
-IMPORTANT: Return ONLY valid JSON, no markdown, no extra text.
+VALID homework includes:
+- Worksheets with exercises/problems
+- Textbook pages with questions
+- Printed or handwritten homework assignments
+- Math problems, language exercises, science questions
+- Fill-in-the-blank sheets
+- Multiple choice tests/quizzes
 
-Analyze the homework and return this exact JSON structure:
+INVALID (NOT homework):
+- Random photos (selfies, pets, landscapes, food)
+- Black/blank screens or empty pages
+- Screenshots of games, apps, social media
+- Photos of objects without educational content
+- Blurry images where text cannot be read
+- Adult content or inappropriate material
+
+If the images are NOT valid homework, return this JSON:
 {
-  "subject": "the subject (Math, English, Science, Geography, History, etc.)",
-  "grade": "estimated grade level (e.g., Grade 2-3)",
-  "topics": ["list", "of", "topics", "covered"],
-  "gameName": "creative game name in UPPERCASE (like WORD FOREST, MATH MOUNTAIN, SCIENCE LAB)",
-  "gameIcon": "single emoji for the game",
+  "isValid": false,
+  "error": "REJECTION_REASON"
+}
+
+Use these REJECTION_REASON values:
+- "NOT_HOMEWORK" - Photos don't contain school homework
+- "BLANK_IMAGE" - Images are blank, black, or empty
+- "UNREADABLE" - Text is too blurry or unclear to read
+- "INAPPROPRIATE" - Content is not appropriate for children
+
+## STEP 2: If valid homework, extract the EXACT questions
+
+IMPORTANT: Extract the REAL questions FROM the homework page - do NOT invent new questions!
+The child needs to solve THEIR homework, then write answers on paper.
+
+Return this JSON structure:
+{
+  "isValid": true,
+  "subject": "the subject (Math, English, Science, etc.)",
+  "grade": "estimated grade level",
+  "topics": ["topics covered"],
+  "gameName": "HOMEWORK HELPER: [SUBJECT]",
+  "gameIcon": "📚",
   "questions": [
     {
-      "text": "question text - make it child-friendly",
-      "type": "multiple_choice OR fill_blank OR true_false",
-      "options": ["option1", "option2", "option3", "option4"] (only for multiple_choice and true_false),
-      "correct": "THE COMPLETE CORRECT ANSWER - must be full and complete so child can write it on paper",
-      "explanation": "brief kid-friendly explanation why this is correct",
-      "hint": "helpful hint for the student",
+      "text": "EXACT question text from the homework page",
+      "originalNumber": "1" or "a)" or whatever numbering is on the page,
+      "type": "multiple_choice OR fill_blank OR short_answer",
+      "options": ["option1", "option2", "option3", "option4"] (if multiple choice on the page),
+      "correct": "THE COMPLETE CORRECT ANSWER - child will write this on paper!",
+      "explanation": "Step-by-step explanation how to get this answer",
+      "hint": "Helpful hint without giving away the answer",
       "pageRef": 1
     }
   ]
 }
 
-CRITICAL RULES:
-1. Create ${targetQuestions} questions covering ALL content from ALL ${images.length} pages
-2. The "correct" field MUST contain the FULL, COMPLETE answer - not abbreviated!
-   - For math: show full solution (e.g., "24" not just the operation)
-   - For fill-blank: complete word/phrase
-   - For essay questions: full sentence answer
-3. "pageRef" MUST indicate which page (1-${images.length}) the question is from - this is used to order answers for paper
-4. Mix question types (multiple_choice, fill_blank, true_false)
-5. Make questions appropriate for the grade level
-6. Questions should be fun and engaging for children
-7. For fill_blank, the answer should be a single word or short phrase
-8. For true_false, options must be ["True", "False"]
-9. Include helpful hints that guide without giving away the answer
-10. Explanations should be encouraging and educational
-11. Questions should be in the same ORDER as they appear in the homework pages
+## CRITICAL RULES FOR QUESTION EXTRACTION:
 
-The child will use the answers to write on paper in order, so pageRef and complete answers are ESSENTIAL!
+1. Extract questions EXACTLY as written on the homework page
+2. Keep the SAME order as on the paper
+3. Include the original question number (1, 2, a, b, etc.)
+4. The "correct" field must have the FULL answer the child will write on paper:
+   - Math: "56" (the answer)
+   - Fill-blank: "running" (the missing word)
+   - Sentence: The complete sentence answer
+5. "pageRef" = which photo (1 to ${images.length}) the question is from
+6. Extract ALL questions visible on all ${images.length} pages
+7. For math problems, show the answer AND brief solution steps in explanation
+8. Explanations should help the child UNDERSTAND, not just copy
 
-Return ONLY the JSON, nothing else.`;
+PURPOSE: Child solves homework here → learns the answers → writes them on paper
+
+Return ONLY the JSON, no markdown, no extra text.`;
 
     console.log("Calling Gemini API with model:", GEMINI_MODEL);
     console.log("Number of images:", images.length);
@@ -134,7 +162,7 @@ Return ONLY the JSON, nothing else.`;
       if (fetchError instanceof Error && fetchError.name === 'AbortError') {
         console.error("Gemini API timeout after", API_TIMEOUT_MS, "ms");
         return NextResponse.json(
-          { error: "Слишком долго! Попробуй загрузить меньше фото или проверь интернет." },
+          { error: "Taking too long! Try uploading fewer photos or check your internet." },
           { status: 504 }
         );
       }
@@ -148,13 +176,13 @@ Return ONLY the JSON, nothing else.`;
       console.error("Gemini API error response:", errorText);
 
       // User-friendly error messages based on status
-      let userError = "Ошибка при анализе домашки";
+      let userError = "Error analyzing homework";
       if (response.status === 429) {
-        userError = "Слишком много запросов! Подожди минутку и попробуй снова.";
+        userError = "Too many requests! Wait a minute and try again.";
       } else if (response.status === 400) {
-        userError = "Не могу прочитать фото. Попробуй сделать более чёткое фото.";
+        userError = "Cannot read the photo. Try taking a clearer picture.";
       } else if (response.status >= 500) {
-        userError = "Сервер занят. Попробуй через минуту!";
+        userError = "Server is busy. Try again in a minute!";
       }
 
       return NextResponse.json(
@@ -169,7 +197,7 @@ Return ONLY the JSON, nothing else.`;
     if (!textContent) {
       console.error("No text content in Gemini response:", JSON.stringify(data, null, 2));
       return NextResponse.json(
-        { error: "AI не смогла прочитать домашку. Попробуй сделать более чёткое фото!" },
+        { error: "AI could not read the homework. Try taking a clearer photo!" },
         { status: 500 }
       );
     }
@@ -195,8 +223,28 @@ Return ONLY the JSON, nothing else.`;
       console.error("Failed to parse AI response as JSON:", parseError);
       console.error("Raw response:", jsonStr.substring(0, 500));
       return NextResponse.json(
-        { error: "AI выдала неправильный формат. Попробуй снова!" },
+        { error: "AI returned an invalid format. Please try again!" },
         { status: 500 }
+      );
+    }
+
+    // Check if the images were rejected as not being homework
+    if (result.isValid === false) {
+      console.log("Images rejected as not homework:", result.error);
+
+      // User-friendly error messages in English
+      const errorMessages: Record<string, string> = {
+        "NOT_HOMEWORK": "🚫 This doesn't look like homework!\n\nOnly upload:\n• Textbook pages with exercises\n• Workbook pages with problems\n• Printed homework sheets\n\nSelfies, games, and random photos won't work!",
+        "BLANK_IMAGE": "📷 The photo is blank or black!\n\nMake sure your camera captured a page with homework, not an empty screen.",
+        "UNREADABLE": "🔍 Cannot read the text!\n\nTake a clearer photo:\n• Hold the camera steady\n• Make sure there's good lighting\n• Keep the text in focus",
+        "INAPPROPRIATE": "⚠️ This content is not appropriate!\n\nOnly upload school homework assignments.",
+      };
+
+      const userError = errorMessages[result.error] || "Cannot recognize this as homework. Try taking a clearer photo of a page with exercises!";
+
+      return NextResponse.json(
+        { error: userError, rejectionReason: result.error },
+        { status: 400 }
       );
     }
 
@@ -204,28 +252,37 @@ Return ONLY the JSON, nothing else.`;
     if (!result.questions || !Array.isArray(result.questions) || result.questions.length === 0) {
       console.error("AI response missing questions:", result);
       return NextResponse.json(
-        { error: "AI не нашла вопросов в домашке. Убедись, что на фото есть задания!" },
-        { status: 500 }
+        { error: "🔍 No exercises found in the photo!\n\nMake sure the page has:\n• Questions or problems\n• Exercises to solve\n• Examples or equations" },
+        { status: 400 }
       );
     }
 
-    // Add totalPages and ensure pageRef exists for ordering
+    // Add totalPages and ensure all required fields exist for ordering
     result.totalPages = images.length;
-    result.questions = result.questions.map((q: { pageRef?: number; text?: string; correct?: string; explanation?: string }, index: number) => ({
+    result.isHomework = true; // Mark as validated homework
+    result.questions = result.questions.map((q: {
+      pageRef?: number;
+      text?: string;
+      correct?: string;
+      explanation?: string;
+      originalNumber?: string;
+    }, index: number) => ({
       ...q,
       pageRef: q.pageRef || Math.floor(index / Math.ceil(result.questions.length / images.length)) + 1,
-      // Ensure full answer is preserved
+      // Ensure full answer is preserved for paper writing
       fullAnswer: q.correct,
       answerExplanation: q.explanation,
+      // Keep original numbering for matching with paper
+      questionNumber: q.originalNumber || `${index + 1}`,
     }));
 
-    console.log(`Successfully generated ${result.questions.length} questions from ${images.length} pages`);
+    console.log(`Successfully extracted ${result.questions.length} homework questions from ${images.length} pages`);
     return NextResponse.json(result);
   } catch (error) {
     console.error("Error analyzing homework:", error);
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json(
-      { error: `Что-то пошло не так: ${errorMessage}. Попробуй ещё раз!` },
+      { error: `Something went wrong: ${errorMessage}. Please try again!` },
       { status: 500 }
     );
   }

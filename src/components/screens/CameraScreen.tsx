@@ -129,7 +129,7 @@ export function CameraScreen({ onCapture, onCancel }: CameraScreenProps) {
     if (videoRef.current && stream) {
       // Check photo limit
       if (capturedImages.length >= MAX_PHOTOS) {
-        setLimitWarning(`Максимум ${MAX_PHOTOS} фото! Удали ненужные.`);
+        setLimitWarning(`Maximum ${MAX_PHOTOS} photos! Remove some to add more.`);
         setTimeout(() => setLimitWarning(null), 3000);
         return;
       }
@@ -160,12 +160,12 @@ export function CameraScreen({ onCapture, onCancel }: CameraScreenProps) {
         const filesToProcess = Array.from(files).slice(0, remainingSlots);
 
         if (files.length > remainingSlots) {
-          setLimitWarning(`Добавлено только ${remainingSlots} фото (лимит ${MAX_PHOTOS})`);
+          setLimitWarning(`Only added ${remainingSlots} photos (limit is ${MAX_PHOTOS})`);
           setTimeout(() => setLimitWarning(null), 4000);
         }
 
         if (filesToProcess.length === 0) {
-          setLimitWarning(`Максимум ${MAX_PHOTOS} фото! Удали ненужные.`);
+          setLimitWarning(`Maximum ${MAX_PHOTOS} photos! Remove some to add more.`);
           setTimeout(() => setLimitWarning(null), 3000);
           return;
         }
@@ -250,10 +250,10 @@ export function CameraScreen({ onCapture, onCancel }: CameraScreenProps) {
           ✕
         </button>
         <h2>
-          {step === "intro" && "📸 HOMEWORK SCANNER"}
-          {step === "camera" && "📸 TAKE PHOTOS"}
+          {step === "intro" && "📚 HOMEWORK HELPER"}
+          {step === "camera" && "📷 TAKE PHOTOS"}
           {step === "preview" && "👀 CHECK PHOTOS"}
-          {step === "processing" && "🔮 CREATING GAME"}
+          {step === "processing" && "🔮 ANALYZING..."}
         </h2>
         <div style={{ width: "40px" }}>
           {capturedImages.length > 0 && step === "camera" && (
@@ -280,52 +280,90 @@ export function CameraScreen({ onCapture, onCancel }: CameraScreenProps) {
           justifyContent: "center",
           flex: 1,
           padding: "20px",
-          gap: "20px",
+          gap: "16px",
           textAlign: "center",
         }}>
           <div style={{
-            fontSize: "4em",
+            fontSize: "3.5em",
             animation: "bounce 1s infinite",
           }}>
-            📸
+            📚
           </div>
 
           <h2 style={{
-            fontSize: "1.5em",
+            fontSize: "1.4em",
             color: "white",
             margin: 0,
           }}>
-            Turn Homework into a Game!
+            Homework Helper!
           </h2>
 
           <p style={{
             color: "#a5b4fc",
-            fontSize: "1em",
-            maxWidth: "280px",
+            fontSize: "0.95em",
+            maxWidth: "300px",
             lineHeight: 1.5,
           }}>
-            Take a photo of your homework and I will create a fun game just for you!
+            Take a photo of your homework - I will help you solve it, then you can write the answers on paper!
           </p>
+
+          {/* What to photograph */}
+          <div style={{
+            background: "rgba(34, 197, 94, 0.15)",
+            border: "1px solid rgba(34, 197, 94, 0.4)",
+            borderRadius: "12px",
+            padding: "12px",
+            width: "100%",
+            maxWidth: "300px",
+          }}>
+            <div style={{ color: "#22c55e", fontWeight: "bold", marginBottom: "8px", fontSize: "0.9em" }}>
+              ✅ WHAT TO PHOTOGRAPH:
+            </div>
+            <div style={{ color: "#a5b4fc", fontSize: "0.85em", lineHeight: 1.4 }}>
+              • Textbook pages with exercises<br/>
+              • Workbook pages with problems<br/>
+              • Printed homework sheets
+            </div>
+          </div>
+
+          {/* What NOT to photograph */}
+          <div style={{
+            background: "rgba(239, 68, 68, 0.15)",
+            border: "1px solid rgba(239, 68, 68, 0.4)",
+            borderRadius: "12px",
+            padding: "12px",
+            width: "100%",
+            maxWidth: "300px",
+          }}>
+            <div style={{ color: "#ef4444", fontWeight: "bold", marginBottom: "8px", fontSize: "0.9em" }}>
+              ❌ WON&apos;T WORK:
+            </div>
+            <div style={{ color: "#fca5a5", fontSize: "0.85em", lineHeight: 1.4 }}>
+              • Selfies and random photos<br/>
+              • Blank or black screens<br/>
+              • Game screenshots
+            </div>
+          </div>
 
           <div style={{
             display: "flex",
             flexDirection: "column",
-            gap: "12px",
+            gap: "10px",
             width: "100%",
             maxWidth: "300px",
-            marginTop: "10px",
+            marginTop: "5px",
           }}>
             <AnimatedTip emoji="1️⃣" text="Take a photo of your homework" />
-            <AnimatedTip emoji="2️⃣" text="AI reads and understands it" />
-            <AnimatedTip emoji="3️⃣" text="Play and learn!" />
+            <AnimatedTip emoji="2️⃣" text="Solve the problems in the game" />
+            <AnimatedTip emoji="3️⃣" text="Write answers on paper!" />
           </div>
 
           <button
             onClick={startScanning}
             style={{
-              marginTop: "20px",
-              padding: "16px 40px",
-              fontSize: "1.2em",
+              marginTop: "15px",
+              padding: "14px 36px",
+              fontSize: "1.1em",
               fontWeight: "bold",
               background: "linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%)",
               border: "none",
@@ -338,15 +376,14 @@ export function CameraScreen({ onCapture, onCancel }: CameraScreenProps) {
               boxShadow: "0 4px 20px rgba(139, 92, 246, 0.4)",
             }}
           >
-            <span>Let&apos;s Start!</span>
-            <span style={{ fontSize: "1.2em" }}>🚀</span>
+            <span>📷 Scan Homework</span>
           </button>
 
           <button
             onClick={() => fileInputRef.current?.click()}
             style={{
-              padding: "12px 24px",
-              fontSize: "0.95em",
+              padding: "10px 20px",
+              fontSize: "0.9em",
               background: "rgba(255,255,255,0.1)",
               border: "1px solid rgba(255,255,255,0.2)",
               borderRadius: "12px",
@@ -354,7 +391,7 @@ export function CameraScreen({ onCapture, onCancel }: CameraScreenProps) {
               cursor: "pointer",
             }}
           >
-            🖼️ Or pick from gallery
+            🖼️ Pick from gallery
           </button>
         </div>
       )}

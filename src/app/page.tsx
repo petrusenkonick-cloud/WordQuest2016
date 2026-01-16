@@ -520,7 +520,7 @@ export default function Home() {
     // VALIDATION: Check if homework has questions
     if (!homework.questions || homework.questions.length === 0) {
       console.error("Homework has no questions:", homework);
-      alert("Ошибка: в домашке нет вопросов! Попробуй отсканировать снова.");
+      alert("Error: No questions found in homework! Try scanning again.");
       return;
     }
 
@@ -535,7 +535,7 @@ export default function Home() {
 
     if (validQuestions.length === 0) {
       console.error("No valid questions in homework:", homework);
-      alert("Ошибка: вопросы домашки повреждены! Попробуй отсканировать снова.");
+      alert("Error: Homework questions are invalid! Try scanning again.");
       return;
     }
 

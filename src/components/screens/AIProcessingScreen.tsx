@@ -39,8 +39,8 @@ async function analyzeWithGemini(images: string[]): Promise<AIAnalysisResult> {
   const data = await response.json();
 
   if (!response.ok) {
-    // Use error message from API (which is now user-friendly in Russian)
-    throw new Error(data.error || "Ошибка при анализе домашки");
+    // Use error message from API (which is now user-friendly)
+    throw new Error(data.error || "Error analyzing homework");
   }
 
   return data;
@@ -94,7 +94,7 @@ export function AIProcessingScreen({ images, onComplete, onError }: AIProcessing
       onComplete(result);
     } catch (error) {
       // Pass the actual error message from API
-      const errorMessage = error instanceof Error ? error.message : "Ошибка при обработке домашки. Попробуй ещё раз!";
+      const errorMessage = error instanceof Error ? error.message : "Error processing homework. Please try again!";
       onError(errorMessage);
     }
   }, [images, onComplete, onError]);
