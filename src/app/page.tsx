@@ -28,6 +28,7 @@ import { GeneralDashboardScreen } from "@/components/screens/GeneralDashboardScr
 import { LeaderboardScreen } from "@/components/screens/LeaderboardScreen";
 import { GemHubScreen } from "@/components/screens/GemHubScreen";
 import { WeeklyQuestsScreen } from "@/components/screens/WeeklyQuestsScreen";
+import { HomeworkAnswersScreen } from "@/components/screens/HomeworkAnswersScreen";
 
 // UI Components
 import { GameWorld } from "@/components/ui/GameWorld";
@@ -377,6 +378,9 @@ export default function Home() {
   const [currentPracticeQuestId, setCurrentPracticeQuestId] = useState<Id<"weeklyPracticeQuests"> | null>(null);
   const [isPlayingAIGame, setIsPlayingAIGame] = useState(false);
   const [aiGameProgress, setAiGameProgress] = useState({ current: 0, correct: 0, mistakes: 0 });
+  const [homeworkAnswers, setHomeworkAnswers] = useState<Array<{ questionIndex: number; userAnswer: string; isCorrect: boolean }>>([]);
+  const [showHomeworkAnswers, setShowHomeworkAnswers] = useState(false);
+  const [completedHomeworkData, setCompletedHomeworkData] = useState<AIAnalysisResult | null>(null);
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
   const [showFeedback, setShowFeedback] = useState(false);
   const [feedbackCorrect, setFeedbackCorrect] = useState(false);
@@ -750,6 +754,15 @@ export default function Home() {
       setFeedbackCorrect(isCorrect);
       setShowFeedback(true);
 
+      // Track homework answers for the summary screen
+      if (currentHomeworkSessionId) {
+        setHomeworkAnswers(prev => [...prev, {
+          questionIndex: aiGameProgress.current,
+          userAnswer: answer,
+          isCorrect,
+        }]);
+      }
+
       // Track practice quest progress if playing a practice quest
       if (currentPracticeQuestId) {
         try {
@@ -874,14 +887,17 @@ export default function Home() {
         // Complete level via Convex and check for achievements
         const newAchievements = await completeLevelSync("ai-game", stars, newProgress.correct, rewards);
 
-        // Mark homework session as completed
+        // Mark homework session as completed and save answers
         if (currentHomeworkSessionId) {
           try {
             await completeHomeworkSession({
               sessionId: currentHomeworkSessionId,
               score: newProgress.correct,
               stars,
+              userAnswers: homeworkAnswers,
             });
+            // Save data for the answers summary screen
+            setCompletedHomeworkData(aiGameData);
           } catch (error) {
             console.error("Failed to complete homework session:", error);
           }
@@ -910,12 +926,14 @@ export default function Home() {
         });
         setShowLevelComplete(true);
         setIsPlayingAIGame(false);
-        setCurrentHomeworkSessionId(null);
-        setCurrentPracticeQuestId(null);
+        // Don't clear homework data yet - we'll show the answers screen
+        if (!currentHomeworkSessionId) {
+          setCurrentPracticeQuestId(null);
+        }
         spawnParticles(["💎", "🟢", "⭐"]);
       }
     },
-    [aiGameData, aiGameProgress, completeLevelSync, addWordsLearned, spawnParticles, currentHomeworkSessionId, completeHomeworkSession]
+    [aiGameData, aiGameProgress, completeLevelSync, addWordsLearned, spawnParticles, currentHomeworkSessionId, completeHomeworkSession, homeworkAnswers]
   );
 
   // Handle continue from explanation screen
@@ -1301,6 +1319,9 @@ export default function Home() {
           setShowLevelComplete(false);
           setLevelCompleteData(null);
           setAiGameData(null);
+          setCompletedHomeworkData(null);
+          setHomeworkAnswers([]);
+          setCurrentHomeworkSessionId(null);
           setCapturedImages([]);
           setScreen("home");
         }}
@@ -1311,9 +1332,14 @@ export default function Home() {
           setCapturedImages([]);
           setScreen("home");
         }}
-        levelName={aiGameData?.gameName || "QUEST"}
+        levelName={aiGameData?.gameName || completedHomeworkData?.gameName || "QUEST"}
         stars={levelCompleteData?.stars || 0}
         rewards={levelCompleteData?.rewards || { diamonds: 0, emeralds: 0, xp: 0 }}
+        isHomework={!!currentHomeworkSessionId || !!completedHomeworkData}
+        onViewAnswers={() => {
+          setShowLevelComplete(false);
+          setShowHomeworkAnswers(true);
+        }}
       />
 
       {/* Achievement Modal */}
@@ -1337,6 +1363,27 @@ export default function Home() {
           explanation={explanationData.explanation}
           hint={explanationData.hint}
           onContinue={handleExplanationContinue}
+        />
+      )}
+
+      {/* Homework Answers Screen - shows correct answers for copying to paper */}
+      {showHomeworkAnswers && completedHomeworkData && (
+        <HomeworkAnswersScreen
+          subject={completedHomeworkData.subject}
+          gameName={completedHomeworkData.gameName}
+          gameIcon={completedHomeworkData.gameIcon}
+          questions={completedHomeworkData.questions}
+          userAnswers={homeworkAnswers}
+          onClose={() => {
+            setShowHomeworkAnswers(false);
+            setCompletedHomeworkData(null);
+            setHomeworkAnswers([]);
+            setCurrentHomeworkSessionId(null);
+            setAiGameData(null);
+            setLevelCompleteData(null);
+            setCapturedImages([]);
+            setScreen("home");
+          }}
         />
       )}
     </>

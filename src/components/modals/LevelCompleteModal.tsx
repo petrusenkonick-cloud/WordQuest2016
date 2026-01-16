@@ -23,6 +23,8 @@ interface LevelCompleteModalProps {
     xp: number;
   };
   gemsFound?: GemReward[];
+  isHomework?: boolean;
+  onViewAnswers?: () => void;
 }
 
 export function LevelCompleteModal({
@@ -33,6 +35,8 @@ export function LevelCompleteModal({
   stars,
   rewards,
   gemsFound = [],
+  isHomework = false,
+  onViewAnswers,
 }: LevelCompleteModalProps) {
   const [animatedStars, setAnimatedStars] = useState(0);
   const { playSound } = useAudio();
@@ -133,14 +137,40 @@ export function LevelCompleteModal({
           </div>
         )}
 
+        {/* Homework hint */}
+        {isHomework && (
+          <div style={{
+            background: "rgba(34, 197, 94, 0.15)",
+            border: "1px solid rgba(34, 197, 94, 0.4)",
+            borderRadius: "12px",
+            padding: "12px",
+            marginBottom: "16px",
+          }}>
+            <p style={{ color: "#22c55e", fontSize: "0.9em", margin: 0 }}>
+              📝 View the correct answers to copy onto your paper!
+            </p>
+          </div>
+        )}
+
         {/* Buttons */}
-        <div style={{ display: "flex", gap: "12px", justifyContent: "center" }}>
+        <div style={{ display: "flex", gap: "12px", justifyContent: "center", flexWrap: "wrap" }}>
           <button className="btn btn-secondary" onClick={onClose}>
             HOME
           </button>
-          <button className="btn btn-primary" onClick={onNextLevel}>
-            NEXT →
-          </button>
+          {isHomework && onViewAnswers && (
+            <button
+              className="btn btn-primary"
+              onClick={onViewAnswers}
+              style={{ background: "linear-gradient(135deg, #22c55e 0%, #16a34a 100%)" }}
+            >
+              📝 VIEW ANSWERS
+            </button>
+          )}
+          {!isHomework && (
+            <button className="btn btn-primary" onClick={onNextLevel}>
+              NEXT →
+            </button>
+          )}
         </div>
       </div>
     </div>

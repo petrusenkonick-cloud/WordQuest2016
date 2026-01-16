@@ -104,6 +104,16 @@ export default defineSchema({
     status: v.string(),
     score: v.optional(v.number()),
     stars: v.optional(v.number()),
+    // User's answers for each question (to show summary at end)
+    userAnswers: v.optional(
+      v.array(
+        v.object({
+          questionIndex: v.number(),
+          userAnswer: v.string(),
+          isCorrect: v.boolean(),
+        })
+      )
+    ),
     createdAt: v.string(),
     completedAt: v.optional(v.string()),
   })

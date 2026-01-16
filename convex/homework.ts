@@ -135,6 +135,15 @@ export const completeHomeworkSession = mutation({
     sessionId: v.id("homeworkSessions"),
     score: v.number(),
     stars: v.number(),
+    userAnswers: v.optional(
+      v.array(
+        v.object({
+          questionIndex: v.number(),
+          userAnswer: v.string(),
+          isCorrect: v.boolean(),
+        })
+      )
+    ),
   },
   handler: async (ctx, args) => {
     const session = await ctx.db.get(args.sessionId);
@@ -146,6 +155,7 @@ export const completeHomeworkSession = mutation({
       status: "completed",
       score: args.score,
       stars: args.stars,
+      userAnswers: args.userAnswers,
       completedAt: new Date().toISOString(),
     });
 
