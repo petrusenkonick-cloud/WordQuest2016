@@ -101,6 +101,35 @@ export default defineSchema({
     isCorrect: v.boolean(),
     attemptNumber: v.number(),
     hintsUsed: v.number(),
+    explanationStyle: v.optional(v.string()), // "short", "example", "step_by_step", "visual"
+    understoodAfterExplanation: v.optional(v.boolean()),
     createdAt: v.string(),
   }).index("by_session", ["sessionId"]),
+
+  // Topic progress tracking for adaptive learning
+  topicProgress: defineTable({
+    playerId: v.id("players"),
+    topic: v.string(), // e.g., "suffixes", "multiplication", "past_tense"
+    subject: v.string(), // "English", "Math", etc.
+    totalAttempts: v.number(),
+    correctAttempts: v.number(),
+    accuracy: v.number(), // 0-100
+    lastPracticed: v.string(),
+    needsPractice: v.boolean(), // true if accuracy < 60%
+    preferredExplanationStyle: v.optional(v.string()), // which style works best
+  })
+    .index("by_player", ["playerId"])
+    .index("by_player_topic", ["playerId", "topic"])
+    .index("by_player_needs_practice", ["playerId", "needsPractice"]),
+
+  // Learning preferences
+  learningProfile: defineTable({
+    playerId: v.id("players"),
+    preferredStyle: v.optional(v.string()), // "visual", "audio", "kinesthetic"
+    explanationPreference: v.optional(v.string()), // "short", "detailed", "examples"
+    readingSpeed: v.optional(v.string()), // "slow", "medium", "fast"
+    hintsEnabled: v.boolean(),
+    voiceEnabled: v.boolean(),
+    updatedAt: v.string(),
+  }).index("by_player", ["playerId"]),
 });

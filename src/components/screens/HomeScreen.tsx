@@ -53,12 +53,16 @@ interface HomeScreenProps {
   completedLevels: Record<string, { stars: number; done: boolean }>;
   onStartLevel: (levelId: string) => void;
   onScanHomework?: () => void;
+  onPracticeMode?: () => void;
+  weakTopicsCount?: number;
 }
 
 export function HomeScreen({
   completedLevels,
   onStartLevel,
   onScanHomework,
+  onPracticeMode,
+  weakTopicsCount = 0,
 }: HomeScreenProps) {
   const player = useAppStore((state) => state.player);
   const showDailyReward = useAppStore((state) => state.showDailyRewardModal);
@@ -147,6 +151,52 @@ export function HomeScreen({
         <span className="camera-icon">📸</span>
         <h3>SCAN HOMEWORK</h3>
         <p>AI creates a game from your homework!</p>
+      </div>
+
+      {/* Practice Mode Button */}
+      <div
+        onClick={onPracticeMode}
+        style={{
+          background: weakTopicsCount > 0
+            ? "linear-gradient(135deg, rgba(245, 158, 11, 0.3) 0%, rgba(217, 119, 6, 0.3) 100%)"
+            : "linear-gradient(135deg, rgba(34, 197, 94, 0.2) 0%, rgba(22, 163, 74, 0.2) 100%)",
+          borderRadius: "15px",
+          padding: "15px 20px",
+          margin: "15px 0",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          cursor: "pointer",
+          border: `2px solid ${weakTopicsCount > 0 ? "#f59e0b" : "#22c55e"}`,
+          transition: "transform 0.2s ease",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: "15px" }}>
+          <span style={{ fontSize: "2em" }}>🎯</span>
+          <div>
+            <h3 style={{ margin: 0, fontSize: "1.1em" }}>PRACTICE MODE</h3>
+            <p style={{ margin: 0, color: "#AAA", fontSize: "0.9em" }}>
+              {weakTopicsCount > 0
+                ? `${weakTopicsCount} topic${weakTopicsCount > 1 ? "s" : ""} need practice`
+                : "All topics mastered!"}
+            </p>
+          </div>
+        </div>
+        {weakTopicsCount > 0 && (
+          <div style={{
+            background: "#f59e0b",
+            color: "#000",
+            borderRadius: "50%",
+            width: "30px",
+            height: "30px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontWeight: "bold",
+          }}>
+            {weakTopicsCount}
+          </div>
+        )}
       </div>
 
       {/* Section Title */}
