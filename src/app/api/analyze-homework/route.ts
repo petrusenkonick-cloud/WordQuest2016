@@ -240,6 +240,30 @@ Return ONLY the JSON, no markdown, no extra text.`;
       jsonStr = jsonMatch[0];
     }
 
+    // Clean up common JSON issues
+    // Remove control characters (except newlines and tabs)
+    jsonStr = jsonStr.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
+
+    // Try to fix incomplete JSON (common when response is truncated)
+    const openBraces = (jsonStr.match(/\{/g) || []).length;
+    const closeBraces = (jsonStr.match(/\}/g) || []).length;
+    const openBrackets = (jsonStr.match(/\[/g) || []).length;
+    const closeBrackets = (jsonStr.match(/\]/g) || []).length;
+
+    // If JSON is incomplete, try to close it
+    if (openBraces > closeBraces || openBrackets > closeBrackets) {
+      console.log("Attempting to repair incomplete JSON...");
+      // Remove trailing incomplete content after last complete value
+      jsonStr = jsonStr.replace(/,\s*"[^"]*"?\s*:?\s*"?[^"{}[\]]*$/, '');
+      // Close remaining brackets and braces
+      for (let i = 0; i < openBrackets - closeBrackets; i++) {
+        jsonStr += ']';
+      }
+      for (let i = 0; i < openBraces - closeBraces; i++) {
+        jsonStr += '}';
+      }
+    }
+
     // Safe JSON parsing with detailed error
     let result;
     try {
@@ -249,15 +273,25 @@ Return ONLY the JSON, no markdown, no extra text.`;
       console.error("Raw response (first 500 chars):", textContent.substring(0, 500));
       console.error("Processed jsonStr (first 500 chars):", jsonStr.substring(0, 500));
 
-      // Show partial response for debugging
-      const preview = textContent.substring(0, 150).replace(/\n/g, " ");
-      return NextResponse.json(
-        {
-          error: `AI returned invalid format. Preview: "${preview}..."`,
-          debug: { rawLength: textContent.length, jsonStrLength: jsonStr.length }
-        },
-        { status: 500 }
-      );
+      // Try one more time with aggressive cleaning
+      try {
+        // Remove any trailing commas before closing brackets/braces
+        const cleanedJson = jsonStr
+          .replace(/,(\s*[}\]])/g, '$1')
+          .replace(/([{,]\s*)"([^"]+)":\s*,/g, '$1"$2": null,');
+        result = JSON.parse(cleanedJson);
+        console.log("JSON parsed after aggressive cleaning");
+      } catch {
+        // Show partial response for debugging
+        const preview = textContent.substring(0, 150).replace(/\n/g, " ");
+        return NextResponse.json(
+          {
+            error: `AI returned invalid format. Preview: "${preview}..."`,
+            debug: { rawLength: textContent.length, jsonStrLength: jsonStr.length }
+          },
+          { status: 500 }
+        );
+      }
     }
 
     // Check if the images were rejected as not being homework
