@@ -751,6 +751,7 @@ export default function Home() {
         onClose={() => setShowDailyReward(false)}
         currentDay={player.dailyDay}
         claimed={player.dailyClaimed}
+        streak={player.streak}
         onClaim={handleClaimDailyReward}
       />
 

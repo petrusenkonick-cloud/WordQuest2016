@@ -231,6 +231,29 @@ export const checkDailyLogin = mutation({
   },
 });
 
+// Streak bonus multipliers - the longer the streak, the bigger the bonus!
+const STREAK_BONUSES: Record<number, number> = {
+  3: 0.10,   // +10% for 3 days
+  5: 0.25,   // +25% for 5 days
+  7: 0.50,   // +50% for 1 week
+  14: 0.75,  // +75% for 2 weeks
+  30: 1.00,  // +100% for 1 month!
+};
+
+// Calculate streak bonus based on current streak
+function getStreakBonus(streak: number): number {
+  const thresholds = Object.keys(STREAK_BONUSES)
+    .map(Number)
+    .sort((a, b) => b - a);
+
+  for (const threshold of thresholds) {
+    if (streak >= threshold) {
+      return STREAK_BONUSES[threshold];
+    }
+  }
+  return 0;
+}
+
 // Claim daily reward
 export const claimDailyReward = mutation({
   args: { playerId: v.id("players") },
@@ -239,29 +262,54 @@ export const claimDailyReward = mutation({
     if (!player) return { success: false };
     if (player.dailyClaimed) return { success: false, reason: "Already claimed" };
 
-    // Daily rewards based on day
-    const rewards = [
-      { diamonds: 10, emeralds: 5, gold: 20 },
-      { diamonds: 15, emeralds: 8, gold: 30 },
-      { diamonds: 20, emeralds: 10, gold: 40 },
-      { diamonds: 30, emeralds: 15, gold: 50 },
-      { diamonds: 40, emeralds: 20, gold: 60 },
-      { diamonds: 50, emeralds: 25, gold: 80 },
-      { diamonds: 100, emeralds: 50, gold: 150 }, // Day 7 bonus!
+    // Base daily rewards (escalating over 7 days)
+    const baseRewards = [
+      { diamonds: 10, emeralds: 5, gold: 20 },   // Day 1
+      { diamonds: 15, emeralds: 8, gold: 30 },   // Day 2
+      { diamonds: 20, emeralds: 10, gold: 40 },  // Day 3
+      { diamonds: 30, emeralds: 15, gold: 50 },  // Day 4
+      { diamonds: 40, emeralds: 20, gold: 60 },  // Day 5
+      { diamonds: 50, emeralds: 25, gold: 80 },  // Day 6
+      { diamonds: 100, emeralds: 50, gold: 150 }, // Day 7 MEGA BONUS!
     ];
 
     const dayIndex = Math.min(player.dailyDay - 1, 6);
-    const reward = rewards[dayIndex];
+    const baseReward = baseRewards[dayIndex];
+
+    // Calculate streak bonus
+    const streakBonus = getStreakBonus(player.streak);
+
+    // Apply streak bonus to rewards
+    const finalReward = {
+      diamonds: Math.floor(baseReward.diamonds * (1 + streakBonus)),
+      emeralds: Math.floor(baseReward.emeralds * (1 + streakBonus)),
+      gold: Math.floor(baseReward.gold * (1 + streakBonus)),
+    };
+
+    // Calculate bonus amounts for display
+    const bonusAmounts = {
+      diamonds: finalReward.diamonds - baseReward.diamonds,
+      emeralds: finalReward.emeralds - baseReward.emeralds,
+      gold: finalReward.gold - baseReward.gold,
+    };
 
     await ctx.db.patch(args.playerId, {
-      diamonds: player.diamonds + reward.diamonds,
-      emeralds: player.emeralds + reward.emeralds,
-      gold: player.gold + reward.gold,
+      diamonds: player.diamonds + finalReward.diamonds,
+      emeralds: player.emeralds + finalReward.emeralds,
+      gold: player.gold + finalReward.gold,
       dailyClaimed: true,
       dailyDay: player.dailyDay >= 7 ? 1 : player.dailyDay + 1,
     });
 
-    return { success: true, reward };
+    return {
+      success: true,
+      reward: finalReward,
+      baseReward,
+      bonusAmounts,
+      streakBonus: Math.round(streakBonus * 100), // Return as percentage
+      streak: player.streak,
+      currentDay: player.dailyDay,
+    };
   },
 });
 
