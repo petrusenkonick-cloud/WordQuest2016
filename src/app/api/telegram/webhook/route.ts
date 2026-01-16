@@ -2,8 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "../../../../../convex/_generated/api";
 
-const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+
+// Lazy initialization to avoid build-time errors
+function getConvexClient() {
+  const url = process.env.NEXT_PUBLIC_CONVEX_URL;
+  if (!url) {
+    throw new Error("NEXT_PUBLIC_CONVEX_URL is not set");
+  }
+  return new ConvexHttpClient(url);
+}
 
 // Send message to Telegram
 async function sendTelegramMessage(chatId: string, text: string, parseMode = "HTML") {
@@ -64,7 +72,7 @@ After that you will receive:
           return NextResponse.json({ ok: true });
         }
 
-        const result = await convex.mutation(api.parents.linkParent, {
+        const result = await getConvexClient().mutation(api.parents.linkParent, {
           code,
           telegramChatId: chatId,
           telegramUsername: username,
@@ -96,7 +104,7 @@ Use /settings to customize notifications.`
 
       // /stats command - today's progress
       if (text === "/stats") {
-        const player = await convex.query(api.parents.getPlayerByTelegram, {
+        const player = await getConvexClient().query(api.parents.getPlayerByTelegram, {
           telegramChatId: chatId,
         });
 
@@ -109,7 +117,7 @@ Use /settings to customize notifications.`
         }
 
         const today = new Date().toISOString().split("T")[0];
-        const stats = await convex.query(api.parents.getDailyStats, {
+        const stats = await getConvexClient().query(api.parents.getDailyStats, {
           playerId: player._id,
           date: today,
         });
@@ -148,7 +156,7 @@ ${stats.achievementsUnlocked.length > 0 ? `\n🏆 Achievements: ${stats.achievem
 
       // /week command - weekly stats
       if (text === "/week") {
-        const player = await convex.query(api.parents.getPlayerByTelegram, {
+        const player = await getConvexClient().query(api.parents.getPlayerByTelegram, {
           telegramChatId: chatId,
         });
 
@@ -160,7 +168,7 @@ ${stats.achievementsUnlocked.length > 0 ? `\n🏆 Achievements: ${stats.achievem
           return NextResponse.json({ ok: true });
         }
 
-        const weekStats = await convex.query(api.parents.getWeeklyStats, {
+        const weekStats = await getConvexClient().query(api.parents.getWeeklyStats, {
           playerId: player._id,
         });
 
@@ -222,7 +230,7 @@ Current settings can be viewed with /status`
         const setting = text.split(" ")[1]?.toLowerCase();
 
         if (setting === "on" || setting === "off") {
-          await convex.mutation(api.parents.updateNotificationSettings, {
+          await getConvexClient().mutation(api.parents.updateNotificationSettings, {
             telegramChatId: chatId,
             notificationsEnabled: setting === "on",
           });
@@ -270,12 +278,12 @@ Current settings can be viewed with /status`
 
       // /unlink command
       if (text === "/unlink") {
-        const player = await convex.query(api.parents.getPlayerByTelegram, {
+        const player = await getConvexClient().query(api.parents.getPlayerByTelegram, {
           telegramChatId: chatId,
         });
 
         if (player) {
-          await convex.mutation(api.parents.unlinkParent, {
+          await getConvexClient().mutation(api.parents.unlinkParent, {
             playerId: player._id,
           });
           await sendTelegramMessage(
