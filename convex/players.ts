@@ -12,6 +12,33 @@ export const getPlayer = query({
   },
 });
 
+// Check if player name is available
+export const isNameAvailable = query({
+  args: { name: v.string() },
+  handler: async (ctx, args) => {
+    const trimmedName = args.name.trim();
+
+    if (trimmedName.length < 2) {
+      return { available: false, reason: "Name must be at least 2 characters" };
+    }
+    if (trimmedName.length > 20) {
+      return { available: false, reason: "Name must be 20 characters or less" };
+    }
+
+    // Check for existing player with same name (case insensitive)
+    const allPlayers = await ctx.db.query("players").collect();
+    const nameTaken = allPlayers.some(
+      (p) => p.name.toLowerCase() === trimmedName.toLowerCase()
+    );
+
+    if (nameTaken) {
+      return { available: false, reason: "This name is already taken" };
+    }
+
+    return { available: true };
+  },
+});
+
 // Create new player
 export const createPlayer = mutation({
   args: {
@@ -20,14 +47,31 @@ export const createPlayer = mutation({
     skin: v.string(),
   },
   handler: async (ctx, args) => {
-    // Check if player already exists
-    const existing = await ctx.db
+    const trimmedName = args.name.trim();
+
+    // Validate name length
+    if (trimmedName.length < 2 || trimmedName.length > 20) {
+      throw new Error("Name must be 2-20 characters");
+    }
+
+    // Check if player already exists with this clerkId
+    const existingByClerk = await ctx.db
       .query("players")
       .withIndex("by_clerk_id", (q) => q.eq("clerkId", args.clerkId))
       .first();
 
-    if (existing) {
-      return existing._id;
+    if (existingByClerk) {
+      return existingByClerk._id;
+    }
+
+    // Check if name is already taken (case insensitive)
+    const allPlayers = await ctx.db.query("players").collect();
+    const nameTaken = allPlayers.some(
+      (p) => p.name.toLowerCase() === trimmedName.toLowerCase()
+    );
+
+    if (nameTaken) {
+      throw new Error("This name is already taken");
     }
 
     // Create new player with default values

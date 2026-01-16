@@ -35,6 +35,7 @@ export default defineSchema({
     totalRawScore: v.optional(v.number()), // Raw cumulative score
   })
     .index("by_clerk_id", ["clerkId"])
+    .index("by_name", ["name"])
     .index("by_grade", ["gradeLevel"])
     .index("by_age_group", ["ageGroup"])
     .index("by_normalized_score", ["normalizedScore"]),
