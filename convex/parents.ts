@@ -173,6 +173,39 @@ export const unlinkParent = mutation({
   },
 });
 
+// Save Telegram Chat ID directly (simple method)
+export const saveTelegramChatId = mutation({
+  args: {
+    playerId: v.id("players"),
+    telegramChatId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const existing = await ctx.db
+      .query("parentLinks")
+      .withIndex("by_player", (q) => q.eq("playerId", args.playerId))
+      .first();
+
+    if (existing) {
+      await ctx.db.patch(existing._id, {
+        telegramChatId: args.telegramChatId,
+        linkedAt: new Date().toISOString(),
+      });
+    } else {
+      await ctx.db.insert("parentLinks", {
+        playerId: args.playerId,
+        telegramChatId: args.telegramChatId,
+        linkCode: "direct",
+        linkedAt: new Date().toISOString(),
+        notificationsEnabled: true,
+        dailyReportTime: "18:00",
+        weeklyReportDay: 0,
+      });
+    }
+
+    return { success: true };
+  },
+});
+
 // Get daily stats for a player
 export const getDailyStats = query({
   args: {
