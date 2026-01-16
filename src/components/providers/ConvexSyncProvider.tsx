@@ -2,11 +2,12 @@
 
 import { createContext, useContext, ReactNode, useEffect, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
+import { useAuth } from "@clerk/nextjs";
 import { api } from "../../../convex/_generated/api";
 import { Id } from "../../../convex/_generated/dataModel";
 import { useAppStore } from "@/lib/store";
 
-// Generate or retrieve a unique device ID (temporary until Clerk is set up)
+// Generate or retrieve a unique device ID (fallback when not logged in via Clerk)
 function getDeviceId(): string {
   if (typeof window === "undefined") return "server";
 
@@ -21,6 +22,7 @@ function getDeviceId(): string {
 interface ConvexSyncContextType {
   isLoading: boolean;
   isLoggedIn: boolean;
+  isSignedIn: boolean; // Clerk authentication status
   playerId: Id<"players"> | null;
   levelProgress: Record<string, { stars: number; done: boolean }>;
   inventory: Array<{ itemId: string; itemType: string; equipped: boolean }>;
@@ -56,6 +58,7 @@ export function useConvexSync() {
     return {
       isLoading: false,
       isLoggedIn: false,
+      isSignedIn: false,
       playerId: null,
       levelProgress: {},
       inventory: [],
@@ -78,12 +81,21 @@ export function ConvexSyncProvider({ children }: { children: ReactNode }) {
   const [playerId, setPlayerId] = useState<Id<"players"> | null>(null);
   const [isInitialized, setIsInitialized] = useState(false);
 
+  // Clerk authentication
+  const { userId: clerkUserId, isLoaded: isClerkLoaded, isSignedIn } = useAuth();
+
+  // Use Clerk userId if signed in, otherwise fall back to device ID (guest mode)
+  const effectiveUserId = isSignedIn && clerkUserId ? clerkUserId : deviceId;
+
   // Store
   const player = useAppStore((s) => s.player);
   const setPlayer = useAppStore((s) => s.setPlayer);
 
-  // Convex queries
-  const convexPlayer = useQuery(api.players.getPlayer, { clerkId: deviceId });
+  // Convex queries - use effectiveUserId for player lookup
+  const convexPlayer = useQuery(
+    api.players.getPlayer,
+    isClerkLoaded ? { clerkId: effectiveUserId } : "skip"
+  );
 
   // Convex mutations
   const createPlayerMutation = useMutation(api.players.createPlayer);
@@ -144,7 +156,7 @@ export function ConvexSyncProvider({ children }: { children: ReactNode }) {
   const initializePlayer = async (name: string, skin: string): Promise<Id<"players"> | null> => {
     try {
       const newPlayerId = await createPlayerMutation({
-        clerkId: deviceId,
+        clerkId: effectiveUserId,
         name,
         skin,
       });
@@ -309,8 +321,9 @@ export function ConvexSyncProvider({ children }: { children: ReactNode }) {
   const ownedItems = inventoryQuery?.map((item) => item.itemId) || ["steve"];
 
   const value: ConvexSyncContextType = {
-    isLoading: convexPlayer === undefined,
+    isLoading: !isClerkLoaded || convexPlayer === undefined,
     isLoggedIn: !!convexPlayer,
+    isSignedIn: !!isSignedIn,
     playerId,
     levelProgress: levelProgressQuery || {},
     inventory: inventoryQuery || [],

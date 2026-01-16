@@ -1,6 +1,7 @@
 "use client";
 
 import { useAppStore } from "@/lib/store";
+import { UserButton, useAuth } from "@clerk/nextjs";
 
 // Level data
 const LEVELS = [
@@ -61,9 +62,53 @@ export function HomeScreen({
 }: HomeScreenProps) {
   const player = useAppStore((state) => state.player);
   const showDailyReward = useAppStore((state) => state.showDailyRewardModal);
+  const { isSignedIn } = useAuth();
 
   return (
     <div className="screen active">
+      {/* Player Header with Auth */}
+      <div className="player-header" style={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        padding: "10px 0",
+        marginBottom: "10px",
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          <span style={{ fontSize: "2em" }}>{player.skin}</span>
+          <div>
+            <div style={{ fontWeight: "bold", color: "white" }}>{player.name}</div>
+            <div style={{ fontSize: "0.8em", color: "#AAA" }}>
+              Level {player.level} • {player.xp}/{player.xpNext} XP
+            </div>
+          </div>
+        </div>
+        {isSignedIn && (
+          <UserButton
+            afterSignOutUrl="/"
+            appearance={{
+              elements: {
+                avatarBox: {
+                  width: "40px",
+                  height: "40px",
+                },
+              },
+            }}
+          />
+        )}
+        {!isSignedIn && (
+          <div style={{
+            padding: "5px 10px",
+            background: "rgba(255,255,255,0.1)",
+            borderRadius: "5px",
+            fontSize: "0.8em",
+            color: "#AAA",
+          }}>
+            👤 Guest
+          </div>
+        )}
+      </div>
+
       {/* Daily Banner */}
       <div className="daily-banner" onClick={showDailyReward}>
         <div>
