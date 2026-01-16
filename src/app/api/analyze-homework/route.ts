@@ -28,11 +28,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const apiKey = process.env.GOOGLE_API_KEY;
+    // Check for both environment variable names (GEMINI_API_KEY or GOOGLE_API_KEY)
+    const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
     if (!apiKey) {
-      console.error("GOOGLE_API_KEY is not set");
+      console.error("GEMINI_API_KEY is not set in environment variables");
       return NextResponse.json(
-        { error: "API key not configured" },
+        { error: "API key not configured. Set GEMINI_API_KEY in environment." },
         { status: 500 }
       );
     }
@@ -129,6 +130,7 @@ Return ONLY the JSON, no markdown, no extra text.`;
 
     console.log("Calling Gemini API with model:", GEMINI_MODEL);
     console.log("Number of images:", images.length);
+    console.log("API key configured:", apiKey ? "Yes (length: " + apiKey.length + ")" : "No");
 
     // Create abort controller for timeout
     const controller = new AbortController();
