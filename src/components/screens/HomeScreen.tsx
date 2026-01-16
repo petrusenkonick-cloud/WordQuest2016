@@ -88,6 +88,11 @@ interface HomeScreenProps {
   weakTopicsCount?: number;
   onPlayHomework?: (homework: HomeworkSession) => void;
   onWeeklyQuests?: () => void;
+  // New navigation handlers
+  onShop?: () => void;
+  onInventory?: () => void;
+  onAchievements?: () => void;
+  onGemHub?: () => void;
 }
 
 export function HomeScreen({
@@ -105,6 +110,10 @@ export function HomeScreen({
   weakTopicsCount = 0,
   onPlayHomework,
   onWeeklyQuests,
+  onShop,
+  onInventory,
+  onAchievements,
+  onGemHub,
 }: HomeScreenProps) {
   const player = useAppStore((state) => state.player);
   const showDailyReward = useAppStore((state) => state.showDailyRewardModal);
@@ -378,6 +387,90 @@ export function HomeScreen({
               Top Wizards
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Shop, Inventory, Achievements, GemHub Row */}
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(4, 1fr)",
+        gap: "8px",
+        marginBottom: "15px",
+      }}>
+        {/* Shop */}
+        <div
+          onClick={onShop}
+          style={{
+            background: "linear-gradient(135deg, rgba(236, 72, 153, 0.3) 0%, rgba(30, 27, 75, 0.4) 100%)",
+            borderRadius: "10px",
+            padding: "12px 8px",
+            cursor: "pointer",
+            border: "1px solid #ec489980",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: "4px",
+          }}
+        >
+          <span style={{ fontSize: "1.6em" }}>🛒</span>
+          <div style={{ fontSize: "0.7em", fontWeight: "bold" }}>SHOP</div>
+        </div>
+
+        {/* Inventory */}
+        <div
+          onClick={onInventory}
+          style={{
+            background: "linear-gradient(135deg, rgba(34, 197, 94, 0.3) 0%, rgba(30, 27, 75, 0.4) 100%)",
+            borderRadius: "10px",
+            padding: "12px 8px",
+            cursor: "pointer",
+            border: "1px solid #22c55e80",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: "4px",
+          }}
+        >
+          <span style={{ fontSize: "1.6em" }}>🎒</span>
+          <div style={{ fontSize: "0.7em", fontWeight: "bold" }}>ITEMS</div>
+        </div>
+
+        {/* Achievements */}
+        <div
+          onClick={onAchievements}
+          style={{
+            background: "linear-gradient(135deg, rgba(251, 191, 36, 0.3) 0%, rgba(30, 27, 75, 0.4) 100%)",
+            borderRadius: "10px",
+            padding: "12px 8px",
+            cursor: "pointer",
+            border: "1px solid #fbbf2480",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: "4px",
+          }}
+        >
+          <span style={{ fontSize: "1.6em" }}>🎖️</span>
+          <div style={{ fontSize: "0.7em", fontWeight: "bold" }}>BADGES</div>
+        </div>
+
+        {/* Gem Hub */}
+        <div
+          onClick={onGemHub}
+          style={{
+            background: "linear-gradient(135deg, rgba(6, 182, 212, 0.3) 0%, rgba(30, 27, 75, 0.4) 100%)",
+            borderRadius: "10px",
+            padding: "12px 8px",
+            cursor: "pointer",
+            border: "1px solid #06b6d480",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: "4px",
+          }}
+        >
+          <span style={{ fontSize: "1.6em" }}>💎</span>
+          <div style={{ fontSize: "0.7em", fontWeight: "bold" }}>GEMS</div>
         </div>
       </div>
 

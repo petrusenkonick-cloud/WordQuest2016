@@ -1,4 +1,4 @@
-import { mutation, query, action } from "./_generated/server";
+import { mutation, query, action, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 import { api } from "./_generated/api";
 
@@ -316,6 +316,250 @@ function getWeekEndString(date: Date): string {
   d.setDate(diff);
   return d.toISOString().split("T")[0];
 }
+
+// Internal mutation for cron job - generate weekly quests for all active players
+export const generateAllPlayersWeeklyQuests = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const weekStart = getWeekStartString(new Date());
+
+    // Get all players
+    const players = await ctx.db
+      .query("players")
+      .collect();
+
+    let generated = 0;
+    let skipped = 0;
+
+    for (const player of players) {
+      // Check if quests already exist for this week
+      const existingQuests = await ctx.db
+        .query("weeklyPracticeQuests")
+        .withIndex("by_player_week", (q) =>
+          q.eq("playerId", player._id).eq("weekStart", weekStart)
+        )
+        .first();
+
+      if (existingQuests) {
+        skipped++;
+        continue;
+      }
+
+      // Get weak topics from last 2 weeks
+      const twoWeeksAgo = new Date();
+      twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
+
+      const errors = await ctx.db
+        .query("errorTracking")
+        .withIndex("by_player_resolved", (q) =>
+          q.eq("playerId", player._id).eq("resolved", false)
+        )
+        .filter((q) => q.gte(q.field("createdAt"), twoWeeksAgo.toISOString()))
+        .collect();
+
+      // Group by topic
+      const topicErrors: Record<
+        string,
+        {
+          topic: string;
+          subject: string;
+          count: number;
+          questions: Array<{
+            question: string;
+            wrongAnswer: string;
+            correctAnswer: string;
+          }>;
+        }
+      > = {};
+
+      for (const error of errors) {
+        if (!topicErrors[error.topic]) {
+          topicErrors[error.topic] = {
+            topic: error.topic,
+            subject: error.subject,
+            count: 0,
+            questions: [],
+          };
+        }
+        topicErrors[error.topic].count++;
+        if (topicErrors[error.topic].questions.length < 5) {
+          topicErrors[error.topic].questions.push({
+            question: error.question,
+            wrongAnswer: error.wrongAnswer,
+            correctAnswer: error.correctAnswer,
+          });
+        }
+      }
+
+      // Get top 3-5 weak topics
+      const sortedTopics = Object.values(topicErrors)
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 5);
+
+      if (sortedTopics.length === 0) {
+        skipped++;
+        continue;
+      }
+
+      // Create quests for each weak topic
+      const questsCreated: string[] = [];
+
+      // Initialize weekly champion
+      await ctx.db.insert("weeklyChampion", {
+        playerId: player._id,
+        weekStart,
+        totalQuestsAvailable: sortedTopics.length,
+        totalQuestsCompleted: 0,
+        bonusReward: {
+          diamonds: 100,
+          emeralds: 50,
+          xp: 500,
+        },
+        bonusClaimed: false,
+      });
+
+      for (const topicData of sortedTopics) {
+        // Generate quest name and icon based on topic
+        const questDetails = getQuestDetails(topicData.topic, topicData.subject);
+
+        // Generate practice questions
+        const questions = topicData.questions.map((q) => ({
+          text: q.question,
+          type: "multiple_choice" as const,
+          options: generateOptions(q.correctAnswer, q.wrongAnswer),
+          correct: q.correctAnswer,
+          explanation: `The correct answer is: ${q.correctAnswer}`,
+        }));
+
+        // Add some extra practice questions if needed
+        while (questions.length < 5) {
+          questions.push({
+            text: `Practice question for ${topicData.topic}`,
+            type: "multiple_choice" as const,
+            options: ["Option A", "Option B", "Option C", "Option D"],
+            correct: "Option A",
+            explanation: "Keep practicing!",
+          });
+        }
+
+        await ctx.db.insert("weeklyPracticeQuests", {
+          playerId: player._id,
+          weekStart,
+          topic: topicData.topic,
+          subject: topicData.subject,
+          questName: questDetails.name,
+          questIcon: questDetails.icon,
+          description: questDetails.description,
+          errorCount: topicData.count,
+          questions,
+          targetCorrect: 4,
+          currentCorrect: 0,
+          isCompleted: false,
+          createdAt: new Date().toISOString(),
+          reward: {
+            diamonds: 30 + topicData.count * 5,
+            emeralds: 15 + topicData.count * 2,
+            xp: 100 + topicData.count * 10,
+          },
+        });
+
+        questsCreated.push(topicData.topic);
+      }
+
+      generated++;
+    }
+
+    return { generated, skipped, totalPlayers: players.length };
+  },
+});
+
+// Helper to generate quest details from topic
+function getQuestDetails(
+  topic: string,
+  subject: string
+): { name: string; icon: string; description: string } {
+  const topicLower = topic.toLowerCase();
+
+  // Subject-specific quest names
+  if (topicLower.includes("suffix")) {
+    return {
+      name: "Suffix Sorcery",
+      icon: "🎯",
+      description: "Master those tricky suffixes!",
+    };
+  }
+  if (topicLower.includes("prefix")) {
+    return {
+      name: "Prefix Power",
+      icon: "✨",
+      description: "Learn prefix magic!",
+    };
+  }
+  if (topicLower.includes("verb")) {
+    return {
+      name: "Verb Victory",
+      icon: "⚡",
+      description: "Conquer action words!",
+    };
+  }
+  if (topicLower.includes("noun")) {
+    return {
+      name: "Noun Knight",
+      icon: "🏰",
+      description: "Name all the things!",
+    };
+  }
+  if (topicLower.includes("spell")) {
+    return {
+      name: "Spelling Spells",
+      icon: "📝",
+      description: "Perfect your spelling!",
+    };
+  }
+  if (topicLower.includes("grammar")) {
+    return {
+      name: "Grammar Guardian",
+      icon: "🛡️",
+      description: "Protect proper grammar!",
+    };
+  }
+  if (topicLower.includes("multiply") || topicLower.includes("times")) {
+    return {
+      name: "Multiply Master",
+      icon: "✖️",
+      description: "Multiply your skills!",
+    };
+  }
+  if (topicLower.includes("divide")) {
+    return {
+      name: "Division Dojo",
+      icon: "➗",
+      description: "Divide and conquer!",
+    };
+  }
+  if (topicLower.includes("add")) {
+    return {
+      name: "Addition Arena",
+      icon: "➕",
+      description: "Add up your wins!",
+    };
+  }
+  if (topicLower.includes("subtract")) {
+    return {
+      name: "Subtraction Station",
+      icon: "➖",
+      description: "Subtract mistakes!",
+    };
+  }
+
+  // Default
+  return {
+    name: `${topic.charAt(0).toUpperCase() + topic.slice(1)} Training`,
+    icon: "🎯",
+    description: `Practice ${topic} skills!`,
+  };
+}
+
 
 // Generate quest configuration based on topic and errors
 function generateQuestConfig(topicData: {

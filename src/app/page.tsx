@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect } from "react";
 import { useAppStore } from "@/lib/store";
 import { useConvexSync } from "@/components/providers/ConvexSyncProvider";
-import { useMutation } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 
@@ -305,12 +305,28 @@ export default function Home() {
   // Spell Book mutation - add words when correct answers given
   const addToSpellBook = useMutation(api.quests.addToSpellBook);
 
+  // Practice quest progress mutation
+  const answerPracticeQuestion = useMutation(api.weeklyQuests.answerPracticeQuestion);
+
+  // Topic progress mutation
+  const updateTopicProgress = useMutation(api.learning.updateTopicProgress);
+
+  // Generate weekly quests on demand
+  const generateWeeklyQuests = useMutation(api.weeklyQuests.generateWeeklyQuests);
+
+  // Weekly quests query - for practice quest gameplay
+  const weeklyQuestsData = useQuery(
+    api.weeklyQuests.getWeeklyQuests,
+    playerId ? { playerId } : "skip"
+  );
+
   // Camera/AI states
   const [showCamera, setShowCamera] = useState(false);
   const [showAIProcessing, setShowAIProcessing] = useState(false);
   const [capturedImages, setCapturedImages] = useState<string[]>([]);
   const [aiGameData, setAiGameData] = useState<AIAnalysisResult | null>(null);
   const [currentHomeworkSessionId, setCurrentHomeworkSessionId] = useState<Id<"homeworkSessions"> | null>(null);
+  const [currentPracticeQuestId, setCurrentPracticeQuestId] = useState<Id<"weeklyPracticeQuests"> | null>(null);
   const [isPlayingAIGame, setIsPlayingAIGame] = useState(false);
   const [aiGameProgress, setAiGameProgress] = useState({ current: 0, correct: 0, mistakes: 0 });
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
@@ -385,6 +401,15 @@ export default function Home() {
     }
   }, [convexLoading, isLoggedIn, phase, player.dailyClaimed]);
 
+  // Generate weekly quests if player has none
+  useEffect(() => {
+    if (playerId && weeklyQuestsData && weeklyQuestsData.quests.length === 0) {
+      generateWeeklyQuests({ playerId }).catch(err => {
+        console.log("Weekly quests generation:", err.message);
+      });
+    }
+  }, [playerId, weeklyQuestsData, generateWeeklyQuests]);
+
   // Handlers
   const handleLoadingComplete = useCallback(() => {
     if (!convexLoading) {
@@ -456,6 +481,22 @@ export default function Home() {
     setScreen("leaderboard");
   }, [setScreen]);
 
+  const handleOpenShop = useCallback(() => {
+    setScreen("shop");
+  }, [setScreen]);
+
+  const handleOpenInventory = useCallback(() => {
+    setScreen("inventory");
+  }, [setScreen]);
+
+  const handleOpenAchievements = useCallback(() => {
+    setScreen("achievements");
+  }, [setScreen]);
+
+  const handleOpenGemHub = useCallback(() => {
+    setScreen("gem-hub");
+  }, [setScreen]);
+
   // Play a saved homework session from WEEKLY QUESTS
   const handlePlayHomework = useCallback((homework: {
     _id: Id<"homeworkSessions">;
@@ -513,11 +554,47 @@ export default function Home() {
 
   // Start a practice quest from WeeklyQuestsScreen
   const handleStartPracticeQuest = useCallback((questId: Id<"weeklyPracticeQuests">) => {
-    // TODO: Implement practice quest gameplay
-    // For now, log and show feedback
-    console.log("Starting practice quest:", questId);
-    // Could show a modal or start a mini-game for the practice quest
-  }, []);
+    // Find the quest in weeklyQuestsData
+    const quest = weeklyQuestsData?.quests?.find(q => q._id === questId);
+    if (!quest) {
+      console.error("Practice quest not found:", questId);
+      return;
+    }
+
+    // Check if already completed
+    if (quest.isCompleted) {
+      alert("This practice quest is already completed!");
+      return;
+    }
+
+    // Convert practice quest to AIAnalysisResult format
+    const gameData: AIAnalysisResult = {
+      subject: quest.subject,
+      grade: "Practice",
+      topics: [quest.topic],
+      totalPages: 1,
+      gameName: quest.questName,
+      gameIcon: quest.questIcon,
+      questions: quest.questions.map(q => ({
+        text: q.text,
+        type: q.type as "multiple_choice" | "fill_blank" | "true_false",
+        options: q.options,
+        correct: q.correct,
+        explanation: q.explanation,
+      })),
+    };
+
+    // Set the practice quest ID for progress tracking
+    setCurrentPracticeQuestId(questId);
+    setCurrentHomeworkSessionId(null); // Clear any homework session
+
+    // Start the game
+    setAiGameData(gameData);
+    setIsPlayingAIGame(true);
+    setAiGameProgress({ current: 0, correct: 0, mistakes: 0 });
+    setSelectedAnswer(null);
+    setShowFeedback(false);
+  }, [weeklyQuestsData]);
 
   const handleCameraCapture = useCallback((images: string[]) => {
     setCapturedImages(images);
@@ -582,6 +659,35 @@ export default function Home() {
 
       setFeedbackCorrect(isCorrect);
       setShowFeedback(true);
+
+      // Track practice quest progress if playing a practice quest
+      if (currentPracticeQuestId) {
+        try {
+          await answerPracticeQuestion({
+            questId: currentPracticeQuestId,
+            questionIndex: aiGameProgress.current,
+            answer,
+            isCorrect,
+          });
+        } catch (err) {
+          console.error("Failed to track practice quest progress:", err);
+        }
+      }
+
+      // Update topic progress for adaptive learning
+      if (playerId && aiGameData) {
+        try {
+          const topic = detectTopic(currentQ.text, aiGameData.subject);
+          await updateTopicProgress({
+            playerId,
+            topic,
+            subject: aiGameData.subject,
+            isCorrect,
+          });
+        } catch (err) {
+          console.error("Failed to update topic progress:", err);
+        }
+      }
 
       if (isCorrect) {
         // Award currency via Convex
@@ -648,7 +754,7 @@ export default function Home() {
         }, 1000);
       }
     },
-    [aiGameData, aiGameProgress, showFeedback, awardCurrency, spawnParticles, playerId, trackError, currentHomeworkSessionId, addToSpellBook]
+    [aiGameData, aiGameProgress, showFeedback, awardCurrency, spawnParticles, playerId, trackError, currentHomeworkSessionId, addToSpellBook, currentPracticeQuestId, answerPracticeQuestion, updateTopicProgress]
   );
 
   // Move to next question helper
@@ -714,6 +820,7 @@ export default function Home() {
         setShowLevelComplete(true);
         setIsPlayingAIGame(false);
         setCurrentHomeworkSessionId(null);
+        setCurrentPracticeQuestId(null);
         spawnParticles(["💎", "🟢", "⭐"]);
       }
     },
@@ -791,6 +898,8 @@ export default function Home() {
     setIsPlayingAIGame(false);
     setAiGameData(null);
     setCapturedImages([]);
+    setCurrentPracticeQuestId(null);
+    setCurrentHomeworkSessionId(null);
     setScreen("home");
   }, [setScreen]);
 
@@ -944,6 +1053,10 @@ export default function Home() {
             onLeaderboard={handleOpenLeaderboard}
             onLogout={handleLogout}
             onPlayHomework={handlePlayHomework}
+            onShop={handleOpenShop}
+            onInventory={handleOpenInventory}
+            onAchievements={handleOpenAchievements}
+            onGemHub={handleOpenGemHub}
           />
         );
       case "shop":

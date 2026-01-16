@@ -14,6 +14,7 @@ import type * as dashboard from "../dashboard.js";
 import type * as errors from "../errors.js";
 import type * as gems from "../gems.js";
 import type * as homework from "../homework.js";
+import type * as insights from "../insights.js";
 import type * as leaderboards from "../leaderboards.js";
 import type * as learning from "../learning.js";
 import type * as levels from "../levels.js";
@@ -24,6 +25,7 @@ import type * as profile from "../profile.js";
 import type * as quests from "../quests.js";
 import type * as scoring from "../scoring.js";
 import type * as shop from "../shop.js";
+import type * as spacedRepetition from "../spacedRepetition.js";
 import type * as weeklyQuests from "../weeklyQuests.js";
 
 import type {
@@ -39,6 +41,7 @@ declare const fullApi: ApiFromModules<{
   errors: typeof errors;
   gems: typeof gems;
   homework: typeof homework;
+  insights: typeof insights;
   leaderboards: typeof leaderboards;
   learning: typeof learning;
   levels: typeof levels;
@@ -49,6 +52,7 @@ declare const fullApi: ApiFromModules<{
   quests: typeof quests;
   scoring: typeof scoring;
   shop: typeof shop;
+  spacedRepetition: typeof spacedRepetition;
   weeklyQuests: typeof weeklyQuests;
 }>;
 

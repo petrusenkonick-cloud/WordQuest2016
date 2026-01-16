@@ -55,4 +55,14 @@ crons.weekly(
   { type: "weekly" }
 );
 
+// ========== WEEKLY PRACTICE QUESTS ==========
+
+// Generate weekly practice quests every Monday at 6:00 UTC
+// Creates personalized practice quests based on each player's weak topics
+crons.weekly(
+  "generate-weekly-practice-quests",
+  { dayOfWeek: "monday", hourUTC: 6, minuteUTC: 0 },
+  internal.weeklyQuests.generateAllPlayersWeeklyQuests
+);
+
 export default crons;
