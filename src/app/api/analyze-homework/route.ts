@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
-// Use Gemini 3 Flash - latest model with best reasoning
-const GEMINI_MODEL = "gemini-3-flash-preview";
+// Use Gemini 1.5 Flash - stable and fast, works with all API keys
+const GEMINI_MODEL = "gemini-1.5-flash";
 const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
 // Maximum photos allowed (must match frontend)
