@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { FloatingGemReward } from "@/components/gems";
 import { GemType, GEM_CONFIG, RARITY_CONFIG } from "@/lib/gemTypes";
+import { useAudio } from "@/hooks/useAudio";
 
 interface GemReward {
   gemType: GemType;
@@ -34,9 +35,13 @@ export function LevelCompleteModal({
   gemsFound = [],
 }: LevelCompleteModalProps) {
   const [animatedStars, setAnimatedStars] = useState(0);
+  const { playSound } = useAudio();
 
   useEffect(() => {
     if (isOpen) {
+      // Play level complete sound
+      playSound("levelComplete");
+
       setAnimatedStars(0);
       const timer1 = setTimeout(() => setAnimatedStars(1), 300);
       const timer2 = setTimeout(() => setAnimatedStars(2), 600);
@@ -48,7 +53,7 @@ export function LevelCompleteModal({
         clearTimeout(timer3);
       };
     }
-  }, [isOpen]);
+  }, [isOpen, playSound]);
 
   if (!isOpen) return null;
 

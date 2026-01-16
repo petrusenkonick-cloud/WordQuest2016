@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/Button";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { useAudio } from "@/hooks/useAudio";
 
 // Floating particles for atmosphere
 function FloatingParticles() {
@@ -399,6 +400,14 @@ interface HintBoxProps {
 }
 
 export function HintBox({ hint, extraInfo, visible }: HintBoxProps) {
+  const { playSound } = useAudio();
+
+  useEffect(() => {
+    if (visible) {
+      playSound("hint");
+    }
+  }, [visible, playSound]);
+
   return (
     <AnimatePresence>
       {visible && (
@@ -512,6 +521,14 @@ interface FeedbackProps {
 }
 
 export function Feedback({ type, title, message, visible }: FeedbackProps) {
+  const { playSound } = useAudio();
+
+  useEffect(() => {
+    if (visible) {
+      playSound(type === "success" ? "correct" : "wrong");
+    }
+  }, [visible, type, playSound]);
+
   return (
     <AnimatePresence>
       {visible && (

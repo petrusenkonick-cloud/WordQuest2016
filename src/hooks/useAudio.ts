@@ -49,6 +49,7 @@ class AudioManager {
   private currentTrack: MusicTrack | null = null;
   private isUnlocked = false;
   private pendingLoads: Promise<void>[] = [];
+  private pendingMusic: { track: MusicTrack; volume: number } | null = null;
 
   private constructor() {
     if (typeof window !== "undefined") {
@@ -96,6 +97,12 @@ class AudioManager {
       document.removeEventListener("touchstart", unlock);
       document.removeEventListener("click", unlock);
       document.removeEventListener("keydown", unlock);
+
+      // Play pending music after unlock
+      if (this.pendingMusic) {
+        this.playMusic(this.pendingMusic.track, this.pendingMusic.volume);
+        this.pendingMusic = null;
+      }
     };
 
     document.addEventListener("touchstart", unlock, { once: true });
@@ -151,6 +158,12 @@ class AudioManager {
   async playMusic(track: MusicTrack, volume: number = 0.5): Promise<void> {
     if (!this.musicElement) return;
 
+    // If not unlocked yet, queue the music to play after unlock
+    if (!this.isUnlocked) {
+      this.pendingMusic = { track, volume };
+      return;
+    }
+
     // Don't restart if same track
     if (this.currentTrack === track && !this.musicElement.paused) {
       this.musicElement.volume = volume;
@@ -164,7 +177,8 @@ class AudioManager {
     try {
       await this.musicElement.play();
     } catch {
-      // Autoplay may be blocked - will play after user interaction
+      // Autoplay may be blocked - queue for later
+      this.pendingMusic = { track, volume };
     }
   }
 
