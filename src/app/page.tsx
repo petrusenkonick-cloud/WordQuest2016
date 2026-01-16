@@ -349,8 +349,10 @@ export default function Home() {
   const setScreen = useAppStore((state) => state.setScreen);
   const spawnParticles = useAppStore((state) => state.spawnParticles);
 
-  // Modals
-  const [showDailyReward, setShowDailyReward] = useState(false);
+  // Modals - Daily Reward uses store state
+  const showDailyRewardUI = useAppStore((state) => state.ui.showDailyReward);
+  const showDailyRewardModalFn = useAppStore((state) => state.showDailyRewardModal);
+  const hideDailyRewardModalFn = useAppStore((state) => state.hideDailyRewardModal);
   const [showLevelComplete, setShowLevelComplete] = useState(false);
   const [levelCompleteData, setLevelCompleteData] = useState<{
     levelId: string;
@@ -391,7 +393,7 @@ export default function Home() {
           setPhase("game");
           // Show daily reward if not claimed
           if (!player.dailyClaimed) {
-            setTimeout(() => setShowDailyReward(true), 1000);
+            setTimeout(() => showDailyRewardModalFn(), 1000);
           }
         } else {
           setPhase("login");
@@ -911,8 +913,8 @@ export default function Home() {
       spawnParticles(["💎", "🟢", "🪙", "🎁"]);
     }
 
-    setShowDailyReward(false);
-  }, [claimDailyRewardSync, spawnParticles]);
+    hideDailyRewardModalFn();
+  }, [claimDailyRewardSync, spawnParticles, hideDailyRewardModalFn]);
 
   const handlePurchase = useCallback(
     async (itemId: string, itemType: string, price: number, currency: string) => {
@@ -1177,8 +1179,8 @@ export default function Home() {
 
       {/* Daily Reward Modal */}
       <DailyRewardModal
-        isOpen={showDailyReward}
-        onClose={() => setShowDailyReward(false)}
+        isOpen={showDailyRewardUI}
+        onClose={hideDailyRewardModalFn}
         currentDay={player.dailyDay}
         claimed={player.dailyClaimed}
         streak={player.streak}

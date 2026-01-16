@@ -236,34 +236,50 @@ export function MiningOverlay({
     // Start breaking animation
     setBreakingBlock(currentDepth);
 
-    // Check for gem drop
-    const result = await checkGemDrop();
+    // Fallback timeout to ensure isDigging is reset even if something goes wrong
+    const fallbackTimeout = setTimeout(() => {
+      setIsDigging(false);
+    }, 2000);
 
-    // Convert GemDropResult to GemFound if a gem was dropped
-    if (result?.dropped && result.gemType) {
-      const foundGem: GemFound = {
-        gemType: result.gemType,
-        isWhole: result.isWhole ?? false,
-        rarity: result.rarity ?? "common",
-      };
-      setCurrentGem(foundGem);
-      setGemsFound((prev) => [...prev, foundGem]);
-      // Play gem found sound after a delay
-      setTimeout(() => playSound("reward"), 400);
+    try {
+      // Check for gem drop
+      const result = await checkGemDrop();
+
+      // Convert GemDropResult to GemFound if a gem was dropped
+      if (result?.dropped && result.gemType) {
+        const foundGem: GemFound = {
+          gemType: result.gemType,
+          isWhole: result.isWhole ?? false,
+          rarity: result.rarity ?? "common",
+        };
+        setCurrentGem(foundGem);
+        setGemsFound((prev) => [...prev, foundGem]);
+        // Play gem found sound after a delay
+        setTimeout(() => playSound("reward"), 400);
+      }
+    } catch (error) {
+      console.error("Error checking gem drop:", error);
+    } finally {
+      // Clear the fallback timeout since animation will handle it
+      clearTimeout(fallbackTimeout);
     }
   }, [isDigging, digsRemaining, currentDepth, checkGemDrop, playSound]);
 
   const handleBreakComplete = useCallback(() => {
-    onDepthChange(currentDepth + 1);
-    setDigsRemaining((d) => d - 1);
+    // Safety: always reset isDigging first
     setIsDigging(false);
     setBreakingBlock(null);
 
-    // Check if all digs used
-    if (digsRemaining <= 1) {
-      setTimeout(() => setShowComplete(true), 500);
-    }
-  }, [currentDepth, digsRemaining, onDepthChange]);
+    onDepthChange(currentDepth + 1);
+    setDigsRemaining((d) => {
+      const newDigs = d - 1;
+      // Check if all digs used (inside the setter for accurate value)
+      if (newDigs <= 0) {
+        setTimeout(() => setShowComplete(true), 500);
+      }
+      return newDigs;
+    });
+  }, [currentDepth, onDepthChange]);
 
   const handleFinish = useCallback(() => {
     onComplete(gemsFound);
