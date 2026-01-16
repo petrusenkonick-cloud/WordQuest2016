@@ -11,6 +11,7 @@
 import type * as achievements from "../achievements.js";
 import type * as crons from "../crons.js";
 import type * as dashboard from "../dashboard.js";
+import type * as gems from "../gems.js";
 import type * as leaderboards from "../leaderboards.js";
 import type * as learning from "../learning.js";
 import type * as levels from "../levels.js";
@@ -32,6 +33,7 @@ declare const fullApi: ApiFromModules<{
   achievements: typeof achievements;
   crons: typeof crons;
   dashboard: typeof dashboard;
+  gems: typeof gems;
   leaderboards: typeof leaderboards;
   learning: typeof learning;
   levels: typeof levels;

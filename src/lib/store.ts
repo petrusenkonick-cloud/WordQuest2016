@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { GemType } from "./gemTypes";
 
 // Player state (stored in localStorage, can be synced with Convex later)
 export interface PlayerState {
@@ -44,7 +45,8 @@ export type ScreenType =
   | "spell-book"
   | "profile-setup"
   | "dashboard"
-  | "leaderboard";
+  | "leaderboard"
+  | "gem-hub";
 
 export interface UIState {
   currentScreen: ScreenType;
@@ -80,6 +82,21 @@ export interface AudioState {
   sfxEnabled: boolean;
   musicVolume: number; // 0-1
   sfxVolume: number; // 0-1
+}
+
+// Gem state for UI
+export interface GemDrop {
+  id: string;
+  gemType: GemType;
+  isWhole: boolean;
+  rarity: string;
+}
+
+export interface GemState {
+  pendingDrops: GemDrop[];
+  showGemInventory: boolean;
+  lastDropTime: number;
+  sessionGemsFound: number;
 }
 
 interface AppStore {
@@ -119,6 +136,16 @@ interface AppStore {
   // Audio
   audio: AudioState;
   setAudioSettings: (settings: Partial<AudioState>) => void;
+
+  // Gems
+  gems: GemState;
+  addGemDrop: (drop: Omit<GemDrop, "id">) => void;
+  removeGemDrop: (id: string) => void;
+  clearGemDrops: () => void;
+  toggleGemInventory: () => void;
+  setGemInventoryOpen: (open: boolean) => void;
+  incrementSessionGems: () => void;
+  resetSessionGems: () => void;
 }
 
 const initialPlayerState: PlayerState = {
@@ -163,6 +190,13 @@ const initialAudioState: AudioState = {
   sfxEnabled: true,
   musicVolume: 0.5,
   sfxVolume: 0.7,
+};
+
+const initialGemState: GemState = {
+  pendingDrops: [],
+  showGemInventory: false,
+  lastDropTime: 0,
+  sessionGemsFound: 0,
 };
 
 export const useAppStore = create<AppStore>((set, get) => ({
@@ -252,4 +286,45 @@ export const useAppStore = create<AppStore>((set, get) => ({
   audio: initialAudioState,
   setAudioSettings: (settings) =>
     set((state) => ({ audio: { ...state.audio, ...settings } })),
+
+  // Gems
+  gems: initialGemState,
+  addGemDrop: (drop) => {
+    const id = Math.random().toString(36).substring(7);
+    set((state) => ({
+      gems: {
+        ...state.gems,
+        pendingDrops: [...state.gems.pendingDrops, { ...drop, id }],
+        lastDropTime: Date.now(),
+        sessionGemsFound: state.gems.sessionGemsFound + 1,
+      },
+    }));
+  },
+  removeGemDrop: (id) =>
+    set((state) => ({
+      gems: {
+        ...state.gems,
+        pendingDrops: state.gems.pendingDrops.filter((d) => d.id !== id),
+      },
+    })),
+  clearGemDrops: () =>
+    set((state) => ({
+      gems: { ...state.gems, pendingDrops: [] },
+    })),
+  toggleGemInventory: () =>
+    set((state) => ({
+      gems: { ...state.gems, showGemInventory: !state.gems.showGemInventory },
+    })),
+  setGemInventoryOpen: (open) =>
+    set((state) => ({
+      gems: { ...state.gems, showGemInventory: open },
+    })),
+  incrementSessionGems: () =>
+    set((state) => ({
+      gems: { ...state.gems, sessionGemsFound: state.gems.sessionGemsFound + 1 },
+    })),
+  resetSessionGems: () =>
+    set((state) => ({
+      gems: { ...state.gems, sessionGemsFound: 0 },
+    })),
 }));

@@ -431,4 +431,83 @@ export default defineSchema({
   })
     .index("by_player", ["playerId"])
     .index("by_player_unclaimed", ["playerId", "claimed"]),
+
+  // ========== GEM SYSTEM TABLES ==========
+
+  // Player gem inventory
+  playerGems: defineTable({
+    playerId: v.id("players"),
+    gemType: v.string(), // "topaz", "amethyst", "sapphire", "ruby", "emerald", "diamond", "opal", "onyx"
+    wholeGems: v.number(),
+    shards: v.number(),
+    totalFound: v.number(),
+  })
+    .index("by_player", ["playerId"])
+    .index("by_player_gem", ["playerId", "gemType"]),
+
+  // Gem collection progress
+  gemCollections: defineTable({
+    playerId: v.id("players"),
+    setId: v.string(), // "starter", "elements", "rainbow"
+    isComplete: v.boolean(),
+    bonusClaimed: v.boolean(),
+    completedAt: v.optional(v.string()),
+  })
+    .index("by_player", ["playerId"])
+    .index("by_player_set", ["playerId", "setId"]),
+
+  // Crafting history
+  craftingHistory: defineTable({
+    playerId: v.id("players"),
+    recipeId: v.string(),
+    itemName: v.string(),
+    ingredientsUsed: v.array(
+      v.object({
+        gemType: v.string(),
+        amount: v.number(),
+      })
+    ),
+    craftedAt: v.string(),
+  }).index("by_player", ["playerId"]),
+
+  // Mining sessions
+  miningSessions: defineTable({
+    playerId: v.id("players"),
+    depth: v.number(),
+    gemsFound: v.array(
+      v.object({
+        gemType: v.string(),
+        isWhole: v.boolean(),
+      })
+    ),
+    questionsAnswered: v.number(),
+    correctAnswers: v.number(),
+    mistakes: v.number(),
+    startedAt: v.string(),
+    endedAt: v.optional(v.string()),
+    status: v.string(), // "active", "completed", "failed"
+  }).index("by_player", ["playerId"]),
+
+  // Active gem boosts
+  activeBoosts: defineTable({
+    playerId: v.id("players"),
+    boostType: v.string(), // "xp_multiplier", "gem_luck", "streak_shield", "double_rewards"
+    boostName: v.string(),
+    multiplier: v.number(),
+    usesRemaining: v.optional(v.number()), // For single-use items like streak shield
+    expiresAt: v.string(),
+    sourceRecipe: v.optional(v.string()),
+  })
+    .index("by_player", ["playerId"])
+    .index("by_player_type", ["playerId", "boostType"]),
+
+  // Gem drop history (for analytics)
+  gemDrops: defineTable({
+    playerId: v.id("players"),
+    gemType: v.string(),
+    isWhole: v.boolean(),
+    source: v.string(), // "correct_answer", "level_complete", "mining", "achievement"
+    levelId: v.optional(v.string()),
+    droppedAt: v.string(),
+  }).index("by_player", ["playerId"]),
 });

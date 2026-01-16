@@ -1,6 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { FloatingGemReward } from "@/components/gems";
+import { GemType, GEM_CONFIG, RARITY_CONFIG } from "@/lib/gemTypes";
+
+interface GemReward {
+  gemType: GemType;
+  isWhole: boolean;
+}
 
 interface LevelCompleteModalProps {
   isOpen: boolean;
@@ -13,6 +21,7 @@ interface LevelCompleteModalProps {
     emeralds: number;
     xp: number;
   };
+  gemsFound?: GemReward[];
 }
 
 export function LevelCompleteModal({
@@ -22,6 +31,7 @@ export function LevelCompleteModal({
   levelName,
   stars,
   rewards,
+  gemsFound = [],
 }: LevelCompleteModalProps) {
   const [animatedStars, setAnimatedStars] = useState(0);
 
@@ -83,6 +93,40 @@ export function LevelCompleteModal({
             <div className="amount">+{rewards.xp}XP</div>
           </div>
         </div>
+
+        {/* Gems Found Section */}
+        {gemsFound.length > 0 && (
+          <div style={{ marginTop: "16px", marginBottom: "16px" }}>
+            <p
+              style={{
+                color: "#A855F7",
+                fontSize: "0.9em",
+                marginBottom: "12px",
+                textTransform: "uppercase",
+                letterSpacing: "1px",
+              }}
+            >
+              ✨ Gems Found ✨
+            </p>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "center",
+                gap: "12px",
+                flexWrap: "wrap",
+              }}
+            >
+              {gemsFound.map((gem, index) => (
+                <FloatingGemReward
+                  key={index}
+                  gemType={gem.gemType}
+                  isWhole={gem.isWhole}
+                  index={index}
+                />
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Buttons */}
         <div style={{ display: "flex", gap: "12px", justifyContent: "center" }}>

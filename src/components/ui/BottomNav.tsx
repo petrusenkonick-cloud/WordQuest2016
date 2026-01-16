@@ -4,6 +4,7 @@ import { useAppStore } from "@/lib/store";
 
 const NAV_ITEMS = [
   { id: "home", icon: "🏠", label: "HOME" },
+  { id: "gem-hub", icon: "💠", label: "GEMS" },
   { id: "shop", icon: "🏪", label: "SHOP" },
   { id: "inventory", icon: "🎒", label: "BAG" },
   { id: "achievements", icon: "🏆", label: "AWARDS" },

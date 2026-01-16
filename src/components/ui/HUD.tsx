@@ -1,10 +1,26 @@
 "use client";
 
 import { useAppStore } from "@/lib/store";
+import { useQuery } from "convex/react";
+import { api } from "../../../convex/_generated/api";
+import { Id } from "../../../convex/_generated/dataModel";
 
-export function HUD() {
+interface HUDProps {
+  playerId?: Id<"players"> | null;
+}
+
+export function HUD({ playerId }: HUDProps = {}) {
   const player = useAppStore((state) => state.player);
+  const toggleGemInventory = useAppStore((state) => state.toggleGemInventory);
   const xpPercent = (player.xp / player.xpNext) * 100;
+
+  // Fetch gem count if playerId is provided
+  const playerGems = useQuery(
+    api.gems.getPlayerGems,
+    playerId ? { playerId } : "skip"
+  );
+
+  const totalGems = playerGems?.reduce((sum, g) => sum + g.wholeGems, 0) || 0;
 
   return (
     <div className="hud">
@@ -39,6 +55,24 @@ export function HUD() {
             <span className="icon">🪙</span>
             <span className="amount">{player.gold}</span>
           </div>
+          {/* Gems - only show if player has gems */}
+          {playerId && (
+            <div
+              className="currency-item"
+              style={{
+                background: "linear-gradient(135deg, #A855F720, #A855F740)",
+                border: "2px solid #A855F7",
+                cursor: "pointer",
+              }}
+              onClick={toggleGemInventory}
+              title="Open Gem Inventory"
+            >
+              <span className="icon">💠</span>
+              <span className="amount" style={{ color: "#A855F7" }}>
+                {totalGems}
+              </span>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -48,6 +82,7 @@ export function HUD() {
 // Mini HUD for in-game display
 export function MiniHUD() {
   const player = useAppStore((state) => state.player);
+  const sessionGemsFound = useAppStore((state) => state.gems.sessionGemsFound);
 
   return (
     <div style={{ display: "flex", alignItems: "center", gap: "15px" }}>
@@ -72,6 +107,23 @@ export function MiniHUD() {
         <span className="icon">💎</span>
         <span className="amount">{player.diamonds}</span>
       </div>
+
+      {/* Session gems found */}
+      {sessionGemsFound > 0 && (
+        <div
+          className="currency-item"
+          style={{
+            background: "linear-gradient(135deg, #A855F720, #A855F740)",
+            border: "2px solid #A855F7",
+            animation: "pulse 2s infinite",
+          }}
+        >
+          <span className="icon">💠</span>
+          <span className="amount" style={{ color: "#A855F7" }}>
+            +{sessionGemsFound}
+          </span>
+        </div>
+      )}
     </div>
   );
 }
