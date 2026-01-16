@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
-// Use Gemini 2.0 Flash - stable and fast model
-const GEMINI_MODEL = "gemini-2.0-flash";
+// Use Gemini 1.5 Flash - most stable and widely available model
+const GEMINI_MODEL = "gemini-1.5-flash";
 const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
 // Maximum photos allowed (must match frontend)
@@ -206,10 +206,11 @@ Return ONLY the JSON, no markdown, no extra text.`;
 
     // Parse the JSON response (remove any markdown code blocks if present)
     let jsonStr = textContent.trim();
+
+    // Remove markdown code blocks
     if (jsonStr.startsWith("```json")) {
       jsonStr = jsonStr.slice(7);
-    }
-    if (jsonStr.startsWith("```")) {
+    } else if (jsonStr.startsWith("```")) {
       jsonStr = jsonStr.slice(3);
     }
     if (jsonStr.endsWith("```")) {
@@ -217,13 +218,19 @@ Return ONLY the JSON, no markdown, no extra text.`;
     }
     jsonStr = jsonStr.trim();
 
+    // Try to extract JSON from response if it contains extra text
+    const jsonMatch = jsonStr.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      jsonStr = jsonMatch[0];
+    }
+
     // Safe JSON parsing with detailed error
     let result;
     try {
       result = JSON.parse(jsonStr);
     } catch (parseError) {
       console.error("Failed to parse AI response as JSON:", parseError);
-      console.error("Raw response:", jsonStr.substring(0, 500));
+      console.error("Raw response (first 1000 chars):", textContent.substring(0, 1000));
       return NextResponse.json(
         { error: "AI returned an invalid format. Please try again!" },
         { status: 500 }
