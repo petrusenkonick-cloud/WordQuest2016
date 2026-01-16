@@ -36,11 +36,14 @@ async function analyzeWithGemini(images: string[]): Promise<AIAnalysisResult> {
     body: JSON.stringify({ images }),
   });
 
+  const data = await response.json();
+
   if (!response.ok) {
-    throw new Error("Failed to analyze homework");
+    // Use error message from API (which is now user-friendly in Russian)
+    throw new Error(data.error || "Ошибка при анализе домашки");
   }
 
-  return response.json();
+  return data;
 }
 
 export function AIProcessingScreen({ images, onComplete, onError }: AIProcessingScreenProps) {
@@ -89,8 +92,10 @@ export function AIProcessingScreen({ images, onComplete, onError }: AIProcessing
 
       await new Promise((r) => setTimeout(r, 500));
       onComplete(result);
-    } catch {
-      onError("Failed to process homework. Please try again.");
+    } catch (error) {
+      // Pass the actual error message from API
+      const errorMessage = error instanceof Error ? error.message : "Ошибка при обработке домашки. Попробуй ещё раз!";
+      onError(errorMessage);
     }
   }, [images, onComplete, onError]);
 

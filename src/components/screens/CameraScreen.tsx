@@ -53,6 +53,9 @@ function AnimatedTip({ emoji, text }: { emoji: string; text: string }) {
   );
 }
 
+// Maximum photos allowed
+const MAX_PHOTOS = 50;
+
 export function CameraScreen({ onCapture, onCancel }: CameraScreenProps) {
   const [step, setStep] = useState<"intro" | "camera" | "preview" | "processing">("intro");
   const [capturedImages, setCapturedImages] = useState<string[]>([]);
@@ -62,6 +65,7 @@ export function CameraScreen({ onCapture, onCancel }: CameraScreenProps) {
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [processingText, setProcessingText] = useState("Analyzing your homework...");
+  const [limitWarning, setLimitWarning] = useState<string | null>(null);
 
   // Processing animation texts
   useEffect(() => {
@@ -123,6 +127,13 @@ export function CameraScreen({ onCapture, onCancel }: CameraScreenProps) {
   // Capture photo from camera
   const capturePhoto = useCallback(() => {
     if (videoRef.current && stream) {
+      // Check photo limit
+      if (capturedImages.length >= MAX_PHOTOS) {
+        setLimitWarning(`Максимум ${MAX_PHOTOS} фото! Удали ненужные.`);
+        setTimeout(() => setLimitWarning(null), 3000);
+        return;
+      }
+
       setIsCapturing(true);
       const canvas = document.createElement("canvas");
       canvas.width = videoRef.current.videoWidth;
@@ -135,7 +146,7 @@ export function CameraScreen({ onCapture, onCancel }: CameraScreenProps) {
       }
       setTimeout(() => setIsCapturing(false), 200);
     }
-  }, [stream]);
+  }, [stream, capturedImages.length]);
 
   // Handle file selection from gallery (multiple files)
   const handleFileSelect = useCallback(
@@ -143,15 +154,31 @@ export function CameraScreen({ onCapture, onCancel }: CameraScreenProps) {
       const files = e.target.files;
       if (files && files.length > 0) {
         stopCamera();
+
+        // Calculate how many more photos we can add
+        const remainingSlots = MAX_PHOTOS - capturedImages.length;
+        const filesToProcess = Array.from(files).slice(0, remainingSlots);
+
+        if (files.length > remainingSlots) {
+          setLimitWarning(`Добавлено только ${remainingSlots} фото (лимит ${MAX_PHOTOS})`);
+          setTimeout(() => setLimitWarning(null), 4000);
+        }
+
+        if (filesToProcess.length === 0) {
+          setLimitWarning(`Максимум ${MAX_PHOTOS} фото! Удали ненужные.`);
+          setTimeout(() => setLimitWarning(null), 3000);
+          return;
+        }
+
         const newImages: string[] = [];
         let processed = 0;
 
-        Array.from(files).forEach((file) => {
+        filesToProcess.forEach((file) => {
           const reader = new FileReader();
           reader.onload = (event) => {
             newImages.push(event.target?.result as string);
             processed++;
-            if (processed === files.length) {
+            if (processed === filesToProcess.length) {
               setCapturedImages((prev) => [...prev, ...newImages]);
               setStep("preview");
             }
@@ -160,7 +187,7 @@ export function CameraScreen({ onCapture, onCancel }: CameraScreenProps) {
         });
       }
     },
-    [stopCamera]
+    [stopCamera, capturedImages.length]
   );
 
   // Go to preview step
@@ -375,10 +402,30 @@ export function CameraScreen({ onCapture, onCancel }: CameraScreenProps) {
               {/* Flash effect */}
               {isCapturing && <div className="camera-flash" />}
 
+              {/* Limit warning */}
+              {limitWarning && (
+                <div style={{
+                  position: "absolute",
+                  top: "50%",
+                  left: "50%",
+                  transform: "translate(-50%, -50%)",
+                  background: "rgba(239, 68, 68, 0.95)",
+                  color: "white",
+                  padding: "12px 20px",
+                  borderRadius: "12px",
+                  fontWeight: "bold",
+                  zIndex: 100,
+                  textAlign: "center",
+                  boxShadow: "0 4px 20px rgba(0,0,0,0.3)",
+                }}>
+                  ⚠️ {limitWarning}
+                </div>
+              )}
+
               {/* Image counter badge */}
               {capturedImages.length > 0 && (
                 <div className="capture-badge">
-                  {capturedImages.length} page{capturedImages.length > 1 ? "s" : ""} captured!
+                  {capturedImages.length}/{MAX_PHOTOS} page{capturedImages.length > 1 ? "s" : ""} captured!
                 </div>
               )}
             </>
