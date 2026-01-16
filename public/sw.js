@@ -1,4 +1,4 @@
-const CACHE_NAME = 'wordcraft-v1';
+const CACHE_NAME = 'wordquest-v2';
 const urlsToCache = [
   '/',
   '/manifest.json',
@@ -60,11 +60,11 @@ self.addEventListener('activate', (event) => {
 // Push notification event
 self.addEventListener('push', (event) => {
   const data = event.data?.json() ?? {};
-  const title = data.title || 'WordCraft';
+  const title = data.title || 'WordQuest';
   const options = {
     body: data.body || 'Time to learn new words!',
-    icon: '/icons/icon-192x192.png',
-    badge: '/icons/icon-72x72.png',
+    icon: '/icons/icon-192.png',
+    badge: '/icons/icon-72.png',
     vibrate: [100, 50, 100],
     data: {
       url: data.url || '/',
