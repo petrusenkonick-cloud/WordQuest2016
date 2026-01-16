@@ -37,6 +37,9 @@ export const viewport: Viewport = {
   themeColor: "#FCDB05",
 };
 
+// Force dynamic rendering to avoid Clerk SSG issues
+export const dynamic = "force-dynamic";
+
 export default function RootLayout({
   children,
 }: Readonly<{
