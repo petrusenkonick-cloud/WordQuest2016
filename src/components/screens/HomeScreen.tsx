@@ -87,7 +87,6 @@ interface HomeScreenProps {
   onLogout?: () => void;
   weakTopicsCount?: number;
   onPlayHomework?: (homework: HomeworkSession) => void;
-  onWeeklyQuests?: () => void;
   // New navigation handlers
   onShop?: () => void;
   onInventory?: () => void;
@@ -109,7 +108,6 @@ export function HomeScreen({
   onLogout,
   weakTopicsCount = 0,
   onPlayHomework,
-  onWeeklyQuests,
   onShop,
   onInventory,
   onAchievements,
@@ -516,7 +514,7 @@ export function HomeScreen({
 
       {/* Practice Arena - Combined practice button */}
       <div
-        onClick={onWeeklyQuests}
+        onClick={onPracticeMode}
         style={{
           background: totalWeeklyQuests > 0 || weakTopicsCount > 0
             ? "linear-gradient(180deg, #4c1d95 0%, #2e1065 100%)"

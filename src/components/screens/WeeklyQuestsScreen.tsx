@@ -13,30 +13,119 @@ interface WeeklyQuestsScreenProps {
 }
 
 // Topic icons and colors - brighter, more distinct colors
-const TOPIC_STYLES: Record<string, { icon: string; color: string; bg: string }> = {
-  suffixes: { icon: "🎯", color: "#fbbf24", bg: "#78350f" },
-  prefixes: { icon: "🔑", color: "#a78bfa", bg: "#4c1d95" },
-  verbs: { icon: "🏃", color: "#4ade80", bg: "#14532d" },
-  nouns: { icon: "📦", color: "#60a5fa", bg: "#1e3a5f" },
-  adjectives: { icon: "🎨", color: "#f472b6", bg: "#831843" },
-  spelling: { icon: "✍️", color: "#2dd4bf", bg: "#134e4a" },
-  grammar: { icon: "📝", color: "#fb7185", bg: "#881337" },
-  punctuation: { icon: "❗", color: "#facc15", bg: "#713f12" },
-  multiplication: { icon: "✖️", color: "#4ade80", bg: "#14532d" },
-  division: { icon: "➗", color: "#60a5fa", bg: "#1e3a5f" },
-  addition: { icon: "➕", color: "#fbbf24", bg: "#78350f" },
-  subtraction: { icon: "➖", color: "#f472b6", bg: "#831843" },
-  fractions: { icon: "🍕", color: "#a78bfa", bg: "#4c1d95" },
-  decimals: { icon: "🔢", color: "#2dd4bf", bg: "#134e4a" },
-  word_problems: { icon: "🧩", color: "#fb7185", bg: "#881337" },
-  default: { icon: "📚", color: "#c4b5fd", bg: "#3730a3" },
+const TOPIC_STYLES: Record<string, { icon: string; color: string; bg: string; glow: string }> = {
+  suffixes: { icon: "🎯", color: "#fbbf24", bg: "#78350f", glow: "rgba(251, 191, 36, 0.5)" },
+  prefixes: { icon: "🔑", color: "#a78bfa", bg: "#4c1d95", glow: "rgba(167, 139, 250, 0.5)" },
+  verbs: { icon: "🏃", color: "#4ade80", bg: "#14532d", glow: "rgba(74, 222, 128, 0.5)" },
+  nouns: { icon: "📦", color: "#60a5fa", bg: "#1e3a5f", glow: "rgba(96, 165, 250, 0.5)" },
+  adjectives: { icon: "🎨", color: "#f472b6", bg: "#831843", glow: "rgba(244, 114, 182, 0.5)" },
+  spelling: { icon: "✍️", color: "#2dd4bf", bg: "#134e4a", glow: "rgba(45, 212, 191, 0.5)" },
+  grammar: { icon: "📝", color: "#fb7185", bg: "#881337", glow: "rgba(251, 113, 133, 0.5)" },
+  punctuation: { icon: "❗", color: "#facc15", bg: "#713f12", glow: "rgba(250, 204, 21, 0.5)" },
+  multiplication: { icon: "✖️", color: "#4ade80", bg: "#14532d", glow: "rgba(74, 222, 128, 0.5)" },
+  division: { icon: "➗", color: "#60a5fa", bg: "#1e3a5f", glow: "rgba(96, 165, 250, 0.5)" },
+  addition: { icon: "➕", color: "#fbbf24", bg: "#78350f", glow: "rgba(251, 191, 36, 0.5)" },
+  subtraction: { icon: "➖", color: "#f472b6", bg: "#831843", glow: "rgba(244, 114, 182, 0.5)" },
+  fractions: { icon: "🍕", color: "#a78bfa", bg: "#4c1d95", glow: "rgba(167, 139, 250, 0.5)" },
+  decimals: { icon: "🔢", color: "#2dd4bf", bg: "#134e4a", glow: "rgba(45, 212, 191, 0.5)" },
+  word_problems: { icon: "🧩", color: "#fb7185", bg: "#881337", glow: "rgba(251, 113, 133, 0.5)" },
+  default: { icon: "📚", color: "#c4b5fd", bg: "#3730a3", glow: "rgba(196, 181, 253, 0.5)" },
 };
 
 function getTopicStyle(topic: string) {
   return TOPIC_STYLES[topic.toLowerCase()] || TOPIC_STYLES.default;
 }
 
-// Practice Quest Card - Redesigned for clarity
+// Floating particles background
+function FloatingParticles() {
+  return (
+    <div className="absolute inset-0 overflow-hidden pointer-events-none">
+      {[...Array(30)].map((_, i) => (
+        <motion.div
+          key={i}
+          className="absolute rounded-full"
+          style={{
+            width: Math.random() * 4 + 2,
+            height: Math.random() * 4 + 2,
+            background: ['#8b5cf6', '#ec4899', '#06b6d4', '#fbbf24', '#4ade80'][Math.floor(Math.random() * 5)],
+            left: `${Math.random() * 100}%`,
+            top: `${Math.random() * 100}%`,
+            opacity: 0.6,
+          }}
+          animate={{
+            y: [0, -30, 0],
+            x: [0, Math.random() * 20 - 10, 0],
+            scale: [1, 1.2, 1],
+            opacity: [0.4, 0.8, 0.4],
+          }}
+          transition={{
+            duration: Math.random() * 3 + 3,
+            repeat: Infinity,
+            delay: Math.random() * 2,
+            ease: "easeInOut",
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+// Circular Progress Ring Component
+function ProgressRing({
+  progress,
+  size = 100,
+  strokeWidth = 8,
+  color = "#8b5cf6",
+  bgColor = "rgba(255,255,255,0.1)",
+  children
+}: {
+  progress: number;
+  size?: number;
+  strokeWidth?: number;
+  color?: string;
+  bgColor?: string;
+  children?: React.ReactNode;
+}) {
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference - (progress / 100) * circumference;
+
+  return (
+    <div className="relative" style={{ width: size, height: size }}>
+      <svg className="transform -rotate-90" width={size} height={size}>
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          stroke={bgColor}
+          strokeWidth={strokeWidth}
+          fill="none"
+        />
+        <motion.circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          stroke={color}
+          strokeWidth={strokeWidth}
+          fill="none"
+          strokeLinecap="round"
+          strokeDasharray={circumference}
+          initial={{ strokeDashoffset: circumference }}
+          animate={{ strokeDashoffset: offset }}
+          transition={{ duration: 1.5, ease: "easeOut" }}
+          style={{
+            filter: `drop-shadow(0 0 8px ${color})`,
+          }}
+        />
+      </svg>
+      <div className="absolute inset-0 flex items-center justify-center">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+// Practice Quest Card - Redesigned for visual impact
 function PracticeQuestCard({
   quest,
   index,
@@ -63,208 +152,263 @@ function PracticeQuestCard({
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.1 }}
+      initial={{ opacity: 0, x: -50, rotateY: -10 }}
+      animate={{ opacity: 1, x: 0, rotateY: 0 }}
+      transition={{ delay: index * 0.15, type: "spring", stiffness: 100 }}
       onClick={!quest.isCompleted ? onStart : undefined}
       className={`relative ${quest.isCompleted ? "" : "cursor-pointer"}`}
-      whileHover={!quest.isCompleted ? { scale: 1.02, y: -2 } : {}}
+      whileHover={!quest.isCompleted ? {
+        scale: 1.02,
+        y: -4,
+        transition: { duration: 0.2 }
+      } : {}}
       whileTap={!quest.isCompleted ? { scale: 0.98 } : {}}
     >
-      {/* Main Card Container */}
+      {/* Glow effect behind card */}
       <div
-        className="rounded-2xl overflow-hidden"
+        className="absolute -inset-1 rounded-3xl blur-lg opacity-50"
         style={{
           background: quest.isCompleted
-            ? "linear-gradient(180deg, #166534 0%, #14532d 100%)"
-            : "linear-gradient(180deg, #1e293b 0%, #0f172a 100%)",
+            ? "linear-gradient(135deg, #22c55e 0%, #16a34a 100%)"
+            : `linear-gradient(135deg, ${topicStyle.color} 0%, ${topicStyle.bg} 100%)`,
+        }}
+      />
+
+      {/* Main Card Container */}
+      <div
+        className="relative rounded-2xl overflow-hidden backdrop-blur-sm"
+        style={{
+          background: quest.isCompleted
+            ? "linear-gradient(145deg, rgba(22, 101, 52, 0.95) 0%, rgba(20, 83, 45, 0.98) 100%)"
+            : "linear-gradient(145deg, rgba(30, 41, 59, 0.95) 0%, rgba(15, 23, 42, 0.98) 100%)",
           border: quest.isCompleted
-            ? "3px solid #4ade80"
-            : "3px solid #334155",
+            ? "2px solid rgba(74, 222, 128, 0.6)"
+            : `2px solid ${topicStyle.color}40`,
           boxShadow: quest.isCompleted
-            ? "0 8px 32px rgba(74, 222, 128, 0.3), inset 0 1px 0 rgba(255,255,255,0.1)"
-            : "0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255,255,255,0.05)",
+            ? "0 20px 40px rgba(74, 222, 128, 0.2), inset 0 1px 0 rgba(255,255,255,0.1)"
+            : `0 20px 40px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255,255,255,0.05)`,
         }}
       >
-        {/* Top Section with Icon and Title */}
-        <div className="flex items-center gap-4 p-4 pb-3">
-          {/* Large Icon Badge */}
-          <div
-            className="w-16 h-16 rounded-xl flex items-center justify-center text-3xl flex-shrink-0 relative"
+        {/* Animated shine effect */}
+        {!quest.isCompleted && (
+          <motion.div
+            className="absolute inset-0 opacity-20"
             style={{
+              background: `linear-gradient(105deg, transparent 40%, ${topicStyle.color}40 45%, transparent 50%)`,
+            }}
+            animate={{
+              x: ["-100%", "200%"],
+            }}
+            transition={{
+              duration: 3,
+              repeat: Infinity,
+              repeatDelay: 2,
+              ease: "easeInOut",
+            }}
+          />
+        )}
+
+        {/* Content Layout - responsive: stack on mobile */}
+        <div className="relative flex flex-col sm:flex-row sm:items-stretch">
+          {/* Top/Left: Icon with Progress Ring */}
+          <div
+            className="flex items-center justify-center shrink-0"
+            style={{
+              padding: "20px",
               background: quest.isCompleted
-                ? "linear-gradient(135deg, #22c55e 0%, #16a34a 100%)"
-                : `linear-gradient(135deg, ${topicStyle.color} 0%, ${topicStyle.bg} 100%)`,
-              boxShadow: quest.isCompleted
-                ? "0 4px 12px rgba(34, 197, 94, 0.5), inset 0 2px 0 rgba(255,255,255,0.3)"
-                : `0 4px 12px ${topicStyle.color}40, inset 0 2px 0 rgba(255,255,255,0.2)`,
-              border: "2px solid rgba(255,255,255,0.2)",
+                ? "rgba(0,0,0,0.2)"
+                : `linear-gradient(180deg, ${topicStyle.bg}80 0%, ${topicStyle.bg}40 100%)`,
             }}
           >
-            {quest.isCompleted ? "✅" : quest.questIcon}
+            <ProgressRing
+              progress={progress}
+              size={90}
+              strokeWidth={7}
+              color={quest.isCompleted ? "#4ade80" : topicStyle.color}
+              bgColor="rgba(255,255,255,0.1)"
+            >
+              <motion.span
+                className="text-4xl"
+                animate={quest.isCompleted ? {} : { scale: [1, 1.1, 1] }}
+                transition={{ duration: 2, repeat: Infinity }}
+              >
+                {quest.isCompleted ? "✅" : quest.questIcon}
+              </motion.span>
+            </ProgressRing>
           </div>
 
-          {/* Title and Description */}
-          <div className="flex-1 min-w-0">
+          {/* Middle: Title, Description, Progress */}
+          <div className="flex-1" style={{ padding: "20px" }}>
             <h3
-              className="font-bold text-lg mb-1 leading-tight"
+              className="font-bold"
               style={{
-                color: quest.isCompleted ? "#86efac" : "#f1f5f9",
+                fontSize: "clamp(1.1rem, 3vw, 1.4rem)",
+                marginBottom: "10px",
+                color: quest.isCompleted ? "#86efac" : "#f8fafc",
                 textShadow: "0 2px 4px rgba(0,0,0,0.3)",
               }}
             >
               {quest.questName}
             </h3>
             <p
-              className="text-sm leading-snug"
-              style={{ color: quest.isCompleted ? "#bbf7d0" : "#94a3b8" }}
+              className="line-clamp-2"
+              style={{
+                fontSize: "clamp(0.9rem, 2.5vw, 1.1rem)",
+                lineHeight: "1.5",
+                marginBottom: "16px",
+                color: quest.isCompleted ? "#bbf7d0" : "#94a3b8"
+              }}
             >
               {quest.description}
             </p>
-          </div>
 
-          {/* Play Button or Done Badge */}
-          {quest.isCompleted ? (
-            <div
-              className="px-4 py-2 rounded-xl font-bold text-sm"
-              style={{
-                background: "linear-gradient(135deg, #22c55e 0%, #16a34a 100%)",
-                color: "#052e16",
-                boxShadow: "0 4px 12px rgba(34, 197, 94, 0.4)",
-              }}
-            >
-              ✓ DONE
-            </div>
-          ) : (
-            <motion.div
-              className="px-5 py-3 rounded-xl font-bold text-sm"
-              style={{
-                background: `linear-gradient(135deg, ${topicStyle.color} 0%, ${topicStyle.bg} 100%)`,
-                color: "#fff",
-                boxShadow: `0 4px 16px ${topicStyle.color}50`,
-                border: "2px solid rgba(255,255,255,0.2)",
-                textShadow: "0 1px 2px rgba(0,0,0,0.3)",
-              }}
-              whileHover={{ scale: 1.05 }}
-            >
-              PLAY →
-            </motion.div>
-          )}
-        </div>
-
-        {/* Progress Section */}
-        <div
-          className="px-4 py-3"
-          style={{
-            background: quest.isCompleted
-              ? "rgba(0,0,0,0.2)"
-              : "rgba(0,0,0,0.3)",
-          }}
-        >
-          {/* Progress Label */}
-          <div className="flex justify-between items-center mb-2">
-            <span
-              className="text-sm font-semibold"
-              style={{ color: quest.isCompleted ? "#86efac" : "#e2e8f0" }}
-            >
-              Progress: {quest.currentCorrect} / {quest.targetCorrect} correct
-            </span>
-            <span
-              className="text-sm font-bold px-2 py-0.5 rounded"
-              style={{
-                background: quest.isCompleted ? "rgba(74, 222, 128, 0.2)" : `${topicStyle.color}20`,
-                color: quest.isCompleted ? "#4ade80" : topicStyle.color,
-              }}
-            >
-              {Math.round(progress)}%
-            </span>
-          </div>
-
-          {/* Progress Bar */}
-          <div
-            className="h-4 rounded-full overflow-hidden"
-            style={{
-              background: "rgba(0,0,0,0.5)",
-              border: "2px solid rgba(255,255,255,0.1)",
-            }}
-          >
-            <motion.div
-              initial={{ width: 0 }}
-              animate={{ width: `${progress}%` }}
-              transition={{ duration: 0.8, delay: index * 0.1 + 0.2, ease: "easeOut" }}
-              className="h-full rounded-full relative"
-              style={{
-                background: quest.isCompleted
-                  ? "linear-gradient(90deg, #22c55e 0%, #4ade80 100%)"
-                  : `linear-gradient(90deg, ${topicStyle.bg} 0%, ${topicStyle.color} 100%)`,
-                boxShadow: quest.isCompleted
-                  ? "0 0 8px #4ade80"
-                  : `0 0 8px ${topicStyle.color}80`,
-              }}
-            >
-              {/* Shine effect */}
+            {/* Progress Bar */}
+            <div className="flex items-center gap-4" style={{ marginBottom: "16px" }}>
               <div
-                className="absolute inset-0 rounded-full"
+                className="flex-1 rounded-full overflow-hidden"
                 style={{
-                  background: "linear-gradient(180deg, rgba(255,255,255,0.3) 0%, transparent 50%)",
+                  height: "12px",
+                  background: "rgba(0,0,0,0.4)",
+                  border: "1px solid rgba(255,255,255,0.1)",
                 }}
-              />
-            </motion.div>
-          </div>
-        </div>
+              >
+                <motion.div
+                  initial={{ width: 0 }}
+                  animate={{ width: `${progress}%` }}
+                  transition={{ duration: 1, delay: index * 0.1 + 0.3, ease: "easeOut" }}
+                  className="h-full rounded-full"
+                  style={{
+                    background: quest.isCompleted
+                      ? "linear-gradient(90deg, #22c55e 0%, #4ade80 100%)"
+                      : `linear-gradient(90deg, ${topicStyle.bg} 0%, ${topicStyle.color} 100%)`,
+                    boxShadow: `0 0 10px ${quest.isCompleted ? "#4ade80" : topicStyle.color}80`,
+                  }}
+                />
+              </div>
+              <span
+                className="font-bold px-3 py-1.5 rounded-lg text-center"
+                style={{
+                  fontSize: "clamp(0.85rem, 2vw, 1rem)",
+                  minWidth: "60px",
+                  background: quest.isCompleted ? "rgba(74, 222, 128, 0.2)" : `${topicStyle.color}25`,
+                  color: quest.isCompleted ? "#4ade80" : topicStyle.color,
+                }}
+              >
+                {quest.currentCorrect}/{quest.targetCorrect}
+              </span>
+            </div>
 
-        {/* Rewards Section */}
-        <div
-          className="px-4 py-3 flex items-center justify-between"
-          style={{
-            background: quest.isCompleted
-              ? "rgba(0,0,0,0.15)"
-              : "rgba(0,0,0,0.2)",
-            borderTop: "1px solid rgba(255,255,255,0.05)",
-          }}
-        >
-          <span
-            className="text-xs font-semibold uppercase tracking-wide"
-            style={{ color: "#64748b" }}
-          >
-            Reward:
-          </span>
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg" style={{ background: "rgba(6, 182, 212, 0.15)" }}>
-              <span className="text-base">💎</span>
-              <span className="font-bold text-cyan-400">{quest.reward.diamonds}</span>
+            {/* Rewards Row */}
+            <div className="flex flex-wrap items-center gap-3">
+              <RewardBadge icon="💎" value={quest.reward.diamonds} color="#06b6d4" />
+              <RewardBadge icon="🟢" value={quest.reward.emeralds} color="#22c55e" />
+              <RewardBadge icon="⚡" value={quest.reward.xp} label="XP" color="#a855f7" />
             </div>
-            <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg" style={{ background: "rgba(34, 197, 94, 0.15)" }}>
-              <span className="text-base">🟢</span>
-              <span className="font-bold text-green-400">{quest.reward.emeralds}</span>
-            </div>
-            <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg" style={{ background: "rgba(168, 85, 247, 0.15)" }}>
-              <span className="text-base">✨</span>
-              <span className="font-bold text-purple-400">{quest.reward.xp} XP</span>
-            </div>
+          </div>
+
+          {/* Bottom/Right: Play Button */}
+          <div className="flex items-center justify-center sm:justify-end p-4 sm:pr-6">
+            {quest.isCompleted ? (
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                className="rounded-xl font-bold"
+                style={{
+                  padding: "14px 20px",
+                  fontSize: "clamp(0.95rem, 2.5vw, 1.1rem)",
+                  background: "linear-gradient(135deg, #22c55e 0%, #16a34a 100%)",
+                  color: "#052e16",
+                  boxShadow: "0 4px 16px rgba(34, 197, 94, 0.4), inset 0 2px 0 rgba(255,255,255,0.2)",
+                }}
+              >
+                DONE ✓
+              </motion.div>
+            ) : (
+              <motion.div
+                className="relative"
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                {/* Button glow */}
+                <div
+                  className="absolute inset-0 rounded-xl blur-md"
+                  style={{ background: topicStyle.color, opacity: 0.5 }}
+                />
+                <div
+                  className="relative rounded-xl font-bold flex items-center gap-2"
+                  style={{
+                    padding: "14px 22px",
+                    fontSize: "clamp(1rem, 2.5vw, 1.15rem)",
+                    background: `linear-gradient(135deg, ${topicStyle.color} 0%, ${topicStyle.bg} 100%)`,
+                    color: "#fff",
+                    boxShadow: `0 4px 20px ${topicStyle.glow}`,
+                    border: "2px solid rgba(255,255,255,0.3)",
+                    textShadow: "0 1px 2px rgba(0,0,0,0.3)",
+                  }}
+                >
+                  PLAY
+                  <motion.span
+                    animate={{ x: [0, 4, 0] }}
+                    transition={{ duration: 1, repeat: Infinity }}
+                  >
+                    →
+                  </motion.span>
+                </div>
+              </motion.div>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Error count badge - repositioned */}
+      {/* Error count badge */}
       {!quest.isCompleted && quest.errorCount > 0 && (
-        <div
-          className="absolute -top-2 -left-2 px-3 py-1 rounded-full text-xs font-bold"
+        <motion.div
+          initial={{ scale: 0, rotate: -20 }}
+          animate={{ scale: 1, rotate: 0 }}
+          className="absolute -top-3 -left-2 px-3 py-1.5 rounded-full text-xs font-bold z-10"
           style={{
             background: "linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)",
             color: "#fff",
-            boxShadow: "0 4px 12px rgba(239, 68, 68, 0.5)",
+            boxShadow: "0 4px 16px rgba(239, 68, 68, 0.6)",
             border: "2px solid #fecaca",
           }}
         >
-          {quest.errorCount} mistakes
-        </div>
+          🔥 {quest.errorCount} mistakes
+        </motion.div>
       )}
     </motion.div>
   );
 }
 
-// Weekly Champion Progress Component - Redesigned
+// Small reward badge component
+function RewardBadge({
+  icon,
+  value,
+  label,
+  color
+}: {
+  icon: string;
+  value: number;
+  label?: string;
+  color: string;
+}) {
+  return (
+    <div
+      className="flex items-center gap-1.5 rounded-lg font-bold px-2.5 py-1.5 sm:px-3 sm:py-2"
+      style={{
+        fontSize: "clamp(0.85rem, 2vw, 1rem)",
+        background: `${color}15`,
+        color: color,
+        border: `1px solid ${color}30`,
+      }}
+    >
+      <span className="text-base sm:text-lg">{icon}</span>
+      <span>{value}{label && ` ${label}`}</span>
+    </div>
+  );
+}
+
+// Weekly Champion Progress Component - Redesigned with trophy animation
 function WeeklyChampionCard({
   champion,
   onClaim,
@@ -287,148 +431,157 @@ function WeeklyChampionCard({
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: -20 }}
+      initial={{ opacity: 0, y: -30 }}
       animate={{ opacity: 1, y: 0 }}
-      className="rounded-2xl overflow-hidden mb-5"
-      style={{
-        background: canClaim
-          ? "linear-gradient(135deg, #854d0e 0%, #422006 100%)"
-          : champion.bonusClaimed
-          ? "linear-gradient(135deg, #166534 0%, #14532d 100%)"
-          : "linear-gradient(135deg, #3730a3 0%, #1e1b4b 100%)",
-        border: canClaim
-          ? "3px solid #fbbf24"
-          : champion.bonusClaimed
-          ? "3px solid #4ade80"
-          : "3px solid #6366f1",
-        boxShadow: canClaim
-          ? "0 8px 32px rgba(251, 191, 36, 0.4)"
-          : champion.bonusClaimed
-          ? "0 8px 32px rgba(74, 222, 128, 0.3)"
-          : "0 8px 32px rgba(99, 102, 241, 0.3)",
-      }}
+      className="relative"
     >
-      {/* Header */}
-      <div className="flex items-center gap-4 p-4">
-        <motion.div
-          className="text-5xl"
-          animate={canClaim ? {
-            rotate: [0, -10, 10, -10, 0],
-            scale: [1, 1.1, 1]
-          } : {}}
-          transition={{ duration: 0.6, repeat: canClaim ? Infinity : 0, repeatDelay: 2 }}
-        >
-          {champion.bonusClaimed ? "✅" : "🏆"}
-        </motion.div>
-        <div className="flex-1">
-          <h3
-            className="font-bold text-xl mb-1"
-            style={{
-              color: canClaim ? "#fef3c7" : champion.bonusClaimed ? "#bbf7d0" : "#e0e7ff",
-              textShadow: "0 2px 4px rgba(0,0,0,0.3)",
-            }}
-          >
-            {champion.bonusClaimed ? "Champion Bonus Claimed!" : "Weekly Champion Bonus"}
-          </h3>
-          <p style={{ color: canClaim ? "#fde68a" : champion.bonusClaimed ? "#86efac" : "#a5b4fc" }}>
-            {champion.bonusClaimed
-              ? "Great job! Come back next week!"
-              : "Complete all quests to unlock!"}
-          </p>
-        </div>
-      </div>
+      {/* Animated glow behind card */}
+      <motion.div
+        className="absolute -inset-3 rounded-3xl blur-xl"
+        style={{
+          background: canClaim
+            ? "linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)"
+            : champion.bonusClaimed
+            ? "linear-gradient(135deg, #22c55e 0%, #16a34a 100%)"
+            : "linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)",
+          opacity: canClaim ? 0.4 : 0.2,
+        }}
+        animate={canClaim ? {
+          opacity: [0.3, 0.5, 0.3],
+          scale: [1, 1.02, 1],
+        } : {}}
+        transition={{ duration: 2, repeat: Infinity }}
+      />
 
-      {/* Progress Section */}
-      <div className="px-4 py-3" style={{ background: "rgba(0,0,0,0.2)" }}>
-        <div className="flex justify-between text-sm mb-2">
-          <span
-            className="font-semibold"
-            style={{ color: canClaim ? "#fef3c7" : champion.bonusClaimed ? "#86efac" : "#c7d2fe" }}
-          >
-            Progress
-          </span>
-          <span
-            className="font-bold px-3 py-1 rounded-full"
-            style={{
-              background: canClaim ? "rgba(251, 191, 36, 0.2)" : "rgba(255,255,255,0.1)",
-              color: canClaim ? "#fbbf24" : champion.bonusClaimed ? "#4ade80" : "#a5b4fc",
-            }}
-          >
-            {champion.totalQuestsCompleted} / {champion.totalQuestsAvailable} Quests
-          </span>
-        </div>
-        <div
-          className="h-5 rounded-full overflow-hidden"
-          style={{
-            background: "rgba(0,0,0,0.4)",
-            border: "2px solid rgba(255,255,255,0.1)",
-          }}
-        >
-          <motion.div
-            initial={{ width: 0 }}
-            animate={{ width: `${progress}%` }}
-            transition={{ duration: 1, ease: "easeOut" }}
-            className="h-full rounded-full relative"
-            style={{
-              background: champion.bonusClaimed
-                ? "linear-gradient(90deg, #16a34a 0%, #4ade80 100%)"
-                : canClaim
-                ? "linear-gradient(90deg, #d97706 0%, #fbbf24 100%)"
-                : "linear-gradient(90deg, #4f46e5 0%, #818cf8 100%)",
-            }}
-          >
-            <div
-              className="absolute inset-0 rounded-full"
-              style={{ background: "linear-gradient(180deg, rgba(255,255,255,0.3) 0%, transparent 50%)" }}
-            />
-          </motion.div>
-        </div>
-      </div>
-
-      {/* Rewards Row */}
       <div
-        className="px-4 py-3 flex items-center justify-between"
-        style={{ background: "rgba(0,0,0,0.15)" }}
+        className="relative rounded-2xl overflow-hidden"
+        style={{
+          background: canClaim
+            ? "linear-gradient(145deg, rgba(120, 53, 15, 0.95) 0%, rgba(66, 32, 6, 0.98) 100%)"
+            : champion.bonusClaimed
+            ? "linear-gradient(145deg, rgba(22, 101, 52, 0.95) 0%, rgba(20, 83, 45, 0.98) 100%)"
+            : "linear-gradient(145deg, rgba(55, 48, 163, 0.95) 0%, rgba(30, 27, 75, 0.98) 100%)",
+          border: canClaim
+            ? "3px solid rgba(251, 191, 36, 0.6)"
+            : champion.bonusClaimed
+            ? "3px solid rgba(74, 222, 128, 0.6)"
+            : "3px solid rgba(139, 92, 246, 0.4)",
+        }}
       >
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg" style={{ background: "rgba(6, 182, 212, 0.2)" }}>
-            <span className="text-lg">💎</span>
-            <span className="font-bold text-lg text-cyan-400">{champion.bonusReward.diamonds}</span>
-          </div>
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg" style={{ background: "rgba(34, 197, 94, 0.2)" }}>
-            <span className="text-lg">🟢</span>
-            <span className="font-bold text-lg text-green-400">{champion.bonusReward.emeralds}</span>
-          </div>
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg" style={{ background: "rgba(168, 85, 247, 0.2)" }}>
-            <span className="text-lg">✨</span>
-            <span className="font-bold text-lg text-purple-400">{champion.bonusReward.xp} XP</span>
-          </div>
-        </div>
-
-        {canClaim && (
-          <motion.button
-            onClick={onClaim}
-            className="px-5 py-3 rounded-xl font-bold"
-            style={{
-              background: "linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)",
-              color: "#78350f",
-              boxShadow: "0 4px 16px rgba(251, 191, 36, 0.5)",
-              border: "2px solid #fef3c7",
-            }}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            animate={{ scale: [1, 1.05, 1] }}
-            transition={{ repeat: Infinity, duration: 1.5 }}
+        <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6 p-4 sm:p-6">
+          {/* Trophy with Progress Ring */}
+          <ProgressRing
+            progress={progress}
+            size={80}
+            strokeWidth={7}
+            color={canClaim ? "#fbbf24" : champion.bonusClaimed ? "#4ade80" : "#a78bfa"}
           >
-            🎁 CLAIM BONUS!
-          </motion.button>
-        )}
+            <motion.div
+              className="text-5xl"
+              animate={canClaim ? {
+                rotate: [-10, 10, -10],
+                scale: [1, 1.15, 1],
+              } : champion.bonusClaimed ? {} : {
+                scale: [1, 1.05, 1],
+              }}
+              transition={{ duration: 1, repeat: Infinity }}
+            >
+              {champion.bonusClaimed ? "🎖️" : "🏆"}
+            </motion.div>
+          </ProgressRing>
+
+          {/* Info */}
+          <div className="flex-1 text-center sm:text-left">
+            <h3
+              className="font-bold mb-2"
+              style={{
+                fontSize: "clamp(1.1rem, 3vw, 1.4rem)",
+                color: canClaim ? "#fef3c7" : champion.bonusClaimed ? "#bbf7d0" : "#e0e7ff",
+                textShadow: "0 2px 8px rgba(0,0,0,0.3)",
+              }}
+            >
+              {champion.bonusClaimed ? "Champion Achieved!" : "Weekly Champion"}
+            </h3>
+            <p
+              className="mb-4"
+              style={{
+                fontSize: "clamp(0.85rem, 2.5vw, 1rem)",
+                color: canClaim ? "#fde68a" : champion.bonusClaimed ? "#86efac" : "#a5b4fc"
+              }}
+            >
+              {champion.bonusClaimed
+                ? "Amazing work! See you next week!"
+                : `Complete all ${champion.totalQuestsAvailable} quests to unlock bonus!`}
+            </p>
+
+            {/* Rewards preview */}
+            <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 sm:gap-4">
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl" style={{ background: "rgba(6, 182, 212, 0.2)" }}>
+                <span className="text-lg">💎</span>
+                <span className="font-bold text-base text-cyan-400">{champion.bonusReward.diamonds}</span>
+              </div>
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl" style={{ background: "rgba(34, 197, 94, 0.2)" }}>
+                <span className="text-lg">🟢</span>
+                <span className="font-bold text-base text-green-400">{champion.bonusReward.emeralds}</span>
+              </div>
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl" style={{ background: "rgba(168, 85, 247, 0.2)" }}>
+                <span className="text-lg">⚡</span>
+                <span className="font-bold text-base text-purple-400">{champion.bonusReward.xp} XP</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Claim Button or Status */}
+          {canClaim ? (
+            <motion.button
+              onClick={onClaim}
+              className="px-7 py-5 rounded-xl font-bold text-lg relative overflow-hidden"
+              style={{
+                background: "linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)",
+                color: "#78350f",
+                boxShadow: "0 8px 24px rgba(251, 191, 36, 0.5)",
+                border: "3px solid #fef3c7",
+              }}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              animate={{ scale: [1, 1.03, 1] }}
+              transition={{ duration: 1.5, repeat: Infinity }}
+            >
+              {/* Shine effect */}
+              <motion.div
+                className="absolute inset-0"
+                style={{
+                  background: "linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.4) 45%, transparent 50%)",
+                }}
+                animate={{ x: ["-100%", "200%"] }}
+                transition={{ duration: 2, repeat: Infinity, repeatDelay: 1 }}
+              />
+              <span className="relative flex items-center gap-2">
+                <span className="text-2xl">🎁</span>
+                CLAIM!
+              </span>
+            </motion.button>
+          ) : !champion.bonusClaimed ? (
+            <div
+              className="px-5 py-4 rounded-xl font-bold text-center"
+              style={{
+                background: "rgba(0,0,0,0.3)",
+                color: "#a5b4fc",
+                fontSize: "1.1rem",
+                border: "2px solid rgba(139, 92, 246, 0.3)",
+              }}
+            >
+              {champion.totalQuestsCompleted}/{champion.totalQuestsAvailable}
+              <div className="text-sm opacity-70 mt-1">quests</div>
+            </div>
+          ) : null}
+        </div>
       </div>
     </motion.div>
   );
 }
 
-// Weak Topics Summary - Redesigned
+// Weak Topics Summary - Redesigned with better visuals
 function WeakTopicsSummary({
   topics,
 }: {
@@ -438,42 +591,68 @@ function WeakTopicsSummary({
 
   return (
     <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      className="rounded-xl p-4 mb-5"
-      style={{
-        background: "linear-gradient(135deg, #7f1d1d 0%, #450a0a 100%)",
-        border: "2px solid #f87171",
-        boxShadow: "0 4px 16px rgba(248, 113, 113, 0.2)",
-      }}
+      initial={{ opacity: 0, x: -20 }}
+      animate={{ opacity: 1, x: 0 }}
+      className="relative"
     >
-      <div className="flex items-center gap-3 mb-3">
-        <span className="text-2xl">🔥</span>
-        <span
-          className="font-bold"
-          style={{ color: "#fecaca", textShadow: "0 2px 4px rgba(0,0,0,0.3)" }}
-        >
-          This week you struggled with:
-        </span>
-      </div>
-      <div className="flex flex-wrap gap-2">
-        {topics.slice(0, 5).map((t, i) => {
-          const style = getTopicStyle(t.topic);
-          return (
-            <span
-              key={i}
-              className="px-3 py-1.5 rounded-lg text-sm font-semibold flex items-center gap-2"
-              style={{
-                background: `linear-gradient(135deg, ${style.bg} 0%, ${style.bg}dd 100%)`,
-                color: style.color,
-                border: `2px solid ${style.color}60`,
-                boxShadow: `0 2px 8px ${style.color}30`,
-              }}
-            >
-              {style.icon} {t.topic} ({t.count})
-            </span>
-          );
-        })}
+      {/* Subtle glow */}
+      <div
+        className="absolute -inset-2 rounded-2xl blur-lg opacity-30"
+        style={{ background: "linear-gradient(135deg, #ef4444 0%, #dc2626 100%)" }}
+      />
+
+      <div
+        className="relative rounded-2xl p-5"
+        style={{
+          background: "linear-gradient(145deg, rgba(127, 29, 29, 0.9) 0%, rgba(69, 10, 10, 0.95) 100%)",
+          border: "3px solid rgba(248, 113, 113, 0.4)",
+        }}
+      >
+        <div className="flex items-center gap-4 mb-4">
+          <motion.span
+            className="text-3xl"
+            animate={{ scale: [1, 1.2, 1] }}
+            transition={{ duration: 1, repeat: Infinity }}
+          >
+            🎯
+          </motion.span>
+          <span
+            className="font-bold"
+            style={{ fontSize: "1.15rem", color: "#fecaca", textShadow: "0 2px 4px rgba(0,0,0,0.3)" }}
+          >
+            Focus Areas This Week:
+          </span>
+        </div>
+        <div className="flex flex-wrap gap-3">
+          {topics.slice(0, 5).map((t, i) => {
+            const style = getTopicStyle(t.topic);
+            return (
+              <motion.span
+                key={i}
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: i * 0.1 }}
+                className="px-4 py-2.5 rounded-xl font-semibold flex items-center gap-2"
+                style={{
+                  fontSize: "1rem",
+                  background: `linear-gradient(135deg, ${style.bg} 0%, ${style.bg}cc 100%)`,
+                  color: style.color,
+                  border: `2px solid ${style.color}50`,
+                  boxShadow: `0 4px 12px ${style.glow}`,
+                }}
+              >
+                <span className="text-lg">{style.icon}</span>
+                {t.topic}
+                <span
+                  className="px-2 py-1 rounded-lg text-sm"
+                  style={{ background: "rgba(0,0,0,0.3)" }}
+                >
+                  {t.count}
+                </span>
+              </motion.span>
+            );
+          })}
+        </div>
       </div>
     </motion.div>
   );
@@ -515,7 +694,7 @@ export function WeeklyQuestsScreen({
     const result = await claimBonus({ playerId });
     if (result.success) {
       setShowCelebration(true);
-      setTimeout(() => setShowCelebration(false), 3000);
+      setTimeout(() => setShowCelebration(false), 4000);
     }
   };
 
@@ -533,20 +712,29 @@ export function WeeklyQuestsScreen({
           background: "linear-gradient(180deg, #0c0a1d 0%, #1a1333 50%, #0f172a 100%)",
         }}
       >
-        <div className="text-center">
+        <FloatingParticles />
+        <div className="text-center relative z-10">
           <motion.div
-            className="text-6xl mb-4"
-            animate={{ scale: [1, 1.2, 1], rotate: [0, 5, -5, 0] }}
-            transition={{ duration: 1.5, repeat: Infinity }}
+            className="text-7xl mb-4"
+            animate={{
+              rotate: [0, 360],
+              scale: [1, 1.2, 1],
+            }}
+            transition={{
+              rotate: { duration: 2, repeat: Infinity, ease: "linear" },
+              scale: { duration: 1, repeat: Infinity },
+            }}
           >
             ⚔️
           </motion.div>
-          <div
-            className="text-xl font-bold"
-            style={{ color: "#a5b4fc", textShadow: "0 2px 8px rgba(165, 180, 252, 0.5)" }}
+          <motion.div
+            className="text-2xl font-bold"
+            style={{ color: "#a5b4fc", textShadow: "0 2px 12px rgba(165, 180, 252, 0.6)" }}
+            animate={{ opacity: [0.7, 1, 0.7] }}
+            transition={{ duration: 1.5, repeat: Infinity }}
           >
             Loading Practice Arena...
-          </div>
+          </motion.div>
         </div>
       </div>
     );
@@ -556,13 +744,16 @@ export function WeeklyQuestsScreen({
 
   return (
     <div
-      className="screen active flex flex-col"
+      className="screen active flex flex-col relative"
       style={{
-        background: "linear-gradient(180deg, #0c0a1d 0%, #1a1333 50%, #0f172a 100%)",
-        padding: "16px",
+        background: "linear-gradient(180deg, #0c0a1d 0%, #1a1333 40%, #0f172a 100%)",
+        padding: "clamp(16px, 4vw, 28px)",
         overflowY: "auto",
       }}
     >
+      {/* Background particles */}
+      <FloatingParticles />
+
       {/* Celebration Overlay */}
       <AnimatePresence>
         {showCelebration && (
@@ -571,34 +762,64 @@ export function WeeklyQuestsScreen({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-50 flex items-center justify-center"
-            style={{ background: "rgba(0,0,0,0.85)" }}
+            style={{ background: "rgba(0,0,0,0.9)" }}
           >
+            {/* Confetti */}
+            {[...Array(50)].map((_, i) => (
+              <motion.div
+                key={i}
+                className="absolute w-3 h-3 rounded-sm"
+                style={{
+                  left: `${Math.random() * 100}%`,
+                  top: `-10%`,
+                  backgroundColor: ['#fbbf24', '#22c55e', '#8b5cf6', '#ec4899', '#06b6d4'][Math.floor(Math.random() * 5)],
+                }}
+                animate={{
+                  y: [0, window.innerHeight + 100],
+                  x: [(Math.random() - 0.5) * 200],
+                  rotate: [0, 360 * (Math.random() > 0.5 ? 1 : -1)],
+                  opacity: [1, 0],
+                }}
+                transition={{
+                  duration: Math.random() * 2 + 2,
+                  ease: "easeOut",
+                  delay: Math.random() * 0.5,
+                }}
+              />
+            ))}
+
             <motion.div
-              initial={{ scale: 0, rotate: -10 }}
+              initial={{ scale: 0, rotate: -20 }}
               animate={{ scale: 1, rotate: 0 }}
-              exit={{ scale: 0 }}
-              className="text-center p-8 rounded-3xl"
+              exit={{ scale: 0, rotate: 20 }}
+              className="text-center p-10 rounded-3xl relative"
               style={{
-                background: "linear-gradient(135deg, #854d0e 0%, #422006 100%)",
+                background: "linear-gradient(145deg, rgba(120, 53, 15, 0.98) 0%, rgba(66, 32, 6, 1) 100%)",
                 border: "4px solid #fbbf24",
-                boxShadow: "0 0 60px rgba(251, 191, 36, 0.5)",
+                boxShadow: "0 0 80px rgba(251, 191, 36, 0.6), 0 0 160px rgba(251, 191, 36, 0.3)",
               }}
             >
               <motion.div
-                className="text-7xl mb-4"
-                animate={{ scale: [1, 1.2, 1] }}
-                transition={{ duration: 0.5, repeat: 3 }}
+                className="text-8xl mb-6"
+                animate={{
+                  scale: [1, 1.3, 1],
+                  rotate: [0, -15, 15, 0],
+                }}
+                transition={{ duration: 0.8, repeat: 3 }}
               >
-                🏆🎉
+                🏆
               </motion.div>
               <h2
-                className="text-3xl font-bold mb-2"
-                style={{ color: "#fef3c7", textShadow: "0 4px 8px rgba(0,0,0,0.5)" }}
+                className="text-4xl font-bold mb-3"
+                style={{
+                  color: "#fef3c7",
+                  textShadow: "0 4px 12px rgba(0,0,0,0.5), 0 0 30px rgba(251, 191, 36, 0.5)"
+                }}
               >
                 WEEKLY CHAMPION!
               </h2>
               <p className="text-xl" style={{ color: "#fde68a" }}>
-                Bonus rewards claimed!
+                All bonus rewards collected!
               </p>
             </motion.div>
           </motion.div>
@@ -606,153 +827,184 @@ export function WeeklyQuestsScreen({
       </AnimatePresence>
 
       {/* Header */}
-      <div className="flex items-center gap-4 mb-4">
-        <button
+      <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-5 mb-6 sm:mb-8">
+        <motion.button
           onClick={onBack}
-          className="px-4 py-2.5 rounded-xl font-bold text-sm"
+          className="px-4 py-2 sm:px-5 sm:py-3 rounded-xl font-bold"
           style={{
-            background: "linear-gradient(135deg, #374151 0%, #1f2937 100%)",
+            background: "linear-gradient(135deg, rgba(55, 65, 81, 0.9) 0%, rgba(31, 41, 55, 0.95) 100%)",
             color: "#f3f4f6",
-            border: "2px solid #4b5563",
-            boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
+            fontSize: "clamp(0.85rem, 2vw, 1rem)",
+            border: "2px solid rgba(75, 85, 99, 0.6)",
+            boxShadow: "0 4px 16px rgba(0,0,0,0.3)",
           }}
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
         >
           ← Back
-        </button>
+        </motion.button>
         <div className="flex-1">
-          <h1
-            className="text-xl font-bold flex items-center gap-2"
+          <motion.h1
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="font-bold flex items-center gap-2 sm:gap-3"
             style={{
               fontFamily: "'Press Start 2P', monospace",
-              fontSize: "0.95em",
+              fontSize: "clamp(0.9em, 3vw, 1.4em)",
               color: "#f1f5f9",
-              textShadow: "0 2px 8px rgba(0,0,0,0.5), 0 0 20px rgba(139, 92, 246, 0.3)",
+              textShadow: "0 2px 12px rgba(0,0,0,0.5), 0 0 30px rgba(139, 92, 246, 0.4)",
             }}
           >
-            <span>⚔️</span> PRACTICE ARENA
-          </h1>
-          <p style={{ color: "#a5b4fc", textShadow: "0 1px 4px rgba(0,0,0,0.3)" }}>
-            Train your weak spots!
+            <motion.span
+              className="text-2xl sm:text-3xl"
+              animate={{ rotate: [0, -10, 10, 0] }}
+              transition={{ duration: 2, repeat: Infinity }}
+            >
+              ⚔️
+            </motion.span>
+            PRACTICE ARENA
+          </motion.h1>
+          <p style={{ color: "#a5b4fc", fontSize: "clamp(0.85rem, 2.5vw, 1.1rem)", marginTop: "6px", textShadow: "0 1px 4px rgba(0,0,0,0.3)" }}>
+            Master your weak spots & earn rewards!
           </p>
         </div>
       </div>
 
-      {/* Week Info */}
-      <div
-        className="text-center text-sm py-2 px-4 rounded-lg mb-5 font-medium"
+      {/* Week Info Badge */}
+      <motion.div
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="relative z-10 text-center rounded-full mx-auto"
         style={{
-          background: "rgba(99, 102, 241, 0.15)",
-          color: "#a5b4fc",
-          border: "1px solid rgba(99, 102, 241, 0.3)",
+          padding: "12px 24px",
+          marginBottom: "24px",
+          background: "linear-gradient(135deg, rgba(99, 102, 241, 0.2) 0%, rgba(139, 92, 246, 0.15) 100%)",
+          color: "#c4b5fd",
+          fontSize: "1.05rem",
+          border: "2px solid rgba(139, 92, 246, 0.4)",
+          boxShadow: "0 4px 20px rgba(139, 92, 246, 0.2)",
         }}
       >
-        Week: {weekStart} to {weekEnd}
-      </div>
+        <span className="font-bold">📅 Week:</span> {weekStart} → {weekEnd}
+      </motion.div>
 
       {/* Weekly Champion Progress */}
-      <WeeklyChampionCard champion={champion} onClaim={handleClaimBonus} />
+      <div className="relative z-10" style={{ marginBottom: "28px" }}>
+        <WeeklyChampionCard champion={champion} onClaim={handleClaimBonus} />
+      </div>
 
       {/* Weak Topics Summary */}
-      {weakTopics && <WeakTopicsSummary topics={weakTopics} />}
+      <div className="relative z-10" style={{ marginBottom: "28px" }}>
+        {weakTopics && <WeakTopicsSummary topics={weakTopics} />}
+      </div>
 
       {/* Practice Quests */}
-      {quests.length > 0 ? (
-        <>
-          <h2
-            className="font-bold text-base mb-4 flex items-center gap-2 px-1"
-            style={{ color: "#e2e8f0", textShadow: "0 2px 4px rgba(0,0,0,0.3)" }}
-          >
-            <span className="text-xl">📋</span>
-            Your Practice Quests ({totalCompleted}/{totalQuests})
-          </h2>
+      <div className="relative z-10 flex-1">
+        {quests.length > 0 ? (
+          <>
+            <motion.h2
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="font-bold flex items-center gap-4"
+              style={{ fontSize: "1.35rem", marginBottom: "24px", color: "#e2e8f0", textShadow: "0 2px 8px rgba(0,0,0,0.3)" }}
+            >
+              <span className="text-3xl">📋</span>
+              Your Quests
+              <span
+                className="px-4 py-1.5 rounded-full"
+                style={{
+                  fontSize: "1rem",
+                  background: "linear-gradient(135deg, rgba(139, 92, 246, 0.3) 0%, rgba(168, 85, 247, 0.2) 100%)",
+                  border: "2px solid rgba(168, 85, 247, 0.4)",
+                }}
+              >
+                {totalCompleted}/{totalQuests}
+              </span>
+            </motion.h2>
 
-          <div className="flex flex-col gap-4 flex-1 pb-4">
-            {quests.map((quest, index) => (
-              <PracticeQuestCard
-                key={quest._id}
-                quest={quest}
-                index={index}
-                onStart={() => onStartPractice(quest._id)}
-              />
-            ))}
-          </div>
-        </>
-      ) : weakTopics && weakTopics.length > 0 ? (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="flex-1 flex flex-col items-center justify-center text-center p-8"
-        >
+            <div className="flex flex-col gap-8 pb-8">
+              {quests.map((quest, index) => (
+                <PracticeQuestCard
+                  key={quest._id}
+                  quest={quest}
+                  index={index}
+                  onStart={() => onStartPractice(quest._id)}
+                />
+              ))}
+            </div>
+          </>
+        ) : weakTopics && weakTopics.length > 0 ? (
           <motion.div
-            className="text-6xl mb-4"
-            animate={{ rotate: [0, 360] }}
-            transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="flex-1 flex flex-col items-center justify-center text-center p-8"
           >
-            🔄
+            <motion.div
+              className="text-7xl mb-4"
+              animate={{ rotate: [0, 360] }}
+              transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+            >
+              ⚙️
+            </motion.div>
+            <h3 className="text-xl font-bold mb-2" style={{ color: "#e2e8f0" }}>
+              Creating Your Quests...
+            </h3>
+            <p className="mb-6" style={{ color: "#94a3b8" }}>
+              Building personalized practice from your mistakes
+            </p>
+            <motion.button
+              onClick={handleGenerateQuests}
+              className="px-8 py-4 rounded-xl font-bold"
+              style={{
+                background: "linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)",
+                color: "#fff",
+                boxShadow: "0 8px 24px rgba(139, 92, 246, 0.5)",
+                border: "2px solid #a78bfa",
+              }}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              Generate Quests ✨
+            </motion.button>
           </motion.div>
-          <h3
-            className="text-xl font-bold mb-2"
-            style={{ color: "#e2e8f0" }}
-          >
-            Generating Your Quests...
-          </h3>
-          <p className="mb-6" style={{ color: "#94a3b8" }}>
-            Creating personalized practice based on your mistakes
-          </p>
-          <motion.button
-            onClick={handleGenerateQuests}
-            className="px-8 py-3 rounded-xl font-bold"
-            style={{
-              background: "linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)",
-              color: "#fff",
-              boxShadow: "0 4px 16px rgba(139, 92, 246, 0.5)",
-              border: "2px solid #a78bfa",
-            }}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-          >
-            Generate Quests
-          </motion.button>
-        </motion.div>
-      ) : (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="flex-1 flex flex-col items-center justify-center text-center p-8"
-        >
-          <div className="text-6xl mb-4">🎉</div>
-          <h3
-            className="text-xl font-bold mb-2"
-            style={{ color: "#e2e8f0" }}
-          >
-            No Mistakes This Week!
-          </h3>
-          <p style={{ color: "#94a3b8" }}>
-            Keep playing homework quests to discover topics that need practice.
-          </p>
+        ) : (
           <motion.div
-            className="mt-6 text-7xl"
-            animate={{ scale: [1, 1.1, 1], rotate: [0, 5, -5, 0] }}
-            transition={{ duration: 2, repeat: Infinity }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="flex-1 flex flex-col items-center justify-center text-center p-8"
           >
-            ⭐
+            <motion.div
+              className="text-7xl mb-4"
+              animate={{ scale: [1, 1.15, 1], rotate: [0, 5, -5, 0] }}
+              transition={{ duration: 2, repeat: Infinity }}
+            >
+              🌟
+            </motion.div>
+            <h3 className="text-2xl font-bold mb-2" style={{ color: "#e2e8f0" }}>
+              Perfect Week!
+            </h3>
+            <p style={{ color: "#94a3b8", maxWidth: 280 }}>
+              No mistakes found! Keep playing to discover topics that need practice.
+            </p>
           </motion.div>
-        </motion.div>
-      )}
+        )}
+      </div>
 
-      {/* Tip at bottom */}
-      <div
-        className="mt-4 p-4 rounded-xl text-center"
+      {/* Bottom Tip */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.5 }}
+        className="relative z-10 mt-6 p-5 rounded-xl text-center"
         style={{
           background: "linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(139, 92, 246, 0.1) 100%)",
-          border: "2px solid rgba(139, 92, 246, 0.3)",
-          boxShadow: "0 4px 16px rgba(139, 92, 246, 0.1)",
+          border: "2px solid rgba(139, 92, 246, 0.25)",
         }}
       >
-        <span style={{ color: "#c4b5fd" }}>
-          💡 Complete practice quests to improve your weak topics and earn extra rewards!
+        <span style={{ color: "#c4b5fd", fontSize: "1.05rem" }}>
+          💡 <strong>Tip:</strong> Complete all quests to become Weekly Champion and earn bonus rewards!
         </span>
-      </div>
+      </motion.div>
     </div>
   );
 }
