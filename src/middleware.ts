@@ -1,29 +1,18 @@
-import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 
-// Define public routes that don't require authentication
-const isPublicRoute = createRouteMatcher([
-  "/",
-  "/api/telegram/webhook",
-  "/api/telegram/send",
-  "/sign-in(.*)",
-  "/sign-up(.*)",
-]);
-
-export default clerkMiddleware(async (auth, request) => {
-  // Allow public routes without authentication
-  if (isPublicRoute(request)) {
-    return;
-  }
-
-  // For protected routes, you can add auth.protect() if needed
-  // For now, we just let Clerk handle it passively
-});
+// Simple middleware that doesn't require Clerk
+// Clerk auth is handled client-side via ClerkProvider
+export function middleware(request: NextRequest) {
+  // Allow all requests to pass through
+  // Authentication is handled client-side
+  return NextResponse.next();
+}
 
 export const config = {
   matcher: [
-    // Skip Next.js internals and all static files
-    "/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
-    // Always run for API routes
-    "/(api|trpc)(.*)",
+    // Only run middleware on API routes that need protection
+    // Skip everything else
+    "/(api/protected)(.*)",
   ],
 };
