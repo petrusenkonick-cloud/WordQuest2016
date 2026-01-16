@@ -514,90 +514,80 @@ export function HomeScreen({
         <p>AI creates a game from your homework!</p>
       </div>
 
-      {/* Practice Arena Button - Based on weak topics */}
-      {totalWeeklyQuests > 0 && (
-        <div
-          onClick={onWeeklyQuests}
-          style={{
-            background: "linear-gradient(135deg, rgba(245, 158, 11, 0.3) 0%, rgba(217, 119, 6, 0.3) 100%)",
-            borderRadius: "15px",
-            padding: "15px 20px",
-            margin: "15px 0",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            cursor: "pointer",
-            border: "2px solid #f59e0b",
-            transition: "transform 0.2s ease",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: "15px" }}>
-            <span style={{ fontSize: "2em" }}>⚔️</span>
-            <div>
-              <h3 style={{ margin: 0, fontSize: "1.1em" }}>PRACTICE ARENA</h3>
-              <p style={{ margin: 0, color: "#fbbf24", fontSize: "0.9em" }}>
-                {completedWeeklyQuests}/{totalWeeklyQuests} exercises based on YOUR mistakes
-              </p>
-            </div>
-          </div>
-          <div style={{
-            background: "#f59e0b",
-            color: "#000",
-            borderRadius: "50%",
-            width: "30px",
-            height: "30px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontWeight: "bold",
-          }}>
-            {totalWeeklyQuests - completedWeeklyQuests}
-          </div>
-        </div>
-      )}
-
-      {/* Practice Mode Button */}
+      {/* Practice Arena - Combined practice button */}
       <div
-        onClick={onPracticeMode}
+        onClick={onWeeklyQuests}
         style={{
-          background: weakTopicsCount > 0
-            ? "linear-gradient(135deg, rgba(34, 197, 94, 0.2) 0%, rgba(22, 163, 74, 0.2) 100%)"
-            : "linear-gradient(135deg, rgba(34, 197, 94, 0.2) 0%, rgba(22, 163, 74, 0.2) 100%)",
-          borderRadius: "15px",
-          padding: "15px 20px",
+          background: totalWeeklyQuests > 0 || weakTopicsCount > 0
+            ? "linear-gradient(180deg, #4c1d95 0%, #2e1065 100%)"
+            : "linear-gradient(180deg, #166534 0%, #14532d 100%)",
+          borderRadius: "16px",
+          padding: "16px 20px",
           margin: "15px 0",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
           cursor: "pointer",
-          border: "2px solid #22c55e",
-          transition: "transform 0.2s ease",
+          border: totalWeeklyQuests > 0 || weakTopicsCount > 0
+            ? "3px solid #a78bfa"
+            : "3px solid #4ade80",
+          boxShadow: totalWeeklyQuests > 0 || weakTopicsCount > 0
+            ? "0 6px 20px rgba(139, 92, 246, 0.4)"
+            : "0 6px 20px rgba(74, 222, 128, 0.3)",
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: "15px" }}>
-          <span style={{ fontSize: "2em" }}>🎯</span>
+          <div style={{
+            width: "50px",
+            height: "50px",
+            borderRadius: "12px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: "1.8em",
+            background: totalWeeklyQuests > 0 || weakTopicsCount > 0
+              ? "linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)"
+              : "linear-gradient(135deg, #22c55e 0%, #16a34a 100%)",
+            boxShadow: "inset 0 2px 0 rgba(255,255,255,0.2)",
+          }}>
+            ⚔️
+          </div>
           <div>
-            <h3 style={{ margin: 0, fontSize: "1.1em" }}>PRACTICE MODE</h3>
-            <p style={{ margin: 0, color: "#AAA", fontSize: "0.9em" }}>
-              {weakTopicsCount > 0
+            <h3 style={{
+              margin: 0,
+              fontSize: "1.1em",
+              color: "#f1f5f9",
+              textShadow: "0 2px 4px rgba(0,0,0,0.3)",
+            }}>PRACTICE ARENA</h3>
+            <p style={{
+              margin: "4px 0 0 0",
+              color: totalWeeklyQuests > 0 || weakTopicsCount > 0 ? "#c4b5fd" : "#86efac",
+              fontSize: "0.85em"
+            }}>
+              {totalWeeklyQuests > 0
+                ? `${completedWeeklyQuests}/${totalWeeklyQuests} exercises from YOUR mistakes`
+                : weakTopicsCount > 0
                 ? `${weakTopicsCount} topic${weakTopicsCount > 1 ? "s" : ""} need practice`
                 : "All topics mastered!"}
             </p>
           </div>
         </div>
-        {weakTopicsCount > 0 && (
+        {(totalWeeklyQuests > 0 || weakTopicsCount > 0) && (
           <div style={{
-            background: "#22c55e",
+            background: "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)",
             color: "#000",
             borderRadius: "50%",
-            width: "30px",
-            height: "30px",
+            width: "36px",
+            height: "36px",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             fontWeight: "bold",
+            fontSize: "1.1em",
+            boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
+            border: "2px solid rgba(255,255,255,0.3)",
           }}>
-            {weakTopicsCount}
+            {totalWeeklyQuests > 0 ? totalWeeklyQuests - completedWeeklyQuests : weakTopicsCount}
           </div>
         )}
       </div>
