@@ -30,8 +30,24 @@ export interface GameState {
 }
 
 // UI state
+export type ScreenType =
+  | "home"
+  | "shop"
+  | "inventory"
+  | "achievements"
+  | "game"
+  | "practice"
+  | "analytics"
+  | "learning-profile"
+  | "parent-settings"
+  | "quest-map"
+  | "spell-book"
+  | "profile-setup"
+  | "dashboard"
+  | "leaderboard";
+
 export interface UIState {
-  currentScreen: "home" | "shop" | "inventory" | "achievements" | "game";
+  currentScreen: ScreenType;
   isLoading: boolean;
   showDailyReward: boolean;
   showLevelComplete: boolean;

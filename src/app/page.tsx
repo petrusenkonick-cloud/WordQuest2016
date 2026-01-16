@@ -14,6 +14,15 @@ import { CameraScreen } from "@/components/screens/CameraScreen";
 import { AIProcessingScreen, AIAnalysisResult } from "@/components/screens/AIProcessingScreen";
 import { ExplanationScreen } from "@/components/screens/ExplanationScreen";
 import { AchievementsScreen } from "@/components/screens/AchievementsScreen";
+import { PracticeModeScreen } from "@/components/screens/PracticeModeScreen";
+import { AnalyticsDashboard } from "@/components/screens/AnalyticsDashboard";
+import { LearningProfileScreen } from "@/components/screens/LearningProfileScreen";
+import { ParentSettingsScreen } from "@/components/screens/ParentSettingsScreen";
+import { QuestMapScreen } from "@/components/screens/QuestMapScreen";
+import { SpellBookScreen } from "@/components/screens/SpellBookScreen";
+import { ProfileSetupScreen } from "@/components/screens/ProfileSetupScreen";
+import { GeneralDashboardScreen } from "@/components/screens/GeneralDashboardScreen";
+import { LeaderboardScreen } from "@/components/screens/LeaderboardScreen";
 
 // UI Components
 import { GameWorld } from "@/components/ui/GameWorld";
@@ -28,6 +37,7 @@ export default function Home() {
   const {
     isLoading: convexLoading,
     isLoggedIn,
+    playerId,
     levelProgress,
     inventory: convexInventory,
     ownedItems: convexOwnedItems,
@@ -138,6 +148,12 @@ export default function Home() {
     [initializePlayer, setPlayer]
   );
 
+  const handleLogout = useCallback(() => {
+    // Reset to login screen for guest users
+    setPhase("login");
+    setScreen("home");
+  }, [setScreen]);
+
   const handleStartLevel = useCallback(
     (levelId: string) => {
       setScreen("game");
@@ -149,6 +165,45 @@ export default function Home() {
   const handleScanHomework = useCallback(() => {
     setShowCamera(true);
   }, []);
+
+  const handlePracticeMode = useCallback(() => {
+    setScreen("practice");
+  }, [setScreen]);
+
+  const handleOpenAnalytics = useCallback(() => {
+    setScreen("analytics");
+  }, [setScreen]);
+
+  const handleOpenLearningProfile = useCallback(() => {
+    setScreen("learning-profile");
+  }, [setScreen]);
+
+  const handleOpenParentSettings = useCallback(() => {
+    setScreen("parent-settings");
+  }, [setScreen]);
+
+  const handleOpenQuestMap = useCallback(() => {
+    setScreen("quest-map");
+  }, [setScreen]);
+
+  const handleOpenSpellBook = useCallback(() => {
+    setScreen("spell-book");
+  }, [setScreen]);
+
+  const handleOpenDashboard = useCallback(() => {
+    setScreen("dashboard");
+  }, [setScreen]);
+
+  const handleOpenLeaderboard = useCallback(() => {
+    setScreen("leaderboard");
+  }, [setScreen]);
+
+  const handleStartQuest = useCallback((questId: string, chapterId: number) => {
+    // TODO: Start the quest game with the questId
+    console.log("Starting quest:", questId, "in chapter:", chapterId);
+    // For now, just go back to home
+    setScreen("home");
+  }, [setScreen]);
 
   const handleCameraCapture = useCallback((images: string[]) => {
     setCapturedImages(images);
@@ -465,9 +520,17 @@ export default function Home() {
       case "home":
         return (
           <HomeScreen
+            playerId={playerId}
             completedLevels={completedLevels}
             onStartLevel={handleStartLevel}
             onScanHomework={handleScanHomework}
+            onPracticeMode={handlePracticeMode}
+            onQuestMap={handleOpenQuestMap}
+            onSpellBook={handleOpenSpellBook}
+            onParentSettings={handleOpenParentSettings}
+            onDashboard={handleOpenDashboard}
+            onLeaderboard={handleOpenLeaderboard}
+            onLogout={handleLogout}
           />
         );
       case "shop":
@@ -476,6 +539,72 @@ export default function Home() {
         return <InventoryScreen inventory={inventory} onEquip={handleEquip} />;
       case "achievements":
         return <AchievementsScreen />;
+      case "practice":
+        return (
+          <PracticeModeScreen
+            playerId={playerId}
+            onBack={() => setScreen("home")}
+          />
+        );
+      case "analytics":
+        return (
+          <AnalyticsDashboard
+            playerId={playerId}
+            onBack={() => setScreen("home")}
+          />
+        );
+      case "learning-profile":
+        return (
+          <LearningProfileScreen
+            playerId={playerId}
+            onBack={() => setScreen("home")}
+          />
+        );
+      case "parent-settings":
+        return (
+          <ParentSettingsScreen
+            playerId={playerId}
+            onBack={() => setScreen("home")}
+          />
+        );
+      case "quest-map":
+        return (
+          <QuestMapScreen
+            playerId={playerId}
+            onBack={() => setScreen("home")}
+            onStartQuest={handleStartQuest}
+          />
+        );
+      case "spell-book":
+        return (
+          <SpellBookScreen
+            playerId={playerId}
+            onBack={() => setScreen("home")}
+          />
+        );
+      case "profile-setup":
+        return (
+          <ProfileSetupScreen
+            playerId={playerId}
+            onComplete={() => setScreen("home")}
+            onSkip={() => setScreen("home")}
+          />
+        );
+      case "dashboard":
+        return (
+          <GeneralDashboardScreen
+            playerId={playerId}
+            onBack={() => setScreen("home")}
+            onViewLeaderboard={handleOpenLeaderboard}
+          />
+        );
+      case "leaderboard":
+        return (
+          <LeaderboardScreen
+            playerId={playerId}
+            onBack={() => setScreen("home")}
+          />
+        );
       default:
         return null;
     }

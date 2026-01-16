@@ -21,7 +21,23 @@ export default defineSchema({
     perfectLevels: v.number(),
     dailyDay: v.number(),
     dailyClaimed: v.boolean(),
-  }).index("by_clerk_id", ["clerkId"]),
+    // Profile demographics
+    birthYear: v.optional(v.number()), // e.g., 2015
+    gradeLevel: v.optional(v.number()), // 1-11
+    nativeLanguage: v.optional(v.string()), // "ru", "en", "uk"
+    ageGroup: v.optional(v.string()), // "6-8", "9-11", "12+"
+    // Competition settings
+    displayName: v.optional(v.string()), // Anonymous name for leaderboards
+    competitionOptIn: v.optional(v.boolean()), // Opted into competitions
+    profileCompleted: v.optional(v.boolean()), // Profile setup completed
+    // Normalized score for fair competition
+    normalizedScore: v.optional(v.number()), // Fair score across ages
+    totalRawScore: v.optional(v.number()), // Raw cumulative score
+  })
+    .index("by_clerk_id", ["clerkId"])
+    .index("by_grade", ["gradeLevel"])
+    .index("by_age_group", ["ageGroup"])
+    .index("by_normalized_score", ["normalizedScore"]),
 
   // Player inventory
   inventory: defineTable({
@@ -130,6 +146,11 @@ export default defineSchema({
     readingSpeed: v.optional(v.string()), // "slow", "medium", "fast"
     hintsEnabled: v.boolean(),
     voiceEnabled: v.boolean(),
+    // TTS Settings
+    voiceLanguage: v.optional(v.string()), // "en-US", "en-CA", "ru-RU"
+    voiceSpeed: v.optional(v.string()), // "slow", "normal", "fast"
+    voicePitch: v.optional(v.number()), // 0.8-1.5 (higher = younger sounding)
+    autoPlayVoice: v.optional(v.boolean()), // Auto-read questions
     updatedAt: v.string(),
   }).index("by_player", ["playerId"]),
 
@@ -181,4 +202,232 @@ export default defineSchema({
   })
     .index("by_player", ["playerId"])
     .index("by_player_date", ["playerId", "date"]),
+
+  // ========== WORD WIZARD ACADEMY TABLES ==========
+
+  // Wizard profile (extends player with academy features)
+  wizardProfile: defineTable({
+    playerId: v.id("players"),
+    wizardTitle: v.string(), // "Apprentice", "Junior Wizard", "Wizard", "Senior Wizard", "Master Wizard"
+    academyLevel: v.number(), // 1-25+
+    currentChapter: v.number(), // 1-12
+    totalSpellsLearned: v.number(),
+    favoriteSubject: v.optional(v.string()),
+    petId: v.optional(v.string()), // equipped pet familiar
+    wandStyle: v.optional(v.string()),
+    robeColor: v.optional(v.string()),
+    hatStyle: v.optional(v.string()),
+    createdAt: v.string(),
+  }).index("by_player", ["playerId"]),
+
+  // Quest chapters and progress
+  questChapters: defineTable({
+    playerId: v.id("players"),
+    chapterId: v.number(), // 1-12
+    chapterName: v.string(), // "The Beginning", "Forest of Nouns", etc.
+    isUnlocked: v.boolean(),
+    isCompleted: v.boolean(),
+    starsEarned: v.number(), // 0-3
+    lessonsCompleted: v.number(),
+    totalLessons: v.number(),
+    bossDefeated: v.boolean(),
+    unlockedAt: v.optional(v.string()),
+    completedAt: v.optional(v.string()),
+  })
+    .index("by_player", ["playerId"])
+    .index("by_player_chapter", ["playerId", "chapterId"]),
+
+  // Individual quests/lessons within chapters
+  quests: defineTable({
+    playerId: v.id("players"),
+    chapterId: v.number(),
+    questId: v.string(), // e.g., "ch1_q1"
+    questName: v.string(),
+    questType: v.string(), // "lesson", "practice", "boss", "bonus"
+    topic: v.string(), // "nouns", "verbs", etc.
+    isUnlocked: v.boolean(),
+    isCompleted: v.boolean(),
+    starsEarned: v.number(),
+    bestScore: v.number(),
+    attempts: v.number(),
+    lastAttempt: v.optional(v.string()),
+  })
+    .index("by_player", ["playerId"])
+    .index("by_player_chapter", ["playerId", "chapterId"])
+    .index("by_player_quest", ["playerId", "questId"]),
+
+  // Spell Book - collected words as spells
+  spellBook: defineTable({
+    playerId: v.id("players"),
+    word: v.string(),
+    category: v.string(), // "noun", "verb", "adjective", "adverb", "phrase"
+    definition: v.string(),
+    exampleSentence: v.optional(v.string()),
+    spellPower: v.number(), // 1-5 stars rarity
+    isRare: v.boolean(),
+    learnedAt: v.string(),
+    masteryLevel: v.number(), // 0-100 how well they know it
+    timesUsed: v.number(),
+  })
+    .index("by_player", ["playerId"])
+    .index("by_player_word", ["playerId", "word"])
+    .index("by_player_category", ["playerId", "category"]),
+
+  // Daily quests tracking
+  dailyQuests: defineTable({
+    playerId: v.id("players"),
+    date: v.string(), // YYYY-MM-DD
+    questType: v.string(), // "morning_practice", "homework", "evening_review", "bonus"
+    questName: v.string(),
+    description: v.string(),
+    targetCount: v.number(), // e.g., answer 10 questions
+    currentCount: v.number(),
+    isCompleted: v.boolean(),
+    reward: v.object({
+      diamonds: v.optional(v.number()),
+      emeralds: v.optional(v.number()),
+      xp: v.optional(v.number()),
+    }),
+    completedAt: v.optional(v.string()),
+  })
+    .index("by_player", ["playerId"])
+    .index("by_player_date", ["playerId", "date"]),
+
+  // Pet familiars
+  petFamiliars: defineTable({
+    playerId: v.id("players"),
+    petId: v.string(), // "owl", "cat", "bookworm", "phoenix"
+    petName: v.string(),
+    petType: v.string(),
+    level: v.number(),
+    xp: v.number(),
+    ability: v.string(), // "hint_boost", "xp_bonus", "spell_power"
+    isEquipped: v.boolean(),
+    obtainedAt: v.string(),
+  })
+    .index("by_player", ["playerId"])
+    .index("by_player_pet", ["playerId", "petId"]),
+
+  // ========== PLATFORM DASHBOARD & LEADERBOARDS ==========
+
+  // Aggregated platform statistics (updated by cron)
+  platformStats: defineTable({
+    date: v.string(), // YYYY-MM-DD
+    totalPlayers: v.number(),
+    activePlayers: v.number(), // Active in last 7 days
+    totalQuestionsAnswered: v.number(),
+    averageAccuracy: v.number(),
+    totalWordsLearned: v.number(),
+    ageGroupStats: v.array(
+      v.object({
+        ageGroup: v.string(),
+        playerCount: v.number(),
+        avgAccuracy: v.number(),
+        avgNormalizedScore: v.number(),
+        avgStreak: v.number(),
+        avgWordsLearned: v.number(),
+      })
+    ),
+    lastUpdated: v.string(),
+  }).index("by_date", ["date"]),
+
+  // Leaderboards (cached aggregates)
+  leaderboards: defineTable({
+    type: v.string(), // "daily", "weekly", "monthly", "all_time"
+    ageGroup: v.optional(v.string()), // null for global leaderboard
+    entries: v.array(
+      v.object({
+        playerId: v.id("players"),
+        displayName: v.string(),
+        normalizedScore: v.number(), // Fair score
+        rawScore: v.number(),
+        accuracy: v.number(),
+        streak: v.number(),
+        wordsLearned: v.number(),
+        rank: v.number(),
+      })
+    ),
+    periodStart: v.string(),
+    periodEnd: v.string(),
+    lastUpdated: v.string(),
+  })
+    .index("by_type", ["type"])
+    .index("by_type_age", ["type", "ageGroup"]),
+
+  // ========== CHALLENGES & COMPETITIONS ==========
+
+  // Async challenges between players
+  challenges: defineTable({
+    challengerId: v.id("players"),
+    challengerName: v.string(),
+    challengeeId: v.optional(v.id("players")), // null for open challenges
+    challengeeName: v.optional(v.string()),
+    topic: v.string(),
+    difficulty: v.string(), // "easy", "medium", "hard"
+    questions: v.array(
+      v.object({
+        text: v.string(),
+        options: v.array(v.string()),
+        correct: v.string(),
+        difficulty: v.number(), // 1-3
+      })
+    ),
+    questionCount: v.number(),
+    status: v.string(), // "pending", "active", "completed", "expired", "declined"
+    winnerId: v.optional(v.id("players")),
+    winnerName: v.optional(v.string()),
+    reward: v.object({
+      diamonds: v.number(),
+      xp: v.number(),
+    }),
+    createdAt: v.string(),
+    expiresAt: v.string(),
+    completedAt: v.optional(v.string()),
+  })
+    .index("by_challenger", ["challengerId"])
+    .index("by_challengee", ["challengeeId"])
+    .index("by_status", ["status"]),
+
+  // Challenge participant responses
+  challengeParticipants: defineTable({
+    challengeId: v.id("challenges"),
+    playerId: v.id("players"),
+    playerName: v.string(),
+    answers: v.array(
+      v.object({
+        questionIndex: v.number(),
+        answer: v.string(),
+        isCorrect: v.boolean(),
+        timeSpent: v.number(), // milliseconds
+      })
+    ),
+    score: v.number(),
+    normalizedScore: v.number(),
+    correctAnswers: v.number(),
+    totalTime: v.number(),
+    status: v.string(), // "in_progress", "completed"
+    startedAt: v.string(),
+    finishedAt: v.optional(v.string()),
+  })
+    .index("by_challenge", ["challengeId"])
+    .index("by_player", ["playerId"])
+    .index("by_challenge_player", ["challengeId", "playerId"]),
+
+  // Competition rewards history
+  competitionRewards: defineTable({
+    playerId: v.id("players"),
+    competitionType: v.string(), // "daily_leaderboard", "weekly_leaderboard", "challenge_win"
+    competitionId: v.optional(v.string()),
+    rank: v.optional(v.number()),
+    reward: v.object({
+      diamonds: v.number(),
+      emeralds: v.number(),
+      xp: v.number(),
+    }),
+    claimed: v.boolean(),
+    claimedAt: v.optional(v.string()),
+    createdAt: v.string(),
+  })
+    .index("by_player", ["playerId"])
+    .index("by_player_unclaimed", ["playerId", "claimed"]),
 });

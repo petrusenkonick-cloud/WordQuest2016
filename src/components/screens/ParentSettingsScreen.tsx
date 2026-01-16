@@ -5,6 +5,28 @@ import { useMutation, useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { Id } from "../../../convex/_generated/dataModel";
 
+// Time options for daily reports (UTC hours displayed as local approximation)
+const DAILY_REPORT_TIMES = [
+  { value: "15:00", label: "3:00 PM" },
+  { value: "16:00", label: "4:00 PM" },
+  { value: "17:00", label: "5:00 PM" },
+  { value: "18:00", label: "6:00 PM" },
+  { value: "19:00", label: "7:00 PM" },
+  { value: "20:00", label: "8:00 PM" },
+  { value: "21:00", label: "9:00 PM" },
+];
+
+// Days of week for weekly reports
+const WEEKLY_REPORT_DAYS = [
+  { value: 0, label: "Sunday" },
+  { value: 1, label: "Monday" },
+  { value: 2, label: "Tuesday" },
+  { value: 3, label: "Wednesday" },
+  { value: 4, label: "Thursday" },
+  { value: 5, label: "Friday" },
+  { value: 6, label: "Saturday" },
+];
+
 interface ParentSettingsScreenProps {
   playerId: Id<"players"> | null;
   onBack: () => void;
@@ -12,6 +34,9 @@ interface ParentSettingsScreenProps {
 
 export function ParentSettingsScreen({ playerId, onBack }: ParentSettingsScreenProps) {
   const [telegramChatId, setTelegramChatId] = useState("");
+  const [dailyReportTime, setDailyReportTime] = useState("18:00");
+  const [weeklyReportDay, setWeeklyReportDay] = useState(0);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
@@ -24,10 +49,20 @@ export function ParentSettingsScreen({ playerId, onBack }: ParentSettingsScreenP
 
   const saveTelegramId = useMutation(api.parents.saveTelegramChatId);
   const unlinkParent = useMutation(api.parents.unlinkParent);
+  const updateSettings = useMutation(api.parents.updateNotificationSettings);
 
   useEffect(() => {
-    if (parentLink?.telegramChatId) {
-      setTelegramChatId(parentLink.telegramChatId);
+    if (parentLink) {
+      if (parentLink.telegramChatId) {
+        setTelegramChatId(parentLink.telegramChatId);
+      }
+      if (parentLink.dailyReportTime) {
+        setDailyReportTime(parentLink.dailyReportTime);
+      }
+      if (parentLink.weeklyReportDay !== undefined) {
+        setWeeklyReportDay(parentLink.weeklyReportDay);
+      }
+      setNotificationsEnabled(parentLink.notificationsEnabled ?? true);
     }
   }, [parentLink]);
 
@@ -47,6 +82,25 @@ export function ParentSettingsScreen({ playerId, onBack }: ParentSettingsScreenP
       console.error("Failed to save:", error);
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleUpdateSettings = async (
+    newTime?: string,
+    newDay?: number,
+    newEnabled?: boolean
+  ) => {
+    if (!parentLink?.telegramChatId) return;
+
+    try {
+      await updateSettings({
+        telegramChatId: parentLink.telegramChatId,
+        ...(newTime !== undefined && { dailyReportTime: newTime }),
+        ...(newDay !== undefined && { weeklyReportDay: newDay }),
+        ...(newEnabled !== undefined && { notificationsEnabled: newEnabled }),
+      });
+    } catch (error) {
+      console.error("Failed to update settings:", error);
     }
   };
 
@@ -219,6 +273,156 @@ export function ParentSettingsScreen({ playerId, onBack }: ParentSettingsScreenP
           >
             Disconnect
           </button>
+        </div>
+      )}
+
+      {/* Notification Settings - Only show when connected */}
+      {parentLink && (
+        <div style={{
+          background: "linear-gradient(135deg, rgba(139, 92, 246, 0.15) 0%, rgba(30, 27, 75, 0.4) 100%)",
+          borderRadius: "15px",
+          padding: "20px",
+          border: "1px solid #8b5cf640",
+          marginBottom: "20px",
+        }}>
+          <h3 style={{ margin: "0 0 20px 0", color: "#c4b5fd" }}>
+            Automatic Reports
+          </h3>
+
+          {/* Notifications Toggle */}
+          <div style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            padding: "15px",
+            background: "rgba(0,0,0,0.3)",
+            borderRadius: "10px",
+            marginBottom: "15px",
+          }}>
+            <div>
+              <div style={{ fontWeight: "bold" }}>Enable Notifications</div>
+              <div style={{ color: "#888", fontSize: "0.85em" }}>Receive automatic reports</div>
+            </div>
+            <button
+              onClick={() => {
+                const newValue = !notificationsEnabled;
+                setNotificationsEnabled(newValue);
+                handleUpdateSettings(undefined, undefined, newValue);
+              }}
+              style={{
+                width: "60px",
+                height: "32px",
+                borderRadius: "16px",
+                border: "none",
+                cursor: "pointer",
+                background: notificationsEnabled
+                  ? "linear-gradient(90deg, #22c55e, #16a34a)"
+                  : "#444",
+                position: "relative",
+                transition: "background 0.3s ease",
+              }}
+            >
+              <div style={{
+                width: "26px",
+                height: "26px",
+                borderRadius: "50%",
+                background: "#fff",
+                position: "absolute",
+                top: "3px",
+                left: notificationsEnabled ? "31px" : "3px",
+                transition: "left 0.3s ease",
+              }} />
+            </button>
+          </div>
+
+          {/* Daily Report Time */}
+          <div style={{
+            padding: "15px",
+            background: "rgba(0,0,0,0.3)",
+            borderRadius: "10px",
+            marginBottom: "15px",
+            opacity: notificationsEnabled ? 1 : 0.5,
+          }}>
+            <div style={{ marginBottom: "10px" }}>
+              <div style={{ fontWeight: "bold" }}>Daily Report Time</div>
+              <div style={{ color: "#888", fontSize: "0.85em" }}>When to send daily progress</div>
+            </div>
+            <select
+              value={dailyReportTime}
+              onChange={(e) => {
+                setDailyReportTime(e.target.value);
+                handleUpdateSettings(e.target.value, undefined, undefined);
+              }}
+              disabled={!notificationsEnabled}
+              style={{
+                width: "100%",
+                padding: "12px",
+                fontSize: "1em",
+                background: "rgba(0,0,0,0.4)",
+                border: "2px solid #555",
+                borderRadius: "8px",
+                color: "#fff",
+                cursor: notificationsEnabled ? "pointer" : "not-allowed",
+              }}
+            >
+              {DAILY_REPORT_TIMES.map((time) => (
+                <option key={time.value} value={time.value}>
+                  {time.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Weekly Report Day */}
+          <div style={{
+            padding: "15px",
+            background: "rgba(0,0,0,0.3)",
+            borderRadius: "10px",
+            opacity: notificationsEnabled ? 1 : 0.5,
+          }}>
+            <div style={{ marginBottom: "10px" }}>
+              <div style={{ fontWeight: "bold" }}>Weekly Summary Day</div>
+              <div style={{ color: "#888", fontSize: "0.85em" }}>When to send weekly report</div>
+            </div>
+            <select
+              value={weeklyReportDay}
+              onChange={(e) => {
+                const newDay = parseInt(e.target.value);
+                setWeeklyReportDay(newDay);
+                handleUpdateSettings(undefined, newDay, undefined);
+              }}
+              disabled={!notificationsEnabled}
+              style={{
+                width: "100%",
+                padding: "12px",
+                fontSize: "1em",
+                background: "rgba(0,0,0,0.4)",
+                border: "2px solid #555",
+                borderRadius: "8px",
+                color: "#fff",
+                cursor: notificationsEnabled ? "pointer" : "not-allowed",
+              }}
+            >
+              {WEEKLY_REPORT_DAYS.map((day) => (
+                <option key={day.value} value={day.value}>
+                  {day.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Info note */}
+          <div style={{
+            marginTop: "15px",
+            padding: "12px",
+            background: "rgba(59, 130, 246, 0.1)",
+            borderRadius: "8px",
+            border: "1px solid #3b82f640",
+            fontSize: "0.85em",
+            color: "#93c5fd",
+          }}>
+            Reports are sent automatically at the selected times. Times shown are approximate (UTC-based).
+          </div>
         </div>
       )}
 

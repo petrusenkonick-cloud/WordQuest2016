@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { Id } from "../../../convex/_generated/dataModel";
+import { useTTS, getVoicesForLanguage } from "@/hooks/useTTS";
 
 interface LearningProfileScreenProps {
   playerId: Id<"players"> | null;
@@ -22,8 +23,20 @@ export function LearningProfileScreen({ playerId, onBack }: LearningProfileScree
   const [explanationPref, setExplanationPref] = useState<string>("examples");
   const [hintsEnabled, setHintsEnabled] = useState(true);
   const [voiceEnabled, setVoiceEnabled] = useState(true);
+  const [voiceLanguage, setVoiceLanguage] = useState<string>("en-US");
+  const [voiceSpeed, setVoiceSpeed] = useState<string>("normal");
+  const [voicePitch, setVoicePitch] = useState<number>(1.1);
   const [isSaving, setIsSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+
+  // TTS hook for testing voice
+  const { speak, stop, isSpeaking, isSupported, voices } = useTTS({
+    language: voiceLanguage,
+    speed: voiceSpeed as "slow" | "normal" | "fast",
+    pitch: voicePitch,
+  });
+
+  const availableVoices = getVoicesForLanguage(voices, voiceLanguage);
 
   // Load profile data
   useEffect(() => {
@@ -238,6 +251,140 @@ export function LearningProfileScreen({ playerId, onBack }: LearningProfileScree
           </div>
         </div>
       </div>
+
+      {/* Voice Settings - Only show if voice is enabled and supported */}
+      {voiceEnabled && isSupported && (
+        <div style={{ marginBottom: "30px" }}>
+          <h3 style={{ color: "#AAA", marginBottom: "15px" }}>
+            🔊 Voice Settings
+          </h3>
+
+          {/* Voice Language */}
+          <div style={{ marginBottom: "15px" }}>
+            <label style={{ color: "#888", fontSize: "0.85em", marginBottom: "8px", display: "block" }}>
+              Language
+            </label>
+            <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+              {[
+                { code: "en-US", label: "English (US)", flag: "🇺🇸" },
+                { code: "en-CA", label: "English (CA)", flag: "🇨🇦" },
+                { code: "en-GB", label: "English (UK)", flag: "🇬🇧" },
+                { code: "ru-RU", label: "Russian", flag: "🇷🇺" },
+              ].map((lang) => (
+                <button
+                  key={lang.code}
+                  onClick={() => setVoiceLanguage(lang.code)}
+                  style={{
+                    padding: "10px 15px",
+                    borderRadius: "10px",
+                    border: voiceLanguage === lang.code ? "2px solid #8B5CF6" : "1px solid #333",
+                    background: voiceLanguage === lang.code ? "rgba(139, 92, 246, 0.2)" : "rgba(0,0,0,0.3)",
+                    color: voiceLanguage === lang.code ? "#8B5CF6" : "#AAA",
+                    cursor: "pointer",
+                    fontSize: "0.9em",
+                  }}
+                >
+                  {lang.flag} {lang.label}
+                </button>
+              ))}
+            </div>
+            {availableVoices.length === 0 && (
+              <div style={{ color: "#F59E0B", fontSize: "0.8em", marginTop: "8px" }}>
+                No voices available for this language on your device
+              </div>
+            )}
+          </div>
+
+          {/* Voice Speed */}
+          <div style={{ marginBottom: "15px" }}>
+            <label style={{ color: "#888", fontSize: "0.85em", marginBottom: "8px", display: "block" }}>
+              Speed
+            </label>
+            <div style={{ display: "flex", gap: "8px" }}>
+              {[
+                { value: "slow", label: "🐢 Slow" },
+                { value: "normal", label: "🚶 Normal" },
+                { value: "fast", label: "🏃 Fast" },
+              ].map((speed) => (
+                <button
+                  key={speed.value}
+                  onClick={() => setVoiceSpeed(speed.value)}
+                  style={{
+                    flex: 1,
+                    padding: "10px",
+                    borderRadius: "10px",
+                    border: voiceSpeed === speed.value ? "2px solid #22C55E" : "1px solid #333",
+                    background: voiceSpeed === speed.value ? "rgba(34, 197, 94, 0.2)" : "rgba(0,0,0,0.3)",
+                    color: voiceSpeed === speed.value ? "#22C55E" : "#AAA",
+                    cursor: "pointer",
+                    fontSize: "0.85em",
+                  }}
+                >
+                  {speed.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Voice Pitch (for younger sounding voice) */}
+          <div style={{ marginBottom: "15px" }}>
+            <label style={{ color: "#888", fontSize: "0.85em", marginBottom: "8px", display: "block" }}>
+              Voice Pitch: {voicePitch.toFixed(1)}
+              <span style={{ color: "#666", marginLeft: "10px" }}>
+                (higher = younger sounding)
+              </span>
+            </label>
+            <input
+              type="range"
+              min="0.8"
+              max="1.5"
+              step="0.1"
+              value={voicePitch}
+              onChange={(e) => setVoicePitch(parseFloat(e.target.value))}
+              style={{
+                width: "100%",
+                height: "8px",
+                borderRadius: "4px",
+                background: "linear-gradient(90deg, #3B82F6, #8B5CF6)",
+                cursor: "pointer",
+              }}
+            />
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.75em", color: "#666" }}>
+              <span>Lower</span>
+              <span>Higher</span>
+            </div>
+          </div>
+
+          {/* Test Voice Button */}
+          <button
+            onClick={() => {
+              if (isSpeaking) {
+                stop();
+              } else {
+                speak("Hello! This is how I will read explanations to you. Let's learn together!");
+              }
+            }}
+            style={{
+              width: "100%",
+              padding: "12px",
+              borderRadius: "10px",
+              border: "none",
+              background: isSpeaking
+                ? "linear-gradient(135deg, #EF4444, #DC2626)"
+                : "linear-gradient(135deg, #8B5CF6, #7C3AED)",
+              color: "#fff",
+              fontWeight: "bold",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "8px",
+            }}
+          >
+            {isSpeaking ? "🔇 Stop" : "🔊 Test Voice"}
+          </button>
+        </div>
+      )}
 
       {/* Save Button */}
       <button

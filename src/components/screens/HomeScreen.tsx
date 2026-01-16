@@ -2,6 +2,10 @@
 
 import { useAppStore } from "@/lib/store";
 import { UserButton, useAuth } from "@clerk/nextjs";
+import { useQuery, useMutation } from "convex/react";
+import { api } from "../../../convex/_generated/api";
+import { Id } from "../../../convex/_generated/dataModel";
+import { useEffect } from "react";
 
 // Level data
 const LEVELS = [
@@ -50,23 +54,74 @@ const LEVELS = [
 ];
 
 interface HomeScreenProps {
+  playerId: Id<"players"> | null;
   completedLevels: Record<string, { stars: number; done: boolean }>;
   onStartLevel: (levelId: string) => void;
   onScanHomework?: () => void;
   onPracticeMode?: () => void;
+  onQuestMap?: () => void;
+  onSpellBook?: () => void;
+  onParentSettings?: () => void;
+  onDashboard?: () => void;
+  onLeaderboard?: () => void;
+  onLogout?: () => void;
   weakTopicsCount?: number;
 }
 
 export function HomeScreen({
+  playerId,
   completedLevels,
   onStartLevel,
   onScanHomework,
   onPracticeMode,
+  onQuestMap,
+  onSpellBook,
+  onParentSettings,
+  onDashboard,
+  onLeaderboard,
+  onLogout,
   weakTopicsCount = 0,
 }: HomeScreenProps) {
   const player = useAppStore((state) => state.player);
   const showDailyReward = useAppStore((state) => state.showDailyRewardModal);
   const { isSignedIn } = useAuth();
+
+  // Wizard academy data
+  const wizardProfile = useQuery(
+    api.quests.getWizardProfile,
+    playerId ? { playerId } : "skip"
+  );
+
+  const dailyQuests = useQuery(
+    api.quests.getDailyQuests,
+    playerId ? { playerId } : "skip"
+  );
+
+  const spellBookStats = useQuery(
+    api.quests.getSpellBookStats,
+    playerId ? { playerId } : "skip"
+  );
+
+  // Initialize wizard profile and daily quests
+  const initWizard = useMutation(api.quests.initializeWizardProfile);
+  const generateDailyQuests = useMutation(api.quests.generateDailyQuests);
+
+  useEffect(() => {
+    if (playerId) {
+      // Initialize wizard if needed
+      if (wizardProfile === null) {
+        initWizard({ playerId });
+      }
+      // Generate daily quests if needed
+      if (dailyQuests && dailyQuests.length === 0) {
+        generateDailyQuests({ playerId });
+      }
+    }
+  }, [playerId, wizardProfile, dailyQuests, initWizard, generateDailyQuests]);
+
+  // Calculate daily quest progress
+  const completedDailyQuests = dailyQuests?.filter(q => q.isCompleted).length || 0;
+  const totalDailyQuests = dailyQuests?.length || 4;
 
   return (
     <div className="screen active">
@@ -79,11 +134,23 @@ export function HomeScreen({
         marginBottom: "10px",
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          <span style={{ fontSize: "2em" }}>{player.skin}</span>
+          <div style={{
+            width: "45px",
+            height: "45px",
+            borderRadius: "50%",
+            background: "linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: "1.5em",
+            border: "2px solid #a5b4fc",
+          }}>
+            🧙
+          </div>
           <div>
             <div style={{ fontWeight: "bold", color: "white" }}>{player.name}</div>
-            <div style={{ fontSize: "0.8em", color: "#AAA" }}>
-              Level {player.level} • {player.xp}/{player.xpNext} XP
+            <div style={{ fontSize: "0.8em", color: "#a5b4fc" }}>
+              {wizardProfile?.wizardTitle || "Apprentice"} • Lvl {wizardProfile?.academyLevel || 1}
             </div>
           </div>
         </div>
@@ -101,52 +168,206 @@ export function HomeScreen({
           />
         )}
         {!isSignedIn && (
-          <div style={{
-            padding: "5px 10px",
-            background: "rgba(255,255,255,0.1)",
-            borderRadius: "5px",
-            fontSize: "0.8em",
-            color: "#AAA",
-          }}>
-            👤 Guest
+          <div
+            onClick={onLogout}
+            style={{
+              padding: "8px 12px",
+              background: "rgba(239, 68, 68, 0.2)",
+              borderRadius: "8px",
+              fontSize: "0.85em",
+              color: "#fca5a5",
+              cursor: "pointer",
+              border: "1px solid #ef444440",
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+            }}
+          >
+            <span>Guest</span>
+            <span style={{ fontSize: "0.9em" }}>↪</span>
           </div>
         )}
+      </div>
+
+      {/* Daily Quests Progress */}
+      {dailyQuests && dailyQuests.length > 0 && (
+        <div style={{
+          background: "linear-gradient(135deg, rgba(139, 92, 246, 0.2) 0%, rgba(30, 27, 75, 0.4) 100%)",
+          borderRadius: "12px",
+          padding: "12px 15px",
+          marginBottom: "15px",
+          border: "1px solid #8b5cf640",
+        }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+            <span style={{ color: "#c4b5fd", fontWeight: "bold", fontSize: "0.9em" }}>
+              Daily Quests
+            </span>
+            <span style={{ color: "#8b5cf6", fontSize: "0.85em" }}>
+              {completedDailyQuests}/{totalDailyQuests}
+            </span>
+          </div>
+          <div style={{
+            display: "flex",
+            gap: "5px",
+          }}>
+            {dailyQuests.map((quest, i) => (
+              <div
+                key={i}
+                style={{
+                  flex: 1,
+                  height: "6px",
+                  borderRadius: "3px",
+                  background: quest.isCompleted ? "#8b5cf6" : "rgba(0,0,0,0.4)",
+                  transition: "background 0.3s ease",
+                }}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Quick Actions - Academy Features */}
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: "1fr 1fr",
+        gap: "10px",
+        marginBottom: "15px",
+      }}>
+        {/* Quest Map */}
+        <div
+          onClick={onQuestMap}
+          style={{
+            background: "linear-gradient(135deg, rgba(99, 102, 241, 0.3) 0%, rgba(30, 27, 75, 0.4) 100%)",
+            borderRadius: "12px",
+            padding: "15px",
+            cursor: "pointer",
+            border: "2px solid #6366f1",
+            display: "flex",
+            alignItems: "center",
+            gap: "12px",
+          }}
+        >
+          <span style={{ fontSize: "2em" }}>🗺️</span>
+          <div>
+            <div style={{ fontWeight: "bold", fontSize: "0.95em" }}>QUEST MAP</div>
+            <div style={{ color: "#a5b4fc", fontSize: "0.8em" }}>
+              Ch. {wizardProfile?.currentChapter || 1}
+            </div>
+          </div>
+        </div>
+
+        {/* Spell Book */}
+        <div
+          onClick={onSpellBook}
+          style={{
+            background: "linear-gradient(135deg, rgba(168, 85, 247, 0.3) 0%, rgba(30, 27, 75, 0.4) 100%)",
+            borderRadius: "12px",
+            padding: "15px",
+            cursor: "pointer",
+            border: "2px solid #a855f7",
+            display: "flex",
+            alignItems: "center",
+            gap: "12px",
+          }}
+        >
+          <span style={{ fontSize: "2em" }}>📖</span>
+          <div>
+            <div style={{ fontWeight: "bold", fontSize: "0.95em" }}>SPELL BOOK</div>
+            <div style={{ color: "#c4b5fd", fontSize: "0.8em" }}>
+              {spellBookStats?.totalSpells || 0} Words
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Dashboard & Leaderboard Row */}
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: "1fr 1fr",
+        gap: "10px",
+        marginBottom: "15px",
+      }}>
+        {/* Dashboard */}
+        <div
+          onClick={onDashboard}
+          style={{
+            background: "linear-gradient(135deg, rgba(59, 130, 246, 0.3) 0%, rgba(30, 27, 75, 0.4) 100%)",
+            borderRadius: "12px",
+            padding: "15px",
+            cursor: "pointer",
+            border: "2px solid #3b82f6",
+            display: "flex",
+            alignItems: "center",
+            gap: "12px",
+          }}
+        >
+          <span style={{ fontSize: "2em" }}>📊</span>
+          <div>
+            <div style={{ fontWeight: "bold", fontSize: "0.95em" }}>DASHBOARD</div>
+            <div style={{ color: "#93c5fd", fontSize: "0.8em" }}>
+              Your Stats
+            </div>
+          </div>
+        </div>
+
+        {/* Leaderboard */}
+        <div
+          onClick={onLeaderboard}
+          style={{
+            background: "linear-gradient(135deg, rgba(234, 179, 8, 0.3) 0%, rgba(30, 27, 75, 0.4) 100%)",
+            borderRadius: "12px",
+            padding: "15px",
+            cursor: "pointer",
+            border: "2px solid #eab308",
+            display: "flex",
+            alignItems: "center",
+            gap: "12px",
+          }}
+        >
+          <span style={{ fontSize: "2em" }}>🏆</span>
+          <div>
+            <div style={{ fontWeight: "bold", fontSize: "0.95em" }}>LEADERBOARD</div>
+            <div style={{ color: "#fde047", fontSize: "0.8em" }}>
+              Top Wizards
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Daily Banner */}
       <div className="daily-banner" onClick={showDailyReward}>
         <div>
-          <h3>🎁 DAILY REWARD!</h3>
+          <h3>DAILY REWARD!</h3>
           <p>Claim free rewards!</p>
         </div>
-        <div className="daily-icon">📦</div>
+        <div className="daily-icon">🎁</div>
       </div>
 
       {/* Stats Grid */}
       <div className="stats-grid">
         <div className="stat-card">
-          <div className="icon">🔥</div>
+          <div className="icon" style={{ fontSize: "1.2em" }}>🔥</div>
           <div className="value">{player.streak}</div>
-          <div className="label">Day Streak</div>
+          <div className="label">Streak</div>
         </div>
         <div className="stat-card">
-          <div className="icon">⭐</div>
+          <div className="icon" style={{ fontSize: "1.2em" }}>⭐</div>
           <div className="value">{player.totalStars}</div>
           <div className="label">Stars</div>
         </div>
         <div className="stat-card">
-          <div className="icon">📚</div>
-          <div className="value">{player.wordsLearned}</div>
-          <div className="label">Words</div>
+          <div className="icon" style={{ fontSize: "1.2em" }}>✨</div>
+          <div className="value">{wizardProfile?.totalSpellsLearned || 0}</div>
+          <div className="label">Spells</div>
         </div>
         <div className="stat-card">
-          <div className="icon">🏆</div>
+          <div className="icon" style={{ fontSize: "1.2em" }}>🏆</div>
           <div className="value">{player.questsCompleted}</div>
           <div className="label">Quests</div>
         </div>
       </div>
 
-      {/* MAIN FEATURE: Scan Homework Button (from PRD) */}
+      {/* MAIN FEATURE: Scan Homework Button */}
       <div className="scan-homework-btn" onClick={onScanHomework}>
         <span className="camera-icon">📸</span>
         <h3>SCAN HOMEWORK</h3>
@@ -197,6 +418,28 @@ export function HomeScreen({
             {weakTopicsCount}
           </div>
         )}
+      </div>
+
+      {/* Parent Settings Quick Link */}
+      <div
+        onClick={onParentSettings}
+        style={{
+          background: "rgba(0,0,0,0.3)",
+          borderRadius: "10px",
+          padding: "12px 15px",
+          display: "flex",
+          alignItems: "center",
+          gap: "12px",
+          cursor: "pointer",
+          marginBottom: "15px",
+        }}
+      >
+        <span style={{ fontSize: "1.5em" }}>👨‍👩‍👧</span>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: "0.9em" }}>Parent Notifications</div>
+          <div style={{ color: "#888", fontSize: "0.8em" }}>Link Telegram for progress reports</div>
+        </div>
+        <span style={{ color: "#888" }}>→</span>
       </div>
 
       {/* Section Title */}

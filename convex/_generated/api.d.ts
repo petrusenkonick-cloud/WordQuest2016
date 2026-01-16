@@ -9,10 +9,17 @@
  */
 
 import type * as achievements from "../achievements.js";
+import type * as crons from "../crons.js";
+import type * as dashboard from "../dashboard.js";
+import type * as leaderboards from "../leaderboards.js";
 import type * as learning from "../learning.js";
 import type * as levels from "../levels.js";
+import type * as notifications from "../notifications.js";
 import type * as parents from "../parents.js";
 import type * as players from "../players.js";
+import type * as profile from "../profile.js";
+import type * as quests from "../quests.js";
+import type * as scoring from "../scoring.js";
 import type * as shop from "../shop.js";
 
 import type {
@@ -23,10 +30,17 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   achievements: typeof achievements;
+  crons: typeof crons;
+  dashboard: typeof dashboard;
+  leaderboards: typeof leaderboards;
   learning: typeof learning;
   levels: typeof levels;
+  notifications: typeof notifications;
   parents: typeof parents;
   players: typeof players;
+  profile: typeof profile;
+  quests: typeof quests;
+  scoring: typeof scoring;
   shop: typeof shop;
 }>;
 
