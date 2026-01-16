@@ -1192,7 +1192,7 @@ export default function Home() {
   // Game phase
   return (
     <>
-      <GameWorld>{renderScreen()}</GameWorld>
+      <GameWorld playerId={playerId}>{renderScreen()}</GameWorld>
 
       {/* Camera Screen */}
       {showCamera && (

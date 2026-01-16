@@ -4,12 +4,14 @@ import { ReactNode } from "react";
 import { useAppStore } from "@/lib/store";
 import { HUD } from "./HUD";
 import { BottomNav } from "./BottomNav";
+import { Id } from "../../../convex/_generated/dataModel";
 
 interface GameWorldProps {
   children: ReactNode;
+  playerId?: Id<"players"> | null;
 }
 
-export function GameWorld({ children }: GameWorldProps) {
+export function GameWorld({ children, playerId }: GameWorldProps) {
   const particles = useAppStore((state) => state.particles);
   const floatingRewards = useAppStore((state) => state.floatingRewards);
 
@@ -32,7 +34,7 @@ export function GameWorld({ children }: GameWorldProps) {
       <div className="sun" />
 
       {/* HUD */}
-      <HUD />
+      <HUD playerId={playerId} />
 
       {/* Main Content */}
       <div className="main-container">{children}</div>
