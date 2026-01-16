@@ -11,6 +11,7 @@
 import type * as achievements from "../achievements.js";
 import type * as crons from "../crons.js";
 import type * as dashboard from "../dashboard.js";
+import type * as errors from "../errors.js";
 import type * as gems from "../gems.js";
 import type * as homework from "../homework.js";
 import type * as leaderboards from "../leaderboards.js";
@@ -23,6 +24,7 @@ import type * as profile from "../profile.js";
 import type * as quests from "../quests.js";
 import type * as scoring from "../scoring.js";
 import type * as shop from "../shop.js";
+import type * as weeklyQuests from "../weeklyQuests.js";
 
 import type {
   ApiFromModules,
@@ -34,6 +36,7 @@ declare const fullApi: ApiFromModules<{
   achievements: typeof achievements;
   crons: typeof crons;
   dashboard: typeof dashboard;
+  errors: typeof errors;
   gems: typeof gems;
   homework: typeof homework;
   leaderboards: typeof leaderboards;
@@ -46,6 +49,7 @@ declare const fullApi: ApiFromModules<{
   quests: typeof quests;
   scoring: typeof scoring;
   shop: typeof shop;
+  weeklyQuests: typeof weeklyQuests;
 }>;
 
 /**

@@ -510,4 +510,78 @@ export default defineSchema({
     levelId: v.optional(v.string()),
     droppedAt: v.string(),
   }).index("by_player", ["playerId"]),
+
+  // ========== ERROR TRACKING & PRACTICE ARENA ==========
+
+  // Individual error tracking for personalized practice
+  errorTracking: defineTable({
+    playerId: v.id("players"),
+    topic: v.string(), // "suffixes", "multiplication", "verbs"
+    subTopic: v.optional(v.string()), // "-tion words", "times-7"
+    subject: v.string(), // "English", "Math"
+    errorType: v.string(), // "spelling", "logic", "grammar", "comprehension"
+    question: v.string(), // Original question text
+    wrongAnswer: v.string(), // What the child answered
+    correctAnswer: v.string(), // Correct answer
+    source: v.string(), // "homework", "practice", "weekly_quest"
+    homeworkSessionId: v.optional(v.id("homeworkSessions")),
+    resolved: v.boolean(), // Has this been practiced and corrected?
+    resolvedAt: v.optional(v.string()),
+    createdAt: v.string(),
+  })
+    .index("by_player", ["playerId"])
+    .index("by_player_topic", ["playerId", "topic"])
+    .index("by_player_subject", ["playerId", "subject"])
+    .index("by_player_resolved", ["playerId", "resolved"])
+    .index("by_player_date", ["playerId", "createdAt"]),
+
+  // Weekly practice quests generated from errors (Practice Arena)
+  weeklyPracticeQuests: defineTable({
+    playerId: v.id("players"),
+    weekStart: v.string(), // YYYY-MM-DD of Monday
+    topic: v.string(), // "suffixes", "multiplication"
+    subject: v.string(),
+    questName: v.string(), // "Suffix Master", "Times Table 7"
+    questIcon: v.string(), // Emoji
+    description: v.string(), // "Practice -tion and -ness words"
+    errorCount: v.number(), // How many errors triggered this quest
+    questions: v.array(
+      v.object({
+        text: v.string(),
+        type: v.string(),
+        options: v.optional(v.array(v.string())),
+        correct: v.string(),
+        explanation: v.optional(v.string()),
+      })
+    ),
+    targetCorrect: v.number(), // Need to get X correct to complete
+    currentCorrect: v.number(),
+    isCompleted: v.boolean(),
+    reward: v.object({
+      diamonds: v.number(),
+      emeralds: v.number(),
+      xp: v.number(),
+    }),
+    createdAt: v.string(),
+    completedAt: v.optional(v.string()),
+  })
+    .index("by_player", ["playerId"])
+    .index("by_player_week", ["playerId", "weekStart"])
+    .index("by_player_completed", ["playerId", "isCompleted"]),
+
+  // Weekly champion tracking
+  weeklyChampion: defineTable({
+    playerId: v.id("players"),
+    weekStart: v.string(),
+    totalQuestsCompleted: v.number(),
+    totalQuestsAvailable: v.number(),
+    bonusClaimed: v.boolean(),
+    bonusReward: v.object({
+      diamonds: v.number(),
+      emeralds: v.number(),
+      xp: v.number(),
+    }),
+  })
+    .index("by_player", ["playerId"])
+    .index("by_player_week", ["playerId", "weekStart"]),
 });

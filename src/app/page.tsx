@@ -27,6 +27,7 @@ import { ProfileSetupScreen } from "@/components/screens/ProfileSetupScreen";
 import { GeneralDashboardScreen } from "@/components/screens/GeneralDashboardScreen";
 import { LeaderboardScreen } from "@/components/screens/LeaderboardScreen";
 import { GemHubScreen } from "@/components/screens/GemHubScreen";
+import { WeeklyQuestsScreen } from "@/components/screens/WeeklyQuestsScreen";
 
 // UI Components
 import { GameWorld } from "@/components/ui/GameWorld";
@@ -41,6 +42,118 @@ import { MiningOverlay } from "@/components/game/MiningOverlay";
 
 // Hooks
 import { useGemDrop } from "@/hooks/useGemDrop";
+
+// Helper function to detect topic from question content
+function detectTopic(questionText: string, subject: string): string {
+  const text = questionText.toLowerCase();
+
+  // English topics
+  if (text.includes("suffix") || text.includes("-tion") || text.includes("-ness") || text.includes("-ment") || text.includes("-ful") || text.includes("-less")) {
+    return "suffixes";
+  }
+  if (text.includes("prefix") || text.includes("un-") || text.includes("re-") || text.includes("pre-") || text.includes("dis-")) {
+    return "prefixes";
+  }
+  if (text.includes("verb") || text.includes("action word") || text.includes("past tense") || text.includes("present tense")) {
+    return "verbs";
+  }
+  if (text.includes("noun") || text.includes("naming word") || text.includes("person, place")) {
+    return "nouns";
+  }
+  if (text.includes("adjective") || text.includes("describing word")) {
+    return "adjectives";
+  }
+  if (text.includes("spell") || text.includes("correct spelling")) {
+    return "spelling";
+  }
+  if (text.includes("punctuation") || text.includes("comma") || text.includes("period") || text.includes("question mark")) {
+    return "punctuation";
+  }
+  if (text.includes("grammar") || text.includes("sentence") || text.includes("correct form")) {
+    return "grammar";
+  }
+
+  // Math topics
+  if (text.includes("multiply") || text.includes("times") || text.includes("×") || text.includes("*")) {
+    return "multiplication";
+  }
+  if (text.includes("divide") || text.includes("÷") || text.includes("/")) {
+    return "division";
+  }
+  if (text.includes("add") || text.includes("+") || text.includes("plus") || text.includes("sum")) {
+    return "addition";
+  }
+  if (text.includes("subtract") || text.includes("-") || text.includes("minus") || text.includes("difference")) {
+    return "subtraction";
+  }
+  if (text.includes("fraction") || text.includes("/") || text.includes("half") || text.includes("quarter")) {
+    return "fractions";
+  }
+  if (text.includes("decimal") || text.includes(".")) {
+    return "decimals";
+  }
+
+  // Default to subject-based topic
+  return subject.toLowerCase().replace(/\s+/g, "_");
+}
+
+// Helper function to detect error type from question and answers
+function detectErrorType(questionText: string, wrongAnswer: string, correctAnswer: string): string {
+  const text = questionText.toLowerCase();
+
+  // Check for spelling errors
+  if (text.includes("spell") || levenshteinDistance(wrongAnswer.toLowerCase(), correctAnswer.toLowerCase()) <= 2) {
+    return "spelling";
+  }
+
+  // Check for grammar errors
+  if (text.includes("grammar") || text.includes("correct form") || text.includes("verb form")) {
+    return "grammar";
+  }
+
+  // Check for logic/math errors
+  if (text.includes("calculate") || text.includes("solve") || /\d/.test(correctAnswer)) {
+    return "logic";
+  }
+
+  // Check for comprehension errors
+  if (text.includes("what") || text.includes("which") || text.includes("choose")) {
+    return "comprehension";
+  }
+
+  return "general";
+}
+
+// Simple Levenshtein distance for spell checking
+function levenshteinDistance(a: string, b: string): number {
+  if (a.length === 0) return b.length;
+  if (b.length === 0) return a.length;
+
+  const matrix: number[][] = [];
+
+  for (let i = 0; i <= b.length; i++) {
+    matrix[i] = [i];
+  }
+  for (let j = 0; j <= a.length; j++) {
+    matrix[0][j] = j;
+  }
+
+  for (let i = 1; i <= b.length; i++) {
+    for (let j = 1; j <= a.length; j++) {
+      if (b.charAt(i - 1) === a.charAt(j - 1)) {
+        matrix[i][j] = matrix[i - 1][j - 1];
+      } else {
+        matrix[i][j] = Math.min(
+          matrix[i - 1][j - 1] + 1,
+          matrix[i][j - 1] + 1,
+          matrix[i - 1][j] + 1
+        );
+      }
+    }
+  }
+
+  return matrix[b.length][a.length];
+}
 
 export default function Home() {
   // Convex sync
@@ -66,6 +179,9 @@ export default function Home() {
   // Convex mutations for homework
   const createHomeworkSession = useMutation(api.homework.createHomeworkSession);
   const completeHomeworkSession = useMutation(api.homework.completeHomeworkSession);
+
+  // Error tracking mutation
+  const trackError = useMutation(api.errors.trackError);
 
   // Camera/AI states
   const [showCamera, setShowCamera] = useState(false);
@@ -273,6 +389,14 @@ export default function Home() {
     setScreen("home");
   }, [setScreen]);
 
+  // Start a practice quest from WeeklyQuestsScreen
+  const handleStartPracticeQuest = useCallback((questId: Id<"weeklyPracticeQuests">) => {
+    // TODO: Implement practice quest gameplay
+    // For now, log and show feedback
+    console.log("Starting practice quest:", questId);
+    // Could show a modal or start a mini-game for the practice quest
+  }, []);
+
   const handleCameraCapture = useCallback((images: string[]) => {
     setCapturedImages(images);
     setShowCamera(false);
@@ -348,6 +472,28 @@ export default function Home() {
           setShowMiningOverlay(true);
         }, 1000);
       } else {
+        // Track the error for personalized practice
+        if (playerId && aiGameData) {
+          try {
+            // Determine topic from question content or use subject
+            const topic = detectTopic(currentQ.text, aiGameData.subject);
+
+            await trackError({
+              playerId,
+              topic,
+              subject: aiGameData.subject,
+              errorType: detectErrorType(currentQ.text, answer, currentQ.correct),
+              question: currentQ.text,
+              wrongAnswer: answer,
+              correctAnswer: currentQ.correct,
+              source: "homework",
+              homeworkSessionId: currentHomeworkSessionId || undefined,
+            });
+          } catch (err) {
+            console.error("Failed to track error:", err);
+          }
+        }
+
         // Show explanation screen for wrong answers
         setTimeout(() => {
           setExplanationData({
@@ -362,7 +508,7 @@ export default function Home() {
         }, 1000);
       }
     },
-    [aiGameData, aiGameProgress, showFeedback, awardCurrency, spawnParticles]
+    [aiGameData, aiGameProgress, showFeedback, awardCurrency, spawnParticles, playerId, trackError, currentHomeworkSessionId]
   );
 
   // Move to next question helper
@@ -668,9 +814,10 @@ export default function Home() {
         return <AchievementsScreen />;
       case "practice":
         return (
-          <PracticeModeScreen
+          <WeeklyQuestsScreen
             playerId={playerId}
             onBack={() => setScreen("home")}
+            onStartPractice={handleStartPracticeQuest}
           />
         );
       case "analytics":
@@ -700,6 +847,8 @@ export default function Home() {
             playerId={playerId}
             onBack={() => setScreen("home")}
             onStartQuest={handleStartQuest}
+            onScanHomework={handleScanHomework}
+            onPlayHomework={handlePlayHomework}
           />
         );
       case "spell-book":
