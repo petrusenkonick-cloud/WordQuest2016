@@ -3,6 +3,9 @@
 import { useState, useCallback, useEffect } from "react";
 import { useAppStore } from "@/lib/store";
 import { useConvexSync } from "@/components/providers/ConvexSyncProvider";
+import { useMutation } from "convex/react";
+import { api } from "../../convex/_generated/api";
+import { Id } from "../../convex/_generated/dataModel";
 
 // Screens
 import { LoadingScreen } from "@/components/screens/LoadingScreen";
@@ -54,11 +57,16 @@ export default function Home() {
   // App phases
   const [phase, setPhase] = useState<"loading" | "login" | "game">("loading");
 
+  // Convex mutations for homework
+  const createHomeworkSession = useMutation(api.homework.createHomeworkSession);
+  const completeHomeworkSession = useMutation(api.homework.completeHomeworkSession);
+
   // Camera/AI states
   const [showCamera, setShowCamera] = useState(false);
   const [showAIProcessing, setShowAIProcessing] = useState(false);
   const [capturedImages, setCapturedImages] = useState<string[]>([]);
   const [aiGameData, setAiGameData] = useState<AIAnalysisResult | null>(null);
+  const [currentHomeworkSessionId, setCurrentHomeworkSessionId] = useState<Id<"homeworkSessions"> | null>(null);
   const [isPlayingAIGame, setIsPlayingAIGame] = useState(false);
   const [aiGameProgress, setAiGameProgress] = useState({ current: 0, correct: 0, mistakes: 0 });
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
@@ -199,6 +207,54 @@ export default function Home() {
     setScreen("leaderboard");
   }, [setScreen]);
 
+  // Play a saved homework session from WEEKLY QUESTS
+  const handlePlayHomework = useCallback((homework: {
+    _id: Id<"homeworkSessions">;
+    subject: string;
+    grade: string;
+    topics: string[];
+    gameName: string;
+    gameIcon: string;
+    questions: {
+      text: string;
+      type: string;
+      options?: string[];
+      correct: string;
+      explanation?: string;
+      hint?: string;
+      pageRef?: number;
+    }[];
+  }) => {
+    // Convert homework session to AIAnalysisResult format
+    const gameData: AIAnalysisResult = {
+      subject: homework.subject,
+      grade: homework.grade,
+      topics: homework.topics,
+      totalPages: 1,
+      gameName: homework.gameName,
+      gameIcon: homework.gameIcon,
+      questions: homework.questions.map(q => ({
+        text: q.text,
+        type: q.type as "multiple_choice" | "fill_blank" | "true_false",
+        options: q.options,
+        correct: q.correct,
+        explanation: q.explanation,
+        hint: q.hint,
+        pageRef: q.pageRef,
+      })),
+    };
+
+    // Set the homework session ID for completion tracking
+    setCurrentHomeworkSessionId(homework._id);
+
+    // Start the game
+    setAiGameData(gameData);
+    setIsPlayingAIGame(true);
+    setAiGameProgress({ current: 0, correct: 0, mistakes: 0 });
+    setSelectedAnswer(null);
+    setShowFeedback(false);
+  }, []);
+
   const handleStartQuest = useCallback((questId: string, chapterId: number) => {
     // TODO: Start the quest game with the questId
     console.log("Starting quest:", questId, "in chapter:", chapterId);
@@ -216,14 +272,41 @@ export default function Home() {
     setShowCamera(false);
   }, []);
 
-  const handleAIComplete = useCallback((result: AIAnalysisResult) => {
+  const handleAIComplete = useCallback(async (result: AIAnalysisResult) => {
+    // Save homework session to database
+    try {
+      const sessionId = await createHomeworkSession({
+        playerId: playerId || undefined,
+        guestId: playerId ? undefined : `guest_${Date.now()}`,
+        imageUrls: capturedImages,
+        totalPages: capturedImages.length,
+        subject: result.subject,
+        grade: result.grade,
+        topics: result.topics,
+        gameName: result.gameName,
+        gameIcon: result.gameIcon,
+        questions: result.questions.map(q => ({
+          text: q.text,
+          type: q.type,
+          options: q.options,
+          correct: q.correct,
+          explanation: q.explanation,
+          hint: q.hint,
+          pageRef: q.pageRef,
+        })),
+      });
+      setCurrentHomeworkSessionId(sessionId || null);
+    } catch (error) {
+      console.error("Failed to save homework session:", error);
+    }
+
     setAiGameData(result);
     setShowAIProcessing(false);
     setIsPlayingAIGame(true);
     setAiGameProgress({ current: 0, correct: 0, mistakes: 0 });
     setSelectedAnswer(null);
     setShowFeedback(false);
-  }, []);
+  }, [createHomeworkSession, playerId, capturedImages]);
 
   const handleAIError = useCallback((error: string) => {
     alert(error);
@@ -296,6 +379,19 @@ export default function Home() {
         // Complete level via Convex and check for achievements
         const newAchievements = await completeLevelSync("ai-game", stars, newProgress.correct, rewards);
 
+        // Mark homework session as completed
+        if (currentHomeworkSessionId) {
+          try {
+            await completeHomeworkSession({
+              sessionId: currentHomeworkSessionId,
+              score: newProgress.correct,
+              stars,
+            });
+          } catch (error) {
+            console.error("Failed to complete homework session:", error);
+          }
+        }
+
         // Update words learned
         await addWordsLearned(newProgress.correct);
 
@@ -319,10 +415,11 @@ export default function Home() {
         });
         setShowLevelComplete(true);
         setIsPlayingAIGame(false);
+        setCurrentHomeworkSessionId(null);
         spawnParticles(["💎", "🟢", "⭐"]);
       }
     },
-    [aiGameData, aiGameProgress, completeLevelSync, addWordsLearned, spawnParticles]
+    [aiGameData, aiGameProgress, completeLevelSync, addWordsLearned, spawnParticles, currentHomeworkSessionId, completeHomeworkSession]
   );
 
   // Handle continue from explanation screen
@@ -532,6 +629,7 @@ export default function Home() {
             onDashboard={handleOpenDashboard}
             onLeaderboard={handleOpenLeaderboard}
             onLogout={handleLogout}
+            onPlayHomework={handlePlayHomework}
           />
         );
       case "shop":

@@ -54,6 +54,25 @@ const LEVELS = [
   },
 ];
 
+interface HomeworkSession {
+  _id: Id<"homeworkSessions">;
+  subject: string;
+  grade: string;
+  topics: string[];
+  gameName: string;
+  gameIcon: string;
+  questions: {
+    text: string;
+    type: string;
+    options?: string[];
+    correct: string;
+    explanation?: string;
+    hint?: string;
+    pageRef?: number;
+  }[];
+  createdAt: string;
+}
+
 interface HomeScreenProps {
   playerId: Id<"players"> | null;
   completedLevels: Record<string, { stars: number; done: boolean }>;
@@ -67,6 +86,7 @@ interface HomeScreenProps {
   onLeaderboard?: () => void;
   onLogout?: () => void;
   weakTopicsCount?: number;
+  onPlayHomework?: (homework: HomeworkSession) => void;
 }
 
 export function HomeScreen({
@@ -82,10 +102,17 @@ export function HomeScreen({
   onLeaderboard,
   onLogout,
   weakTopicsCount = 0,
+  onPlayHomework,
 }: HomeScreenProps) {
   const player = useAppStore((state) => state.player);
   const showDailyReward = useAppStore((state) => state.showDailyRewardModal);
   const { isSignedIn } = useAuth();
+
+  // Active homework sessions
+  const homeworkSessions = useQuery(
+    api.homework.getActiveHomeworkSessions,
+    playerId ? { playerId } : { guestId: undefined }
+  );
 
   // Wizard academy data
   const wizardProfile = useQuery(
@@ -451,6 +478,88 @@ export function HomeScreen({
 
       {/* Section Title */}
       <h2 className="section-title">📜 WEEKLY QUESTS - Week 12</h2>
+
+      {/* Active Homework Sessions */}
+      {homeworkSessions && homeworkSessions.length > 0 && (
+        <div style={{ marginBottom: "15px" }}>
+          <div style={{
+            color: "#c4b5fd",
+            fontSize: "0.85em",
+            marginBottom: "10px",
+            display: "flex",
+            alignItems: "center",
+            gap: "6px",
+          }}>
+            <span>📚</span>
+            <span>YOUR HOMEWORK</span>
+            <span style={{
+              background: "#8b5cf6",
+              color: "white",
+              borderRadius: "10px",
+              padding: "2px 8px",
+              fontSize: "0.85em",
+            }}>
+              {homeworkSessions.length}
+            </span>
+          </div>
+          <div style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: "10px",
+          }}>
+            {homeworkSessions.map((hw) => (
+              <div
+                key={hw._id}
+                onClick={() => onPlayHomework?.(hw as HomeworkSession)}
+                style={{
+                  background: "linear-gradient(135deg, rgba(168, 85, 247, 0.3) 0%, rgba(30, 27, 75, 0.4) 100%)",
+                  borderRadius: "12px",
+                  padding: "15px",
+                  cursor: "pointer",
+                  border: "2px solid #a855f7",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "15px",
+                  transition: "transform 0.2s ease, box-shadow 0.2s ease",
+                }}
+              >
+                <div style={{
+                  width: "50px",
+                  height: "50px",
+                  borderRadius: "12px",
+                  background: "rgba(168, 85, 247, 0.3)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: "1.8em",
+                }}>
+                  {hw.gameIcon}
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: "bold", fontSize: "1em", marginBottom: "4px" }}>
+                    {hw.gameName}
+                  </div>
+                  <div style={{ color: "#c4b5fd", fontSize: "0.85em", marginBottom: "4px" }}>
+                    {hw.subject} • {hw.grade}
+                  </div>
+                  <div style={{ color: "#8b5cf6", fontSize: "0.8em" }}>
+                    {hw.questions.length} questions
+                  </div>
+                </div>
+                <div style={{
+                  background: "linear-gradient(135deg, #8b5cf6 0%, #a855f7 100%)",
+                  borderRadius: "8px",
+                  padding: "8px 16px",
+                  fontSize: "0.85em",
+                  fontWeight: "bold",
+                }}>
+                  PLAY
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Level Grid */}
       <div className="level-grid">

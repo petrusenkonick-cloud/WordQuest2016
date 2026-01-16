@@ -51,9 +51,12 @@ Rules:
 
 Return ONLY the JSON, no markdown or extra text.`;
 
-    const response = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
+    const response = await fetch(GEMINI_API_URL, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "x-goog-api-key": apiKey,
+      },
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
         generationConfig: {
