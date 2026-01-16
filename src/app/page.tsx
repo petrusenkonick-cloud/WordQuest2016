@@ -23,6 +23,7 @@ import { SpellBookScreen } from "@/components/screens/SpellBookScreen";
 import { ProfileSetupScreen } from "@/components/screens/ProfileSetupScreen";
 import { GeneralDashboardScreen } from "@/components/screens/GeneralDashboardScreen";
 import { LeaderboardScreen } from "@/components/screens/LeaderboardScreen";
+import { GemHubScreen } from "@/components/screens/GemHubScreen";
 
 // UI Components
 import { GameWorld } from "@/components/ui/GameWorld";
@@ -605,6 +606,13 @@ export default function Home() {
             onBack={() => setScreen("home")}
           />
         );
+      case "gem-hub":
+        return playerId ? (
+          <GemHubScreen
+            playerId={playerId}
+            onBack={() => setScreen("home")}
+          />
+        ) : null;
       default:
         return null;
     }
