@@ -151,11 +151,12 @@ Return ONLY the JSON, no markdown, no extra text.`;
             },
           ],
           generationConfig: {
-            temperature: 0.7,
+            temperature: 0.3, // Lower temperature for more consistent JSON
             topK: 40,
             topP: 0.95,
             maxOutputTokens: 8192,
-            responseMimeType: "application/json", // Force JSON output
+            // Note: responseMimeType requires responseSchema for Gemini 3
+            // Relying on prompt for JSON output
           },
         }),
         signal: controller.signal,
@@ -245,9 +246,16 @@ Return ONLY the JSON, no markdown, no extra text.`;
       result = JSON.parse(jsonStr);
     } catch (parseError) {
       console.error("Failed to parse AI response as JSON:", parseError);
-      console.error("Raw response (first 1000 chars):", textContent.substring(0, 1000));
+      console.error("Raw response (first 500 chars):", textContent.substring(0, 500));
+      console.error("Processed jsonStr (first 500 chars):", jsonStr.substring(0, 500));
+
+      // Show partial response for debugging
+      const preview = textContent.substring(0, 150).replace(/\n/g, " ");
       return NextResponse.json(
-        { error: "AI returned an invalid format. Please try again!" },
+        {
+          error: `AI returned invalid format. Preview: "${preview}..."`,
+          debug: { rawLength: textContent.length, jsonStrLength: jsonStr.length }
+        },
         { status: 500 }
       );
     }
