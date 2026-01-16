@@ -343,6 +343,7 @@ export const activateBoost = mutation({
   args: {
     playerId: v.id("players"),
     boostId: v.string(),
+    boostName: v.optional(v.string()),
     durationMinutes: v.number(),
   },
   handler: async (ctx, args) => {
@@ -352,6 +353,7 @@ export const activateBoost = mutation({
     await ctx.db.insert("activeBoosts", {
       playerId: args.playerId,
       boostType: args.boostId,
+      boostName: args.boostName || args.boostId,
       multiplier: 1,
       expiresAt: expiresAt.toISOString(),
     });
