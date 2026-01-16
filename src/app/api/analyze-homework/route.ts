@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
-// Use Gemini 1.5 Flash - stable and fast, works with all API keys
-const GEMINI_MODEL = "gemini-1.5-flash";
+// Use Gemini 2.5 Flash - latest stable with vision support
+const GEMINI_MODEL = "gemini-2.5-flash-preview-05-20";
 const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
 // Maximum photos allowed (must match frontend)
@@ -154,7 +154,8 @@ Return ONLY the JSON, no markdown, no extra text.`;
             temperature: 0.7,
             topK: 40,
             topP: 0.95,
-            maxOutputTokens: 8192, // Increased for more questions
+            maxOutputTokens: 8192,
+            responseMimeType: "application/json", // Force JSON output
           },
         }),
         signal: controller.signal,
