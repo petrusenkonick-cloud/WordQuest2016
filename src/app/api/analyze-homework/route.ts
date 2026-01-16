@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
-// Use Gemini 2.0 Flash - stable multimodal model
-const GEMINI_MODEL = "gemini-2.0-flash";
+// Use Gemini 3 Flash Preview - latest multimodal model (2026)
+const GEMINI_MODEL = "gemini-3-flash-preview";
 const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
 // Maximum photos allowed (must match frontend)
@@ -178,18 +178,32 @@ Return ONLY the JSON, no markdown, no extra text.`;
       console.error("Gemini API error status:", response.status);
       console.error("Gemini API error response:", errorText);
 
+      // Parse error for more details
+      let errorDetails = "";
+      try {
+        const errorJson = JSON.parse(errorText);
+        errorDetails = errorJson.error?.message || errorJson.message || "";
+      } catch {
+        errorDetails = errorText.substring(0, 200);
+      }
+
       // User-friendly error messages based on status
       let userError = "Error analyzing homework";
       if (response.status === 429) {
         userError = "Too many requests! Wait a minute and try again.";
       } else if (response.status === 400) {
-        userError = "Cannot read the photo. Try taking a clearer picture.";
+        // Show more details for 400 errors
+        userError = `API Error: ${errorDetails || "Cannot read the photo. Try taking a clearer picture."}`;
+      } else if (response.status === 404) {
+        userError = `Model not found: ${GEMINI_MODEL}. API says: ${errorDetails}`;
       } else if (response.status >= 500) {
         userError = "Server is busy. Try again in a minute!";
+      } else {
+        userError = `API Error (${response.status}): ${errorDetails || "Unknown error"}`;
       }
 
       return NextResponse.json(
-        { error: userError },
+        { error: userError, debug: { status: response.status, model: GEMINI_MODEL } },
         { status: 500 }
       );
     }
