@@ -35,19 +35,19 @@ export async function POST(request: NextRequest) {
       if (text === "/start") {
         await sendTelegramMessage(
           chatId,
-          `🎮 <b>Welcome to WordQuest Parent Dashboard!</b>
+          `<b>WordQuest - Parent Notifications</b>
 
-I'm your assistant for tracking your child's learning progress.
+Hello! I am the bot for tracking your child's learning progress.
 
-<b>Commands:</b>
-/link [code] - Link to your child's account
-/stats - View today's progress
-/week - View weekly statistics
-/settings - Notification settings
-/help - Show all commands
+<b>Your Chat ID:</b> <code>${chatId}</code>
 
-To get started, ask your child to generate a link code in the app, then use:
-<code>/link 123456</code>`
+Copy this ID and enter it in your child's app:
+Settings - Parent Notifications - Paste ID
+
+After that you will receive:
+- Daily progress reports
+- Achievement notifications
+- Weak topic alerts`
         );
         return NextResponse.json({ ok: true });
       }
