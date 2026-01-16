@@ -17,6 +17,7 @@ export async function POST(request: NextRequest) {
 
     const apiKey = process.env.GOOGLE_API_KEY;
     if (!apiKey) {
+      console.error("GOOGLE_API_KEY is not set");
       return NextResponse.json(
         { error: "API key not configured" },
         { status: 500 }
@@ -71,10 +72,14 @@ Rules:
 
 Return ONLY the JSON, nothing else.`;
 
-    const response = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
+    console.log("Calling Gemini API with model:", GEMINI_MODEL);
+    console.log("Number of images:", images.length);
+
+    const response = await fetch(GEMINI_API_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        "x-goog-api-key": apiKey,
       },
       body: JSON.stringify({
         contents: [
@@ -93,9 +98,10 @@ Return ONLY the JSON, nothing else.`;
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("Gemini API error:", errorText);
+      console.error("Gemini API error status:", response.status);
+      console.error("Gemini API error response:", errorText);
       return NextResponse.json(
-        { error: "Failed to analyze homework" },
+        { error: `Failed to analyze homework: ${response.status}` },
         { status: 500 }
       );
     }
