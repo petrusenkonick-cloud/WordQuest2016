@@ -3,6 +3,7 @@ import { mutation, query } from "./_generated/server";
 
 // Achievement definitions
 export const ACHIEVEMENTS = [
+  // === GETTING STARTED ===
   {
     id: "first",
     name: "First Steps",
@@ -11,6 +12,16 @@ export const ACHIEVEMENTS = [
     reward: { diamonds: 50 },
     condition: { type: "quests", value: 1 },
   },
+  {
+    id: "first_homework",
+    name: "Homework Hero",
+    desc: "Complete your first homework",
+    icon: "book",
+    reward: { diamonds: 75 },
+    condition: { type: "homework", value: 1 },
+  },
+
+  // === STREAK ACHIEVEMENTS ===
   {
     id: "streak3",
     name: "Hot Streak",
@@ -28,28 +39,124 @@ export const ACHIEVEMENTS = [
     condition: { type: "streak", value: 7 },
   },
   {
+    id: "streak14",
+    name: "Fortnight Fighter",
+    desc: "14 day streak",
+    icon: "shield",
+    reward: { diamonds: 400, emeralds: 150 },
+    condition: { type: "streak", value: 14 },
+  },
+  {
+    id: "streak30",
+    name: "Monthly Master",
+    desc: "30 day streak",
+    icon: "crown",
+    reward: { diamonds: 1000, emeralds: 500, gold: 250 },
+    condition: { type: "streak", value: 30 },
+  },
+  {
+    id: "streak100",
+    name: "Century Legend",
+    desc: "100 day streak!",
+    icon: "gem",
+    reward: { diamonds: 5000, emeralds: 2000, gold: 1000 },
+    condition: { type: "streak", value: 100 },
+  },
+
+  // === DAILY CHALLENGE ACHIEVEMENTS ===
+  {
+    id: "challenge1",
+    name: "Challenge Accepted",
+    desc: "Complete 1 daily challenge",
+    icon: "zap",
+    reward: { diamonds: 50 },
+    condition: { type: "dailyChallenges", value: 1 },
+  },
+  {
+    id: "challenge7",
+    name: "Challenge Champion",
+    desc: "Complete 7 daily challenges",
+    icon: "medal",
+    reward: { diamonds: 200, emeralds: 50 },
+    condition: { type: "dailyChallenges", value: 7 },
+  },
+  {
+    id: "challenge30",
+    name: "Challenge Master",
+    desc: "Complete 30 daily challenges",
+    icon: "award",
+    reward: { diamonds: 500, emeralds: 200, gold: 100 },
+    condition: { type: "dailyChallenges", value: 30 },
+  },
+
+  // === PRACTICE ARENA ACHIEVEMENTS ===
+  {
+    id: "practice10",
+    name: "Practice Beginner",
+    desc: "Complete 10 practice quests",
+    icon: "dumbbell",
+    reward: { diamonds: 100 },
+    condition: { type: "practiceQuests", value: 10 },
+  },
+  {
+    id: "practice50",
+    name: "Practice Pro",
+    desc: "Complete 50 practice quests",
+    icon: "muscle",
+    reward: { diamonds: 300, emeralds: 100 },
+    condition: { type: "practiceQuests", value: 50 },
+  },
+  {
+    id: "errors_resolved_10",
+    name: "Error Crusher",
+    desc: "Resolve 10 errors through practice",
+    icon: "check-circle",
+    reward: { diamonds: 150 },
+    condition: { type: "errorsResolved", value: 10 },
+  },
+  {
+    id: "errors_resolved_50",
+    name: "Mistake Master",
+    desc: "Resolve 50 errors through practice",
+    icon: "check-double",
+    reward: { diamonds: 400, emeralds: 150 },
+    condition: { type: "errorsResolved", value: 50 },
+  },
+
+  // === SPACED REPETITION ACHIEVEMENTS ===
+  {
+    id: "review5",
+    name: "Memory Keeper",
+    desc: "Complete 5 review sessions",
+    icon: "brain",
+    reward: { diamonds: 75 },
+    condition: { type: "reviews", value: 5 },
+  },
+  {
+    id: "review25",
+    name: "Memory Champion",
+    desc: "Complete 25 review sessions",
+    icon: "lightbulb",
+    reward: { diamonds: 200, emeralds: 75 },
+    condition: { type: "reviews", value: 25 },
+  },
+  {
+    id: "mastery5",
+    name: "Topic Master",
+    desc: "Master 5 topics (90%+ accuracy)",
+    icon: "star",
+    reward: { diamonds: 300, emeralds: 100 },
+    condition: { type: "topicsMastered", value: 5 },
+  },
+
+  // === VOCABULARY ACHIEVEMENTS ===
+  {
     id: "words50",
     name: "Word Collector",
     desc: "Learn 50 words",
     icon: "book-open",
     reward: { diamonds: 150 },
     condition: { type: "words", value: 50 },
-  },
-  {
-    id: "perfect",
-    name: "Perfect Score",
-    desc: "Complete level with no mistakes",
-    icon: "target",
-    reward: { emeralds: 100 },
-    condition: { type: "perfect", value: 1 },
-  },
-  {
-    id: "champion",
-    name: "Champion",
-    desc: "Complete all levels",
-    icon: "trophy",
-    reward: { diamonds: 500, emeralds: 250 },
-    condition: { type: "allLevels", value: 6 },
   },
   {
     id: "words100",
@@ -60,12 +167,48 @@ export const ACHIEVEMENTS = [
     condition: { type: "words", value: 100 },
   },
   {
-    id: "streak30",
-    name: "Monthly Master",
-    desc: "30 day streak",
-    icon: "crown",
+    id: "words500",
+    name: "Dictionary Wizard",
+    desc: "Learn 500 words",
+    icon: "library",
     reward: { diamonds: 1000, emeralds: 500, gold: 250 },
-    condition: { type: "streak", value: 30 },
+    condition: { type: "words", value: 500 },
+  },
+
+  // === PERFECT SCORE ACHIEVEMENTS ===
+  {
+    id: "perfect",
+    name: "Perfect Score",
+    desc: "Complete level with no mistakes",
+    icon: "target",
+    reward: { emeralds: 100 },
+    condition: { type: "perfect", value: 1 },
+  },
+  {
+    id: "perfect10",
+    name: "Perfectionist",
+    desc: "Get 10 perfect scores",
+    icon: "bullseye",
+    reward: { diamonds: 300, emeralds: 150 },
+    condition: { type: "perfect", value: 10 },
+  },
+
+  // === CHAMPION ACHIEVEMENTS ===
+  {
+    id: "champion",
+    name: "Champion",
+    desc: "Complete all levels",
+    icon: "trophy",
+    reward: { diamonds: 500, emeralds: 250 },
+    condition: { type: "allLevels", value: 6 },
+  },
+  {
+    id: "weekly_champion",
+    name: "Weekly Champion",
+    desc: "Complete all weekly quests",
+    icon: "calendar-check",
+    reward: { diamonds: 200, emeralds: 100 },
+    condition: { type: "weeklyChampion", value: 1 },
   },
 ];
 
@@ -89,10 +232,58 @@ export const getAchievements = query({
       .withIndex("by_player", (q) => q.eq("playerId", args.playerId))
       .collect();
 
+    // Get completed homework sessions count
+    const completedHomework = await ctx.db
+      .query("homeworkSessions")
+      .withIndex("by_player", (q) => q.eq("playerId", args.playerId))
+      .filter((q) => q.eq(q.field("status"), "completed"))
+      .collect();
+
+    // Get completed daily challenges count
+    const completedChallenges = await ctx.db
+      .query("dailyChallenges")
+      .withIndex("by_player", (q) => q.eq("playerId", args.playerId))
+      .filter((q) => q.eq(q.field("isCompleted"), true))
+      .collect();
+
+    // Get completed practice quests count
+    const completedPracticeQuests = await ctx.db
+      .query("weeklyPracticeQuests")
+      .withIndex("by_player", (q) => q.eq("playerId", args.playerId))
+      .filter((q) => q.eq(q.field("isCompleted"), true))
+      .collect();
+
+    // Get resolved errors count
+    const resolvedErrors = await ctx.db
+      .query("errorTracking")
+      .withIndex("by_player_resolved", (q) => q.eq("playerId", args.playerId).eq("resolved", true))
+      .collect();
+
+    // Get completed reviews count
+    const completedReviews = await ctx.db
+      .query("spacedRepetition")
+      .withIndex("by_player", (q) => q.eq("playerId", args.playerId))
+      .collect();
+    const totalReviews = completedReviews.reduce((sum, r) => sum + r.totalReviews, 0);
+
+    // Get mastered topics count (90%+ accuracy)
+    const topicProgress = await ctx.db
+      .query("topicProgress")
+      .withIndex("by_player", (q) => q.eq("playerId", args.playerId))
+      .collect();
+    const masteredTopics = topicProgress.filter((t) => t.accuracy >= 90).length;
+
+    // Get weekly champion count
+    const weeklyChampions = await ctx.db
+      .query("weeklyChampion")
+      .withIndex("by_player", (q) => q.eq("playerId", args.playerId))
+      .filter((q) => q.eq(q.field("bonusClaimed"), true))
+      .collect();
+
     return ACHIEVEMENTS.map((achievement) => {
       const unlocked = unlockedIds.has(achievement.id);
       let progress = 0;
-      let target = achievement.condition.value;
+      const target = achievement.condition.value;
 
       // Calculate progress based on condition type
       switch (achievement.condition.type) {
@@ -110,6 +301,27 @@ export const getAchievements = query({
           break;
         case "allLevels":
           progress = completedLevels.length;
+          break;
+        case "homework":
+          progress = completedHomework.length;
+          break;
+        case "dailyChallenges":
+          progress = completedChallenges.length;
+          break;
+        case "practiceQuests":
+          progress = completedPracticeQuests.length;
+          break;
+        case "errorsResolved":
+          progress = resolvedErrors.length;
+          break;
+        case "reviews":
+          progress = totalReviews;
+          break;
+        case "topicsMastered":
+          progress = masteredTopics;
+          break;
+        case "weeklyChampion":
+          progress = weeklyChampions.length;
           break;
       }
 
@@ -143,6 +355,54 @@ export const checkAchievements = mutation({
       .withIndex("by_player", (q) => q.eq("playerId", args.playerId))
       .collect();
 
+    // Get completed homework sessions count
+    const completedHomework = await ctx.db
+      .query("homeworkSessions")
+      .withIndex("by_player", (q) => q.eq("playerId", args.playerId))
+      .filter((q) => q.eq(q.field("status"), "completed"))
+      .collect();
+
+    // Get completed daily challenges count
+    const completedChallenges = await ctx.db
+      .query("dailyChallenges")
+      .withIndex("by_player", (q) => q.eq("playerId", args.playerId))
+      .filter((q) => q.eq(q.field("isCompleted"), true))
+      .collect();
+
+    // Get completed practice quests count
+    const completedPracticeQuests = await ctx.db
+      .query("weeklyPracticeQuests")
+      .withIndex("by_player", (q) => q.eq("playerId", args.playerId))
+      .filter((q) => q.eq(q.field("isCompleted"), true))
+      .collect();
+
+    // Get resolved errors count
+    const resolvedErrors = await ctx.db
+      .query("errorTracking")
+      .withIndex("by_player_resolved", (q) => q.eq("playerId", args.playerId).eq("resolved", true))
+      .collect();
+
+    // Get completed reviews count
+    const completedReviews = await ctx.db
+      .query("spacedRepetition")
+      .withIndex("by_player", (q) => q.eq("playerId", args.playerId))
+      .collect();
+    const totalReviews = completedReviews.reduce((sum, r) => sum + r.totalReviews, 0);
+
+    // Get mastered topics count (90%+ accuracy)
+    const topicProgress = await ctx.db
+      .query("topicProgress")
+      .withIndex("by_player", (q) => q.eq("playerId", args.playerId))
+      .collect();
+    const masteredTopics = topicProgress.filter((t) => t.accuracy >= 90).length;
+
+    // Get weekly champion count
+    const weeklyChampions = await ctx.db
+      .query("weeklyChampion")
+      .withIndex("by_player", (q) => q.eq("playerId", args.playerId))
+      .filter((q) => q.eq(q.field("bonusClaimed"), true))
+      .collect();
+
     const newlyUnlocked: typeof ACHIEVEMENTS = [];
 
     for (const achievement of ACHIEVEMENTS) {
@@ -165,6 +425,27 @@ export const checkAchievements = mutation({
           break;
         case "allLevels":
           shouldUnlock = completedLevels.length >= achievement.condition.value;
+          break;
+        case "homework":
+          shouldUnlock = completedHomework.length >= achievement.condition.value;
+          break;
+        case "dailyChallenges":
+          shouldUnlock = completedChallenges.length >= achievement.condition.value;
+          break;
+        case "practiceQuests":
+          shouldUnlock = completedPracticeQuests.length >= achievement.condition.value;
+          break;
+        case "errorsResolved":
+          shouldUnlock = resolvedErrors.length >= achievement.condition.value;
+          break;
+        case "reviews":
+          shouldUnlock = totalReviews >= achievement.condition.value;
+          break;
+        case "topicsMastered":
+          shouldUnlock = masteredTopics >= achievement.condition.value;
+          break;
+        case "weeklyChampion":
+          shouldUnlock = weeklyChampions.length >= achievement.condition.value;
           break;
       }
 
