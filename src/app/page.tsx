@@ -362,6 +362,9 @@ export default function Home() {
   // Topic progress mutation
   const updateTopicProgress = useMutation(api.learning.updateTopicProgress);
 
+  // Spaced Repetition mutations
+  const updateSpacedRepetition = useMutation(api.learning.updateSpacedRepetition);
+
   // Generate weekly quests on demand
   const generateWeeklyQuests = useMutation(api.weeklyQuests.generateWeeklyQuests);
 
@@ -371,6 +374,30 @@ export default function Home() {
     playerId ? { playerId } : "skip"
   );
 
+  // Parent notification query
+  const parentLink = useQuery(
+    api.parents.getParentLink,
+    playerId ? { playerId } : "skip"
+  );
+
+  // Helper function to send Telegram notifications to parents
+  const sendParentNotification = useCallback(async (message: string) => {
+    if (!parentLink?.telegramChatId || !parentLink?.notificationsEnabled) return;
+
+    try {
+      await fetch("/api/telegram/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chatId: parentLink.telegramChatId,
+          message,
+        }),
+      });
+    } catch (err) {
+      console.error("Failed to send parent notification:", err);
+    }
+  }, [parentLink]);
+
   // Camera/AI states
   const [showCamera, setShowCamera] = useState(false);
   const [showAIProcessing, setShowAIProcessing] = useState(false);
@@ -378,6 +405,13 @@ export default function Home() {
   const [aiGameData, setAiGameData] = useState<AIAnalysisResult | null>(null);
   const [currentHomeworkSessionId, setCurrentHomeworkSessionId] = useState<Id<"homeworkSessions"> | null>(null);
   const [currentPracticeQuestId, setCurrentPracticeQuestId] = useState<Id<"weeklyPracticeQuests"> | null>(null);
+  // Spaced Repetition Review tracking
+  const [currentReviewSession, setCurrentReviewSession] = useState<{
+    topic: string;
+    subject: string;
+    srsId?: Id<"spacedRepetition">;
+  } | null>(null);
+  const [isLoadingReview, setIsLoadingReview] = useState(false);
   const [isPlayingAIGame, setIsPlayingAIGame] = useState(false);
   const [aiGameProgress, setAiGameProgress] = useState({ current: 0, correct: 0, mistakes: 0 });
   const [homeworkAnswers, setHomeworkAnswers] = useState<Array<{ questionIndex: number; userAnswer: string; isCorrect: boolean }>>([]);
@@ -400,6 +434,20 @@ export default function Home() {
   const [currentHint, setCurrentHint] = useState<string | null>(null);
   const [mustAnswerCorrectly, setMustAnswerCorrectly] = useState(false); // After 2nd wrong, must get it right
   const [isSpeaking, setIsSpeaking] = useState(false);
+
+  // Similar questions system (instead of showing answer)
+  const [similarQuestion, setSimilarQuestion] = useState<{
+    text: string;
+    type: "multiple_choice";
+    options: string[];
+    correct: string;
+    explanation: string;
+    hint: string;
+    isEasier: boolean;
+  } | null>(null);
+  const [showSimilarQuestion, setShowSimilarQuestion] = useState(false);
+  const [loadingSimilarQuestion, setLoadingSimilarQuestion] = useState(false);
+  const [originalQuestionIndex, setOriginalQuestionIndex] = useState<number | null>(null); // Track which question we're helping with
 
   // Store
   const player = useAppStore((state) => state.player);
@@ -689,6 +737,73 @@ export default function Home() {
     setShowFeedback(false);
   }, [weeklyQuestsData]);
 
+  // Start a Spaced Repetition review session
+  const handleStartReview = useCallback(async (topic: string, subject: string, srsId?: Id<"spacedRepetition">) => {
+    if (!playerId) return;
+
+    setIsLoadingReview(true);
+    setCurrentReviewSession({ topic, subject, srsId });
+
+    try {
+      // Generate questions via API
+      const response = await fetch("/api/practice", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          topic,
+          subject,
+          difficulty: "medium",
+          playerContext: {
+            // Add player context for better personalization
+            gradeLevel: 5,
+          },
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to generate review questions");
+      }
+
+      const data = await response.json();
+
+      // Convert to AIAnalysisResult format
+      const gameData: AIAnalysisResult = {
+        subject,
+        grade: "Review",
+        topics: [topic],
+        totalPages: 1,
+        gameName: `Review: ${topic}`,
+        gameIcon: "🔄",
+        questions: data.questions.map((q: { text: string; type: string; options?: string[]; correct: string; explanation: string; hint?: string }) => ({
+          text: q.text,
+          type: q.type as "multiple_choice" | "fill_blank" | "true_false",
+          options: q.options || [],
+          correct: q.correct,
+          explanation: q.explanation,
+          hint: q.hint,
+        })),
+      };
+
+      // Clear other session types
+      setCurrentPracticeQuestId(null);
+      setCurrentHomeworkSessionId(null);
+
+      // Start the review game
+      setAiGameData(gameData);
+      setIsPlayingAIGame(true);
+      setAiGameProgress({ current: 0, correct: 0, mistakes: 0 });
+      setSelectedAnswer(null);
+      setShowFeedback(false);
+
+    } catch (error) {
+      console.error("Error starting review:", error);
+      setCurrentReviewSession(null);
+      alert("Failed to load review questions. Please try again.");
+    } finally {
+      setIsLoadingReview(false);
+    }
+  }, [playerId]);
+
   const handleCameraCapture = useCallback((images: string[]) => {
     setCapturedImages(images);
     setShowCamera(false);
@@ -896,18 +1011,60 @@ export default function Home() {
             setShowHint(true);
           }, 1000);
         } else if (newAttempts === 2) {
-          // SECOND WRONG: Show full explanation, then they must answer correctly
-          setTimeout(() => {
-            setExplanationData({
-              question: currentQ.text,
-              userAnswer: answer,
-              correctAnswer: currentQ.correct,
-              explanation: currentQ.explanation,
-              hint: currentQ.hint,
-            });
-            setShowExplanation(true);
+          // SECOND WRONG: Generate a SIMILAR EASIER question instead of showing the answer!
+          // This helps the child understand the concept through practice, not just memorization
+          setTimeout(async () => {
             setShowFeedback(false);
-            setMustAnswerCorrectly(true);
+            setLoadingSimilarQuestion(true);
+            setOriginalQuestionIndex(aiGameProgress.current);
+
+            try {
+              const topic = detectTopic(currentQ.text, aiGameData.subject);
+              const response = await fetch("/api/similar-question", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  originalQuestion: currentQ.text,
+                  originalCorrect: currentQ.correct,
+                  topic,
+                  subject: aiGameData.subject,
+                  wrongAnswer: answer,
+                  difficulty: "easier",
+                }),
+              });
+
+              const data = await response.json();
+              if (data.success && data.question) {
+                setSimilarQuestion(data.question);
+                setShowSimilarQuestion(true);
+                setLoadingSimilarQuestion(false);
+              } else {
+                // Fallback to old behavior if AI fails
+                setLoadingSimilarQuestion(false);
+                setExplanationData({
+                  question: currentQ.text,
+                  userAnswer: answer,
+                  correctAnswer: currentQ.correct,
+                  explanation: currentQ.explanation,
+                  hint: currentQ.hint,
+                });
+                setShowExplanation(true);
+                setMustAnswerCorrectly(true);
+              }
+            } catch (err) {
+              console.error("Failed to generate similar question:", err);
+              // Fallback to old behavior
+              setLoadingSimilarQuestion(false);
+              setExplanationData({
+                question: currentQ.text,
+                userAnswer: answer,
+                correctAnswer: currentQ.correct,
+                explanation: currentQ.explanation,
+                hint: currentQ.hint,
+              });
+              setShowExplanation(true);
+              setMustAnswerCorrectly(true);
+            }
           }, 1000);
         } else {
           // 3+ WRONG (mustAnswerCorrectly mode): Keep showing they need to pick correct
@@ -973,6 +1130,19 @@ export default function Home() {
             });
             // Save data for the answers summary screen
             setCompletedHomeworkData(aiGameData);
+
+            // Send parent notification about homework completion
+            const accuracy = totalQuestions > 0 ? Math.round((newProgress.correct / totalQuestions) * 100) : 0;
+            const starEmoji = "⭐".repeat(stars);
+            let notifMessage = `📚 <b>Homework Complete!</b>\n\n`;
+            notifMessage += `${player.name} finished their <b>${aiGameData.subject}</b> homework!\n\n`;
+            notifMessage += `📊 <b>Results:</b>\n`;
+            notifMessage += `• Score: ${newProgress.correct}/${totalQuestions} (${accuracy}%)\n`;
+            notifMessage += `• Stars: ${starEmoji}\n\n`;
+            if (accuracy >= 80) notifMessage += `🎉 Excellent work!`;
+            else if (accuracy >= 60) notifMessage += `👍 Good effort!`;
+            else notifMessage += `💪 Keep practicing!`;
+            sendParentNotification(notifMessage);
           } catch (error) {
             console.error("Failed to complete homework session:", error);
           }
@@ -980,6 +1150,28 @@ export default function Home() {
 
         // Update words learned
         await addWordsLearned(newProgress.correct);
+
+        // Update Spaced Repetition if this was a review session
+        if (currentReviewSession && playerId) {
+          try {
+            // Calculate quality score (0-5) based on accuracy
+            // 0-1: complete blackout, 2: wrong but recognized, 3: correct with difficulty
+            // 4: correct after hesitation, 5: perfect recall
+            const quality = accuracy >= 90 ? 5 : accuracy >= 70 ? 4 : accuracy >= 50 ? 3 : accuracy >= 30 ? 2 : 1;
+
+            await updateSpacedRepetition({
+              playerId,
+              topic: currentReviewSession.topic,
+              subject: currentReviewSession.subject,
+              quality,
+            });
+
+            console.log(`SRS updated: ${currentReviewSession.topic} with quality ${quality}`);
+          } catch (error) {
+            console.error("Failed to update SRS:", error);
+          }
+          setCurrentReviewSession(null);
+        }
 
         // Show achievement if any were unlocked
         if (newAchievements && newAchievements.length > 0) {
@@ -992,6 +1184,9 @@ export default function Home() {
           };
           setAchievementData(achievement);
           setTimeout(() => setShowAchievement(true), 500);
+
+          // Send parent notification about achievement
+          sendParentNotification(`🏆 <b>Achievement Unlocked!</b>\n\n${player.name} earned a new achievement:\n\n${achievement.icon} <b>${achievement.name}</b>\n\n🎉 Great job!`);
         }
 
         setLevelCompleteData({
@@ -1008,7 +1203,7 @@ export default function Home() {
         spawnParticles(["💎", "🟢", "⭐"]);
       }
     },
-    [aiGameData, aiGameProgress, completeLevelSync, addWordsLearned, spawnParticles, currentHomeworkSessionId, completeHomeworkSession, homeworkAnswers]
+    [aiGameData, aiGameProgress, completeLevelSync, addWordsLearned, spawnParticles, currentHomeworkSessionId, completeHomeworkSession, homeworkAnswers, sendParentNotification, player.name, currentReviewSession, updateSpacedRepetition, playerId]
   );
 
   // Handle continue from explanation screen - now returns to question for retry
@@ -1017,13 +1212,52 @@ export default function Home() {
     setExplanationData(null);
     setSelectedAnswer(null);
     // Don't move to next question - child must answer correctly now
-    // mustAnswerCorrectly is already set to true, hint will show the correct answer
+    // mustAnswerCorrectly is already set to true - show encouraging hint without revealing answer
     if (aiGameData) {
       const currentQ = aiGameData.questions[aiGameProgress.current];
-      setCurrentHint(`Now select the correct answer: ${currentQ.correct}`);
+      // Don't show the answer - let them figure it out from what they learned
+      setCurrentHint(currentQ.hint || "Think about the explanation you just read. You can do it!");
       setShowHint(true);
     }
   }, [aiGameData, aiGameProgress]);
+
+  // Handle similar question answer - when child answers the easier practice question
+  const handleSimilarQuestionAnswer = useCallback((answer: string) => {
+    if (!similarQuestion) return;
+
+    const isCorrect = answer.toLowerCase().trim() === similarQuestion.correct.toLowerCase().trim();
+
+    if (isCorrect) {
+      // Good job on the similar question! Now go back to the original
+      setShowSimilarQuestion(false);
+      setSimilarQuestion(null);
+      setSelectedAnswer(null);
+
+      // Give encouraging hint and let them try the original question again
+      if (aiGameData && originalQuestionIndex !== null) {
+        const originalQ = aiGameData.questions[originalQuestionIndex];
+        setCurrentHint(`Great job! Now try the original question again. Think about what you just learned!`);
+        setShowHint(true);
+      }
+    } else {
+      // Even the easier question is hard - show explanation and the correct answer for original
+      setShowSimilarQuestion(false);
+      setSimilarQuestion(null);
+
+      if (aiGameData && originalQuestionIndex !== null) {
+        const originalQ = aiGameData.questions[originalQuestionIndex];
+        setExplanationData({
+          question: originalQ.text,
+          userAnswer: answer,
+          correctAnswer: originalQ.correct,
+          explanation: originalQ.explanation || similarQuestion.explanation,
+          hint: originalQ.hint,
+        });
+        setShowExplanation(true);
+        setMustAnswerCorrectly(true);
+      }
+    }
+  }, [similarQuestion, aiGameData, originalQuestionIndex]);
 
   // Handle mining complete
   const handleMiningComplete = useCallback((gemsFound: { gemType: string; isWhole: boolean; rarity: string }[]) => {
@@ -1202,7 +1436,7 @@ export default function Home() {
         )}
 
         {/* Hint banner - shows after first wrong attempt */}
-        {showHint && currentHint && !showFeedback && (
+        {showHint && currentHint && !showFeedback && !showSimilarQuestion && (
           <div style={{
             background: mustAnswerCorrectly
               ? "linear-gradient(135deg, rgba(34, 197, 94, 0.2) 0%, rgba(16, 185, 129, 0.2) 100%)"
@@ -1227,7 +1461,7 @@ export default function Home() {
                 fontWeight: "bold",
                 fontSize: "0.9em"
               }}>
-                {mustAnswerCorrectly ? "Select the correct answer" : "Hint:"}
+                {mustAnswerCorrectly ? "Try again! 💪" : "Hint:"}
               </p>
               <p style={{
                 margin: "4px 0 0 0",
@@ -1240,43 +1474,151 @@ export default function Home() {
           </div>
         )}
 
-        {currentQ.type === "fill_blank" ? (
-          <div className="fill-blank-input">
-            <input
-              type="text"
-              placeholder="Type your answer..."
-              className="player-input"
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  handleAnswerSelect((e.target as HTMLInputElement).value);
-                }
-              }}
-              disabled={showFeedback}
-            />
-            <button
-              className="btn btn-primary"
-              onClick={() => {
-                const input = document.querySelector(".fill-blank-input input") as HTMLInputElement;
-                handleAnswerSelect(input?.value || "");
-              }}
-              disabled={showFeedback}
-            >
-              CHECK
-            </button>
+        {/* Loading similar question */}
+        {loadingSimilarQuestion && (
+          <div style={{
+            background: "linear-gradient(135deg, rgba(99, 102, 241, 0.2) 0%, rgba(139, 92, 246, 0.2) 100%)",
+            border: "2px solid rgba(139, 92, 246, 0.5)",
+            borderRadius: "16px",
+            padding: "24px",
+            marginBottom: "16px",
+            textAlign: "center",
+          }}>
+            <div style={{ fontSize: "2em", marginBottom: "12px", animation: "pulse 1.5s infinite" }}>
+              🧙‍♂️
+            </div>
+            <p style={{ color: "#a5b4fc", fontWeight: "bold", margin: 0 }}>
+              Creating a practice question to help you learn...
+            </p>
           </div>
-        ) : (
-          <div className="options-grid">
-            {currentQ.options?.map((option) => (
+        )}
+
+        {/* Similar (easier) question overlay */}
+        {showSimilarQuestion && similarQuestion && (
+          <div style={{
+            background: "linear-gradient(145deg, rgba(30, 58, 95, 0.98) 0%, rgba(23, 37, 84, 0.98) 100%)",
+            border: "3px solid rgba(96, 165, 250, 0.6)",
+            borderRadius: "20px",
+            padding: "24px",
+            marginBottom: "16px",
+            boxShadow: "0 20px 40px rgba(0, 0, 0, 0.4), 0 0 40px rgba(96, 165, 250, 0.2)",
+          }}>
+            <div style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "12px",
+              marginBottom: "16px",
+            }}>
+              <span style={{ fontSize: "2em" }}>🎯</span>
+              <div>
+                <h3 style={{ margin: 0, color: "#93c5fd", fontSize: "1.1em" }}>
+                  Practice Question
+                </h3>
+                <p style={{ margin: "4px 0 0 0", color: "#60a5fa", fontSize: "0.85em" }}>
+                  Let&apos;s try an easier example first!
+                </p>
+              </div>
+            </div>
+
+            <div style={{
+              background: "rgba(0, 0, 0, 0.3)",
+              borderRadius: "12px",
+              padding: "16px",
+              marginBottom: "16px",
+            }}>
+              <p style={{ color: "#e2e8f0", fontSize: "1.1em", margin: 0, lineHeight: 1.5 }}>
+                {similarQuestion.text}
+              </p>
+              {similarQuestion.hint && (
+                <p style={{
+                  color: "#fbbf24",
+                  fontSize: "0.9em",
+                  margin: "12px 0 0 0",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                }}>
+                  <span>💡</span> {similarQuestion.hint}
+                </p>
+              )}
+            </div>
+
+            <div style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gap: "12px",
+            }}>
+              {similarQuestion.options.map((option) => (
+                <button
+                  key={option}
+                  onClick={() => handleSimilarQuestionAnswer(option)}
+                  style={{
+                    background: "linear-gradient(135deg, rgba(96, 165, 250, 0.2) 0%, rgba(59, 130, 246, 0.2) 100%)",
+                    border: "2px solid rgba(96, 165, 250, 0.4)",
+                    borderRadius: "12px",
+                    padding: "16px",
+                    color: "#e2e8f0",
+                    fontSize: "1em",
+                    cursor: "pointer",
+                    transition: "all 0.2s ease",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = "linear-gradient(135deg, rgba(96, 165, 250, 0.4) 0%, rgba(59, 130, 246, 0.4) 100%)";
+                    e.currentTarget.style.borderColor = "rgba(96, 165, 250, 0.8)";
+                    e.currentTarget.style.transform = "translateY(-2px)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = "linear-gradient(135deg, rgba(96, 165, 250, 0.2) 0%, rgba(59, 130, 246, 0.2) 100%)";
+                    e.currentTarget.style.borderColor = "rgba(96, 165, 250, 0.4)";
+                    e.currentTarget.style.transform = "translateY(0)";
+                  }}
+                >
+                  {option}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {!showSimilarQuestion && !loadingSimilarQuestion && (
+          currentQ.type === "fill_blank" ? (
+            <div className="fill-blank-input">
+              <input
+                type="text"
+                placeholder="Type your answer..."
+                className="player-input"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    handleAnswerSelect((e.target as HTMLInputElement).value);
+                  }
+                }}
+                disabled={showFeedback}
+              />
               <button
-                key={option}
-                className={`option-btn ${selectedAnswer === option ? (feedbackCorrect ? "correct" : "wrong") : ""}`}
-                onClick={() => handleAnswerSelect(option)}
+                className="btn btn-primary"
+                onClick={() => {
+                  const input = document.querySelector(".fill-blank-input input") as HTMLInputElement;
+                  handleAnswerSelect(input?.value || "");
+                }}
                 disabled={showFeedback}
               >
-                {option}
+                CHECK
               </button>
-            ))}
-          </div>
+            </div>
+          ) : (
+            <div className="options-grid">
+              {currentQ.options?.map((option) => (
+                <button
+                  key={option}
+                  className={`option-btn ${selectedAnswer === option ? (feedbackCorrect ? "correct" : "wrong") : ""}`}
+                  onClick={() => handleAnswerSelect(option)}
+                  disabled={showFeedback}
+                >
+                  {option}
+                </button>
+              ))}
+            </div>
+          )
         )}
         </div>
       </div>
@@ -1324,6 +1666,9 @@ export default function Home() {
             playerId={playerId}
             onBack={() => setScreen("home")}
             onStartPractice={handleStartPracticeQuest}
+            onPlayHomework={handlePlayHomework}
+            onStartReview={handleStartReview}
+            isLoadingReview={isLoadingReview}
           />
         );
       case "analytics":

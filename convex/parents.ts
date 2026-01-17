@@ -331,3 +331,202 @@ export const logNotification = mutation({
     });
   },
 });
+
+// ========== NOTIFICATION TRIGGERS ==========
+
+// Get notification data for sending (returns chatId if parent wants notifications)
+export const getNotificationTarget = query({
+  args: { playerId: v.id("players") },
+  handler: async (ctx, args) => {
+    const link = await ctx.db
+      .query("parentLinks")
+      .withIndex("by_player", (q) => q.eq("playerId", args.playerId))
+      .first();
+
+    if (!link || !link.notificationsEnabled) {
+      return null;
+    }
+
+    const player = await ctx.db.get(args.playerId);
+    return {
+      chatId: link.telegramChatId,
+      playerName: player?.name || "Your child",
+      parentLinkId: link._id,
+    };
+  },
+});
+
+// Prepare homework completion notification
+export const prepareHomeworkNotification = query({
+  args: {
+    playerId: v.id("players"),
+    subject: v.string(),
+    score: v.number(),
+    totalQuestions: v.number(),
+    stars: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const link = await ctx.db
+      .query("parentLinks")
+      .withIndex("by_player", (q) => q.eq("playerId", args.playerId))
+      .first();
+
+    if (!link || !link.notificationsEnabled) {
+      return null;
+    }
+
+    const player = await ctx.db.get(args.playerId);
+    const playerName = player?.name || "Your child";
+    const accuracy = Math.round((args.score / args.totalQuestions) * 100);
+    const starEmoji = "⭐".repeat(args.stars);
+
+    let message = `📚 <b>Homework Complete!</b>\n\n`;
+    message += `${playerName} finished their <b>${args.subject}</b> homework!\n\n`;
+    message += `📊 <b>Results:</b>\n`;
+    message += `• Score: ${args.score}/${args.totalQuestions} (${accuracy}%)\n`;
+    message += `• Stars: ${starEmoji}\n\n`;
+
+    if (accuracy >= 80) {
+      message += `🎉 Excellent work!`;
+    } else if (accuracy >= 60) {
+      message += `👍 Good effort! Keep practicing!`;
+    } else {
+      message += `💪 Some topics need more practice. Keep going!`;
+    }
+
+    return {
+      chatId: link.telegramChatId,
+      message,
+      parentLinkId: link._id,
+    };
+  },
+});
+
+// Prepare achievement notification
+export const prepareAchievementNotification = query({
+  args: {
+    playerId: v.id("players"),
+    achievementName: v.string(),
+    achievementIcon: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const link = await ctx.db
+      .query("parentLinks")
+      .withIndex("by_player", (q) => q.eq("playerId", args.playerId))
+      .first();
+
+    if (!link || !link.notificationsEnabled) {
+      return null;
+    }
+
+    const player = await ctx.db.get(args.playerId);
+    const playerName = player?.name || "Your child";
+
+    const message = `🏆 <b>Achievement Unlocked!</b>\n\n${playerName} earned a new achievement:\n\n${args.achievementIcon} <b>${args.achievementName}</b>\n\n🎉 Great job!`;
+
+    return {
+      chatId: link.telegramChatId,
+      message,
+      parentLinkId: link._id,
+    };
+  },
+});
+
+// Prepare weak topic alert
+export const prepareWeakTopicAlert = query({
+  args: {
+    playerId: v.id("players"),
+    topic: v.string(),
+    accuracy: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const link = await ctx.db
+      .query("parentLinks")
+      .withIndex("by_player", (q) => q.eq("playerId", args.playerId))
+      .first();
+
+    if (!link || !link.notificationsEnabled) {
+      return null;
+    }
+
+    const player = await ctx.db.get(args.playerId);
+    const playerName = player?.name || "Your child";
+
+    const message = `📊 <b>Practice Needed</b>\n\n${playerName} is having difficulty with <b>${args.topic}</b> (${args.accuracy}% accuracy).\n\nThe app will create targeted practice questions to help!`;
+
+    return {
+      chatId: link.telegramChatId,
+      message,
+      parentLinkId: link._id,
+    };
+  },
+});
+
+// Prepare daily summary
+export const prepareDailySummary = query({
+  args: { playerId: v.id("players") },
+  handler: async (ctx, args) => {
+    const link = await ctx.db
+      .query("parentLinks")
+      .withIndex("by_player", (q) => q.eq("playerId", args.playerId))
+      .first();
+
+    if (!link || !link.notificationsEnabled) {
+      return null;
+    }
+
+    const player = await ctx.db.get(args.playerId);
+    const playerName = player?.name || "Your child";
+    const today = new Date().toISOString().split("T")[0];
+
+    const stats = await ctx.db
+      .query("dailyStats")
+      .withIndex("by_player_date", (q) =>
+        q.eq("playerId", args.playerId).eq("date", today)
+      )
+      .first();
+
+    if (!stats || stats.questionsAnswered === 0) {
+      // No activity today
+      return {
+        chatId: link.telegramChatId,
+        message: `📅 <b>Daily Update</b>\n\n${playerName} didn't practice today.\n\nEncourage them to complete their daily challenge! 💪`,
+        parentLinkId: link._id,
+      };
+    }
+
+    const accuracy = stats.questionsAnswered > 0
+      ? Math.round((stats.correctAnswers / stats.questionsAnswered) * 100)
+      : 0;
+
+    let message = `📅 <b>Daily Summary</b>\n\n`;
+    message += `<b>${playerName}'s Progress Today:</b>\n\n`;
+    message += `📝 Questions: ${stats.questionsAnswered}\n`;
+    message += `✅ Correct: ${stats.correctAnswers} (${accuracy}%)\n`;
+    message += `⚡ XP Earned: ${stats.xpEarned}\n`;
+    message += `⏱ Time: ${stats.timeSpentMinutes} minutes\n`;
+
+    if (stats.topicsStudied.length > 0) {
+      message += `\n📚 Topics: ${stats.topicsStudied.join(", ")}`;
+    }
+
+    if (stats.weakTopics.length > 0) {
+      message += `\n\n⚠️ Needs practice: ${stats.weakTopics.join(", ")}`;
+    }
+
+    if (stats.achievementsUnlocked.length > 0) {
+      message += `\n\n🏆 Achievements: ${stats.achievementsUnlocked.join(", ")}`;
+    }
+
+    // Add streak info
+    if (player?.streak && player.streak > 1) {
+      message += `\n\n🔥 ${player.streak} day streak!`;
+    }
+
+    return {
+      chatId: link.telegramChatId,
+      message,
+      parentLinkId: link._id,
+    };
+  },
+});

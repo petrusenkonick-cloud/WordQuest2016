@@ -6,10 +6,55 @@ import { api } from "../../../convex/_generated/api";
 import { Id } from "../../../convex/_generated/dataModel";
 import { motion, AnimatePresence } from "framer-motion";
 
+// Types for new features
+interface DueReviewItem {
+  _id: Id<"spacedRepetition">;
+  topic: string;
+  subject: string;
+  level: number;
+  nextReviewDate: string;
+  easeFactor: number;
+}
+
+interface DailyChallenge {
+  _id: Id<"dailyQuests">;
+  questName: string;
+  description: string;
+  targetCount: number;
+  currentCount: number;
+  isCompleted: boolean;
+  reward: { diamonds?: number; emeralds?: number; xp?: number };
+}
+
+interface HomeworkSession {
+  _id: Id<"homeworkSessions">;
+  _creationTime: number; // Convex timestamp
+  gameName: string;
+  gameIcon: string;
+  subject: string;
+  grade: string;
+  topics: string[];
+  questions: {
+    text: string;
+    type: string;
+    options?: string[];
+    correct: string;
+    explanation?: string;
+    hint?: string;
+    pageRef?: number;
+  }[];
+  status: string;
+  score?: number;
+  stars?: number;
+}
+
 interface WeeklyQuestsScreenProps {
   playerId: Id<"players"> | null;
   onBack: () => void;
   onStartPractice: (questId: Id<"weeklyPracticeQuests">) => void;
+  onPlayHomework?: (homework: HomeworkSession) => void;
+  onStartReview?: (topic: string, subject: string, srsId?: Id<"spacedRepetition">) => void;
+  isLoadingReview?: boolean;
 }
 
 // Topic icons and colors - brighter, more distinct colors
@@ -67,6 +112,535 @@ function FloatingParticles() {
         />
       ))}
     </div>
+  );
+}
+
+// Daily Challenge Card - Compact but eye-catching
+function DailyChallengeCard({
+  challenge,
+  onStart,
+  onCreateChallenge,
+  isLoading,
+}: {
+  challenge: DailyChallenge | null | undefined;
+  onStart: () => void;
+  onCreateChallenge: () => void;
+  isLoading: boolean;
+}) {
+  if (isLoading) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="relative rounded-2xl p-4"
+        style={{
+          background: "linear-gradient(135deg, rgba(251, 191, 36, 0.15) 0%, rgba(245, 158, 11, 0.1) 100%)",
+          border: "2px solid rgba(251, 191, 36, 0.3)",
+        }}
+      >
+        <div className="flex items-center gap-3">
+          <motion.span
+            className="text-3xl"
+            animate={{ rotate: 360 }}
+            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+          >
+            ⏳
+          </motion.span>
+          <span style={{ color: "#fde68a" }}>Loading challenge...</span>
+        </div>
+      </motion.div>
+    );
+  }
+
+  if (!challenge) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="relative rounded-2xl overflow-hidden"
+        style={{
+          background: "linear-gradient(135deg, rgba(99, 102, 241, 0.2) 0%, rgba(139, 92, 246, 0.15) 100%)",
+          border: "2px solid rgba(139, 92, 246, 0.4)",
+        }}
+      >
+        <div className="flex flex-col sm:flex-row items-center gap-4 p-4">
+          <motion.span
+            className="text-4xl"
+            animate={{ scale: [1, 1.1, 1], rotate: [0, 5, -5, 0] }}
+            transition={{ duration: 2, repeat: Infinity }}
+          >
+            🌟
+          </motion.span>
+          <div className="flex-1 text-center sm:text-left">
+            <h3 className="font-bold text-lg" style={{ color: "#e0e7ff" }}>
+              Daily Challenge
+            </h3>
+            <p className="text-sm" style={{ color: "#a5b4fc" }}>
+              Generate your personalized daily challenge!
+            </p>
+          </div>
+          <motion.button
+            onClick={onCreateChallenge}
+            className="px-5 py-3 rounded-xl font-bold"
+            style={{
+              background: "linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)",
+              color: "#fff",
+              boxShadow: "0 4px 16px rgba(139, 92, 246, 0.4)",
+            }}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            Create ✨
+          </motion.button>
+        </div>
+      </motion.div>
+    );
+  }
+
+  const progress = (challenge.currentCount / challenge.targetCount) * 100;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="relative"
+    >
+      {/* Animated glow */}
+      <motion.div
+        className="absolute -inset-2 rounded-3xl blur-lg"
+        style={{
+          background: challenge.isCompleted
+            ? "linear-gradient(135deg, #22c55e 0%, #16a34a 100%)"
+            : "linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)",
+          opacity: 0.3,
+        }}
+        animate={!challenge.isCompleted ? {
+          opacity: [0.2, 0.4, 0.2],
+          scale: [1, 1.02, 1],
+        } : {}}
+        transition={{ duration: 2, repeat: Infinity }}
+      />
+
+      <div
+        className="relative rounded-2xl overflow-hidden"
+        style={{
+          background: challenge.isCompleted
+            ? "linear-gradient(145deg, rgba(22, 101, 52, 0.95) 0%, rgba(20, 83, 45, 0.98) 100%)"
+            : "linear-gradient(145deg, rgba(120, 53, 15, 0.95) 0%, rgba(66, 32, 6, 0.98) 100%)",
+          border: challenge.isCompleted
+            ? "3px solid rgba(74, 222, 128, 0.6)"
+            : "3px solid rgba(251, 191, 36, 0.5)",
+        }}
+      >
+        {/* Shine effect */}
+        {!challenge.isCompleted && (
+          <motion.div
+            className="absolute inset-0 opacity-20"
+            style={{
+              background: "linear-gradient(105deg, transparent 40%, rgba(251, 191, 36, 0.5) 45%, transparent 50%)",
+            }}
+            animate={{ x: ["-100%", "200%"] }}
+            transition={{ duration: 3, repeat: Infinity, repeatDelay: 2 }}
+          />
+        )}
+
+        <div className="relative flex flex-col sm:flex-row items-center gap-4 p-4">
+          {/* Icon with mini progress */}
+          <div className="relative">
+            <motion.div
+              className="w-16 h-16 rounded-full flex items-center justify-center"
+              style={{
+                background: challenge.isCompleted
+                  ? "rgba(74, 222, 128, 0.2)"
+                  : "rgba(251, 191, 36, 0.2)",
+                border: `3px solid ${challenge.isCompleted ? "#4ade80" : "#fbbf24"}`,
+              }}
+            >
+              <motion.span
+                className="text-3xl"
+                animate={!challenge.isCompleted ? {
+                  scale: [1, 1.15, 1],
+                  rotate: [0, 5, -5, 0],
+                } : {}}
+                transition={{ duration: 1.5, repeat: Infinity }}
+              >
+                {challenge.isCompleted ? "🏆" : "⚡"}
+              </motion.span>
+            </motion.div>
+            {/* Progress ring */}
+            <svg
+              className="absolute inset-0 -rotate-90"
+              width="64"
+              height="64"
+              viewBox="0 0 64 64"
+            >
+              <circle
+                cx="32"
+                cy="32"
+                r="28"
+                fill="none"
+                stroke="rgba(255,255,255,0.1)"
+                strokeWidth="4"
+              />
+              <motion.circle
+                cx="32"
+                cy="32"
+                r="28"
+                fill="none"
+                stroke={challenge.isCompleted ? "#4ade80" : "#fbbf24"}
+                strokeWidth="4"
+                strokeLinecap="round"
+                strokeDasharray={176}
+                initial={{ strokeDashoffset: 176 }}
+                animate={{ strokeDashoffset: 176 - (progress / 100) * 176 }}
+                transition={{ duration: 1 }}
+              />
+            </svg>
+          </div>
+
+          {/* Info */}
+          <div className="flex-1 text-center sm:text-left">
+            <div className="flex items-center justify-center sm:justify-start gap-2 mb-1">
+              <h3
+                className="font-bold"
+                style={{
+                  fontSize: "clamp(1rem, 2.5vw, 1.2rem)",
+                  color: challenge.isCompleted ? "#bbf7d0" : "#fef3c7",
+                }}
+              >
+                {challenge.questName}
+              </h3>
+              {challenge.isCompleted && (
+                <span className="px-2 py-0.5 rounded-full text-xs font-bold" style={{ background: "#4ade80", color: "#052e16" }}>
+                  DONE!
+                </span>
+              )}
+            </div>
+            <p
+              className="text-sm mb-2"
+              style={{ color: challenge.isCompleted ? "#86efac" : "#fde68a" }}
+            >
+              {challenge.description}
+            </p>
+            {/* Progress bar */}
+            <div className="flex items-center gap-3">
+              <div
+                className="flex-1 h-3 rounded-full overflow-hidden"
+                style={{ background: "rgba(0,0,0,0.3)" }}
+              >
+                <motion.div
+                  className="h-full rounded-full"
+                  initial={{ width: 0 }}
+                  animate={{ width: `${progress}%` }}
+                  transition={{ duration: 1 }}
+                  style={{
+                    background: challenge.isCompleted
+                      ? "linear-gradient(90deg, #22c55e 0%, #4ade80 100%)"
+                      : "linear-gradient(90deg, #f59e0b 0%, #fbbf24 100%)",
+                    boxShadow: `0 0 10px ${challenge.isCompleted ? "#4ade80" : "#fbbf24"}80`,
+                  }}
+                />
+              </div>
+              <span
+                className="font-bold text-sm"
+                style={{ color: challenge.isCompleted ? "#4ade80" : "#fbbf24" }}
+              >
+                {challenge.currentCount}/{challenge.targetCount}
+              </span>
+            </div>
+          </div>
+
+          {/* Rewards & Action */}
+          <div className="flex flex-col items-center gap-2">
+            <div className="flex gap-2">
+              {challenge.reward.diamonds && (
+                <span className="flex items-center gap-1 px-2 py-1 rounded-lg text-sm" style={{ background: "rgba(6, 182, 212, 0.2)", color: "#06b6d4" }}>
+                  💎 {challenge.reward.diamonds}
+                </span>
+              )}
+              {challenge.reward.xp && (
+                <span className="flex items-center gap-1 px-2 py-1 rounded-lg text-sm" style={{ background: "rgba(168, 85, 247, 0.2)", color: "#a855f7" }}>
+                  ⚡ {challenge.reward.xp}
+                </span>
+              )}
+            </div>
+            {!challenge.isCompleted && (
+              <motion.button
+                onClick={onStart}
+                className="px-5 py-2 rounded-xl font-bold text-sm"
+                style={{
+                  background: "linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)",
+                  color: "#78350f",
+                  boxShadow: "0 4px 12px rgba(251, 191, 36, 0.4)",
+                }}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                START →
+              </motion.button>
+            )}
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+// Due Reviews Section - Spaced Repetition items due today
+function DueReviewsSection({
+  reviews,
+  onStartReview,
+  isLoading = false,
+}: {
+  reviews: DueReviewItem[];
+  onStartReview: (topic: string, subject: string) => void;
+  isLoading?: boolean;
+}) {
+  if (!reviews || reviews.length === 0) return null;
+
+  // Topic styles mapping
+  const getReviewStyle = (level: number) => {
+    if (level >= 4) return { color: "#4ade80", bg: "rgba(74, 222, 128, 0.15)", icon: "🌟" };
+    if (level >= 3) return { color: "#60a5fa", bg: "rgba(96, 165, 250, 0.15)", icon: "📘" };
+    if (level >= 2) return { color: "#fbbf24", bg: "rgba(251, 191, 36, 0.15)", icon: "📙" };
+    return { color: "#f472b6", bg: "rgba(244, 114, 182, 0.15)", icon: "📕" };
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="relative"
+    >
+      {/* Subtle glow */}
+      <div
+        className="absolute -inset-2 rounded-2xl blur-lg opacity-25"
+        style={{ background: "linear-gradient(135deg, #06b6d4 0%, #0891b2 100%)" }}
+      />
+
+      <div
+        className="relative rounded-2xl p-5"
+        style={{
+          background: "linear-gradient(145deg, rgba(8, 51, 68, 0.9) 0%, rgba(6, 37, 50, 0.95) 100%)",
+          border: "2px solid rgba(6, 182, 212, 0.4)",
+        }}
+      >
+        <div className="flex items-center gap-3 mb-4">
+          <motion.span
+            className="text-3xl"
+            animate={{ rotate: [0, 10, -10, 0] }}
+            transition={{ duration: 2, repeat: Infinity }}
+          >
+            🔄
+          </motion.span>
+          <div className="flex-1">
+            <h3
+              className="font-bold"
+              style={{ fontSize: "1.1rem", color: "#a5f3fc" }}
+            >
+              Review Time!
+            </h3>
+            <p className="text-sm" style={{ color: "#67e8f9" }}>
+              {reviews.length} topic{reviews.length > 1 ? "s" : ""} ready for review today
+            </p>
+          </div>
+          <span
+            className="px-3 py-1.5 rounded-full font-bold text-sm"
+            style={{
+              background: "rgba(6, 182, 212, 0.2)",
+              color: "#06b6d4",
+              border: "1px solid rgba(6, 182, 212, 0.4)",
+            }}
+          >
+            +50 XP each
+          </span>
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          {reviews.slice(0, 6).map((review, index) => {
+            const style = getReviewStyle(review.level);
+            return (
+              <motion.button
+                key={review._id}
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: index * 0.1 }}
+                onClick={() => !isLoading && onStartReview(review.topic, review.subject)}
+                disabled={isLoading}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold disabled:opacity-50"
+                style={{
+                  background: style.bg,
+                  color: style.color,
+                  border: `2px solid ${style.color}40`,
+                }}
+                whileHover={!isLoading ? { scale: 1.05, y: -2 } : {}}
+                whileTap={!isLoading ? { scale: 0.95 } : {}}
+              >
+                {isLoading ? (
+                  <motion.span
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                  >
+                    ⏳
+                  </motion.span>
+                ) : (
+                  <span>{style.icon}</span>
+                )}
+                <span className="capitalize">{review.topic}</span>
+                <span
+                  className="px-1.5 py-0.5 rounded text-xs"
+                  style={{ background: "rgba(0,0,0,0.3)" }}
+                >
+                  Lv{review.level}
+                </span>
+              </motion.button>
+            );
+          })}
+          {reviews.length > 6 && (
+            <span
+              className="flex items-center px-3 py-2 rounded-xl text-sm"
+              style={{ background: "rgba(255,255,255,0.1)", color: "#67e8f9" }}
+            >
+              +{reviews.length - 6} more
+            </span>
+          )}
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+// Homework Section - Shows active homework sessions grouped by date
+function HomeworkSection({
+  sessions,
+  onPlayHomework,
+}: {
+  sessions: HomeworkSession[];
+  onPlayHomework: (homework: HomeworkSession) => void;
+}) {
+  if (!sessions || sessions.length === 0) return null;
+
+  // Group sessions by date using Convex _creationTime
+  const today = new Date().toISOString().split('T')[0];
+  const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+
+  const groupedSessions = sessions.reduce((acc, session) => {
+    // Convert Convex timestamp to date string
+    const sessionDate = new Date(session._creationTime).toISOString().split('T')[0];
+    let label = sessionDate;
+
+    if (sessionDate === today) label = "Today";
+    else if (sessionDate === yesterday) label = "Yesterday";
+    else {
+      // Format as "Mon, Jan 15"
+      const date = new Date(session._creationTime);
+      label = date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+    }
+
+    if (!acc[label]) acc[label] = [];
+    acc[label].push(session);
+    return acc;
+  }, {} as Record<string, HomeworkSession[]>);
+
+  // Sort groups: Today first, then Yesterday, then by date descending
+  const sortedGroups = Object.entries(groupedSessions).sort(([a], [b]) => {
+    if (a === "Today") return -1;
+    if (b === "Today") return 1;
+    if (a === "Yesterday") return -1;
+    if (b === "Yesterday") return 1;
+    return 0;
+  });
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="relative"
+    >
+      {/* Glow */}
+      <div
+        className="absolute -inset-2 rounded-2xl blur-lg opacity-20"
+        style={{ background: "linear-gradient(135deg, #22c55e 0%, #16a34a 100%)" }}
+      />
+
+      <div
+        className="relative rounded-2xl p-5"
+        style={{
+          background: "linear-gradient(145deg, rgba(20, 83, 45, 0.9) 0%, rgba(15, 61, 33, 0.95) 100%)",
+          border: "2px solid rgba(74, 222, 128, 0.4)",
+        }}
+      >
+        <div className="flex items-center gap-3 mb-4">
+          <motion.span
+            className="text-3xl"
+            animate={{ y: [0, -3, 0] }}
+            transition={{ duration: 1.5, repeat: Infinity }}
+          >
+            📚
+          </motion.span>
+          <div className="flex-1">
+            <h3 className="font-bold" style={{ fontSize: "1.1rem", color: "#bbf7d0" }}>
+              Your Homework
+            </h3>
+            <p className="text-sm" style={{ color: "#86efac" }}>
+              {sessions.length} assignment{sessions.length > 1 ? 's' : ''} ready to play
+            </p>
+          </div>
+        </div>
+
+        {sortedGroups.map(([dateLabel, dateSessions]) => (
+          <div key={dateLabel} className="mb-4 last:mb-0">
+            {/* Date label */}
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-xs font-bold px-2 py-1 rounded" style={{ background: "rgba(0,0,0,0.3)", color: "#86efac" }}>
+                {dateLabel}
+              </span>
+              <div className="flex-1 h-px" style={{ background: "rgba(134, 239, 172, 0.2)" }} />
+            </div>
+
+            {/* Sessions for this date */}
+            <div className="flex flex-col gap-2">
+              {dateSessions.map((session, index) => (
+                <motion.button
+                  key={session._id}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: index * 0.05 }}
+                  onClick={() => onPlayHomework(session)}
+                  className="flex items-center gap-3 p-3 rounded-xl w-full text-left"
+                  style={{
+                    background: "rgba(0, 0, 0, 0.25)",
+                    border: "1px solid rgba(74, 222, 128, 0.3)",
+                  }}
+                  whileHover={{ scale: 1.02, background: "rgba(0, 0, 0, 0.35)" }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  <span className="text-2xl">{session.gameIcon || "📝"}</span>
+                  <div className="flex-1 min-w-0">
+                    <h4 className="font-semibold truncate" style={{ color: "#f0fdf4" }}>
+                      {session.gameName}
+                    </h4>
+                    <p className="text-sm" style={{ color: "#86efac" }}>
+                      {session.subject} • {session.questions.length} questions
+                    </p>
+                  </div>
+                  <motion.span
+                    className="px-3 py-1.5 rounded-lg font-bold text-sm"
+                    style={{
+                      background: "linear-gradient(135deg, #22c55e 0%, #16a34a 100%)",
+                      color: "#fff",
+                    }}
+                    whileHover={{ scale: 1.1 }}
+                  >
+                    PLAY →
+                  </motion.span>
+                </motion.button>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </motion.div>
   );
 }
 
@@ -662,6 +1236,9 @@ export function WeeklyQuestsScreen({
   playerId,
   onBack,
   onStartPractice,
+  onPlayHomework,
+  onStartReview,
+  isLoadingReview = false,
 }: WeeklyQuestsScreenProps) {
   const [showCelebration, setShowCelebration] = useState(false);
 
@@ -677,9 +1254,28 @@ export function WeeklyQuestsScreen({
     playerId ? { playerId } : "skip"
   );
 
+  // Fetch daily challenge
+  const dailyChallenge = useQuery(
+    api.learning.getDailyChallenge,
+    playerId ? { playerId } : "skip"
+  );
+
+  // Fetch due reviews (Spaced Repetition)
+  const dueReviews = useQuery(
+    api.learning.getDueReviews,
+    playerId ? { playerId } : "skip"
+  );
+
+  // Fetch active homework sessions
+  const homeworkSessions = useQuery(
+    api.homework.getActiveHomeworkSessions,
+    playerId ? { playerId } : "skip"
+  );
+
   // Mutations
   const generateQuests = useMutation(api.weeklyQuests.generateWeeklyQuests);
   const claimBonus = useMutation(api.weeklyQuests.claimWeeklyBonus);
+  const createDailyChallenge = useMutation(api.learning.createDailyChallenge);
 
   // Generate quests if none exist
   useEffect(() => {
@@ -701,6 +1297,48 @@ export function WeeklyQuestsScreen({
   const handleGenerateQuests = async () => {
     if (!playerId) return;
     await generateQuests({ playerId });
+  };
+
+  const handleCreateDailyChallenge = async () => {
+    if (!playerId) return;
+    await createDailyChallenge({ playerId });
+  };
+
+  const handleStartDailyChallenge = () => {
+    // For now, start the first quest as the daily challenge
+    // In a full implementation, this would start a dedicated daily challenge mode
+    if (weeklyData?.quests && weeklyData.quests.length > 0) {
+      const firstIncomplete = weeklyData.quests.find(q => !q.isCompleted);
+      if (firstIncomplete) {
+        onStartPractice(firstIncomplete._id);
+      }
+    }
+  };
+
+  const handleStartReview = (topic: string, subject: string) => {
+    // Use the dedicated SRS review handler if available
+    if (onStartReview) {
+      // Find the SRS ID for this topic
+      const reviewItem = (dueReviews as DueReviewItem[])?.find(
+        r => r.topic.toLowerCase() === topic.toLowerCase()
+      );
+      onStartReview(topic, subject, reviewItem?._id);
+    } else {
+      // Fallback: Find quest matching the topic
+      if (weeklyData?.quests) {
+        const matchingQuest = weeklyData.quests.find(
+          q => q.topic.toLowerCase() === topic.toLowerCase() && !q.isCompleted
+        );
+        if (matchingQuest) {
+          onStartPractice(matchingQuest._id);
+        } else {
+          const firstIncomplete = weeklyData.quests.find(q => !q.isCompleted);
+          if (firstIncomplete) {
+            onStartPractice(firstIncomplete._id);
+          }
+        }
+      }
+    }
   };
 
   // Loading state
@@ -870,31 +1508,61 @@ export function WeeklyQuestsScreen({
         </div>
       </div>
 
-      {/* Week Info Badge */}
+      {/* Daily Challenge - Top Priority */}
+      <div className="relative z-10" style={{ marginBottom: "20px" }}>
+        <DailyChallengeCard
+          challenge={dailyChallenge as DailyChallenge | null | undefined}
+          onStart={handleStartDailyChallenge}
+          onCreateChallenge={handleCreateDailyChallenge}
+          isLoading={dailyChallenge === undefined}
+        />
+      </div>
+
+      {/* Due Reviews - Spaced Repetition */}
+      {dueReviews && dueReviews.length > 0 && (
+        <div className="relative z-10" style={{ marginBottom: "20px" }}>
+          <DueReviewsSection
+            reviews={dueReviews as DueReviewItem[]}
+            onStartReview={handleStartReview}
+            isLoading={isLoadingReview}
+          />
+        </div>
+      )}
+
+      {/* Your Homework - Active homework sessions */}
+      {homeworkSessions && homeworkSessions.length > 0 && onPlayHomework && (
+        <div className="relative z-10" style={{ marginBottom: "20px" }}>
+          <HomeworkSection
+            sessions={homeworkSessions as HomeworkSession[]}
+            onPlayHomework={onPlayHomework}
+          />
+        </div>
+      )}
+
+      {/* Weekly Champion Progress */}
+      <div className="relative z-10" style={{ marginBottom: "20px" }}>
+        <WeeklyChampionCard champion={champion} onClaim={handleClaimBonus} />
+      </div>
+
+      {/* Week Info Badge - Compact */}
       <motion.div
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
         className="relative z-10 text-center rounded-full mx-auto"
         style={{
-          padding: "12px 24px",
-          marginBottom: "24px",
-          background: "linear-gradient(135deg, rgba(99, 102, 241, 0.2) 0%, rgba(139, 92, 246, 0.15) 100%)",
-          color: "#c4b5fd",
-          fontSize: "1.05rem",
-          border: "2px solid rgba(139, 92, 246, 0.4)",
-          boxShadow: "0 4px 20px rgba(139, 92, 246, 0.2)",
+          padding: "8px 16px",
+          marginBottom: "16px",
+          background: "rgba(99, 102, 241, 0.15)",
+          color: "#a5b4fc",
+          fontSize: "0.9rem",
+          border: "1px solid rgba(139, 92, 246, 0.3)",
         }}
       >
-        <span className="font-bold">📅 Week:</span> {weekStart} → {weekEnd}
+        <span className="font-medium">📅 Week:</span> {weekStart} → {weekEnd}
       </motion.div>
 
-      {/* Weekly Champion Progress */}
-      <div className="relative z-10" style={{ marginBottom: "28px" }}>
-        <WeeklyChampionCard champion={champion} onClaim={handleClaimBonus} />
-      </div>
-
       {/* Weak Topics Summary */}
-      <div className="relative z-10" style={{ marginBottom: "28px" }}>
+      <div className="relative z-10" style={{ marginBottom: "20px" }}>
         {weakTopics && <WeakTopicsSummary topics={weakTopics} />}
       </div>
 

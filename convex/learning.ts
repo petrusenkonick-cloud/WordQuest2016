@@ -343,6 +343,344 @@ export const updateLearningProfile = mutation({
   },
 });
 
+// ========== SPACED REPETITION SYSTEM (SM-2 Algorithm) ==========
+
+/**
+ * Get all items due for review today
+ */
+export const getDueReviews = query({
+  args: { playerId: v.id("players") },
+  handler: async (ctx, args) => {
+    const today = new Date().toISOString().split("T")[0];
+
+    const allSRS = await ctx.db
+      .query("spacedRepetition")
+      .withIndex("by_player", (q) => q.eq("playerId", args.playerId))
+      .collect();
+
+    // Filter items due today or overdue
+    const dueItems = allSRS.filter((item) => item.nextReviewDate <= today);
+
+    // Sort by most overdue first
+    dueItems.sort((a, b) =>
+      new Date(a.nextReviewDate).getTime() - new Date(b.nextReviewDate).getTime()
+    );
+
+    return dueItems;
+  },
+});
+
+/**
+ * Get review items from errors (not yet in SRS)
+ */
+export const getErrorsForReview = query({
+  args: { playerId: v.id("players"), limit: v.optional(v.number()) },
+  handler: async (ctx, args) => {
+    const limit = args.limit || 10;
+
+    // Get unresolved errors
+    const errors = await ctx.db
+      .query("errorTracking")
+      .withIndex("by_player_resolved", (q) =>
+        q.eq("playerId", args.playerId).eq("resolved", false)
+      )
+      .order("desc")
+      .take(limit);
+
+    return errors;
+  },
+});
+
+/**
+ * Update SRS after review (SM-2 algorithm)
+ * quality: 0-5 (0=complete blackout, 5=perfect response)
+ */
+export const updateSpacedRepetition = mutation({
+  args: {
+    playerId: v.id("players"),
+    topic: v.string(),
+    subject: v.string(),
+    quality: v.number(), // 0-5
+  },
+  handler: async (ctx, args) => {
+    const existing = await ctx.db
+      .query("spacedRepetition")
+      .withIndex("by_player_topic", (q) =>
+        q.eq("playerId", args.playerId).eq("topic", args.topic)
+      )
+      .first();
+
+    const today = new Date().toISOString().split("T")[0];
+
+    if (existing) {
+      // SM-2 Algorithm
+      let { easeFactor, interval, repetitions, level } = existing;
+      const quality = Math.max(0, Math.min(5, args.quality));
+
+      if (quality < 3) {
+        // Failed review - reset
+        repetitions = 0;
+        interval = 1;
+        level = Math.max(1, level - 1);
+      } else {
+        // Successful review
+        if (repetitions === 0) {
+          interval = 1;
+        } else if (repetitions === 1) {
+          interval = 3;
+        } else {
+          interval = Math.round(interval * easeFactor);
+        }
+        repetitions += 1;
+        level = Math.min(5, level + (quality >= 4 ? 1 : 0));
+      }
+
+      // Update ease factor (minimum 1.3)
+      easeFactor = Math.max(
+        1.3,
+        easeFactor + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02))
+      );
+
+      // Calculate next review date
+      const nextDate = new Date();
+      nextDate.setDate(nextDate.getDate() + interval);
+
+      await ctx.db.patch(existing._id, {
+        easeFactor,
+        interval,
+        repetitions,
+        level,
+        nextReviewDate: nextDate.toISOString().split("T")[0],
+        lastReviewDate: today,
+        totalReviews: existing.totalReviews + 1,
+        correctReviews: existing.correctReviews + (quality >= 3 ? 1 : 0),
+        lastQuality: quality,
+      });
+    } else {
+      // Create new SRS entry
+      const interval = args.quality >= 3 ? 1 : 0;
+      const nextDate = new Date();
+      nextDate.setDate(nextDate.getDate() + (interval || 1));
+
+      await ctx.db.insert("spacedRepetition", {
+        playerId: args.playerId,
+        topic: args.topic,
+        subject: args.subject,
+        level: args.quality >= 4 ? 2 : 1,
+        easeFactor: 2.5,
+        interval: 1,
+        nextReviewDate: nextDate.toISOString().split("T")[0],
+        lastReviewDate: today,
+        repetitions: args.quality >= 3 ? 1 : 0,
+        totalReviews: 1,
+        correctReviews: args.quality >= 3 ? 1 : 0,
+        lastQuality: args.quality,
+      });
+    }
+  },
+});
+
+/**
+ * Mark error as resolved (after successful review)
+ */
+export const resolveError = mutation({
+  args: {
+    errorId: v.id("errorTracking"),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.errorId, {
+      resolved: true,
+      resolvedAt: new Date().toISOString(),
+    });
+  },
+});
+
+/**
+ * Get comprehensive weak topics with stats
+ */
+export const getWeakTopicsDetailed = query({
+  args: { playerId: v.id("players") },
+  handler: async (ctx, args) => {
+    // Get weak topics from topicProgress
+    const weakTopics = await ctx.db
+      .query("topicProgress")
+      .withIndex("by_player_needs_practice", (q) =>
+        q.eq("playerId", args.playerId).eq("needsPractice", true)
+      )
+      .collect();
+
+    // Get error counts per topic
+    const errors = await ctx.db
+      .query("errorTracking")
+      .withIndex("by_player_resolved", (q) =>
+        q.eq("playerId", args.playerId).eq("resolved", false)
+      )
+      .collect();
+
+    // Count errors per topic
+    const errorCounts: Record<string, number> = {};
+    for (const err of errors) {
+      errorCounts[err.topic] = (errorCounts[err.topic] || 0) + 1;
+    }
+
+    // Combine data
+    return weakTopics.map((tp) => ({
+      topic: tp.topic,
+      subject: tp.subject,
+      accuracy: tp.accuracy,
+      totalAttempts: tp.totalAttempts,
+      errorCount: errorCounts[tp.topic] || 0,
+      lastPracticed: tp.lastPracticed,
+    })).sort((a, b) => a.accuracy - b.accuracy); // Most weak first
+  },
+});
+
+// ========== DAILY CHALLENGE SYSTEM ==========
+
+/**
+ * Get or create daily challenge for player
+ */
+export const getDailyChallenge = query({
+  args: { playerId: v.id("players") },
+  handler: async (ctx, args) => {
+    const today = new Date().toISOString().split("T")[0];
+
+    // Check if already has challenge for today
+    const existing = await ctx.db
+      .query("dailyQuests")
+      .withIndex("by_player_date", (q) =>
+        q.eq("playerId", args.playerId).eq("date", today)
+      )
+      .filter((q) => q.eq(q.field("questType"), "daily_challenge"))
+      .first();
+
+    if (existing) {
+      return existing;
+    }
+
+    return null;
+  },
+});
+
+/**
+ * Create daily challenge based on weak topics
+ */
+export const createDailyChallenge = mutation({
+  args: { playerId: v.id("players") },
+  handler: async (ctx, args) => {
+    const today = new Date().toISOString().split("T")[0];
+
+    // Check if already exists
+    const existing = await ctx.db
+      .query("dailyQuests")
+      .withIndex("by_player_date", (q) =>
+        q.eq("playerId", args.playerId).eq("date", today)
+      )
+      .filter((q) => q.eq(q.field("questType"), "daily_challenge"))
+      .first();
+
+    if (existing) {
+      return existing._id;
+    }
+
+    // Get weak topics
+    const weakTopics = await ctx.db
+      .query("topicProgress")
+      .withIndex("by_player_needs_practice", (q) =>
+        q.eq("playerId", args.playerId).eq("needsPractice", true)
+      )
+      .collect();
+
+    // Get due reviews
+    const dueReviews = await ctx.db
+      .query("spacedRepetition")
+      .withIndex("by_player", (q) => q.eq("playerId", args.playerId))
+      .filter((q) => q.lte(q.field("nextReviewDate"), today))
+      .collect();
+
+    // Determine challenge topic
+    let challengeTopic = "general";
+    let challengeSubject = "Mixed";
+    let description = "Practice 5 questions to improve!";
+
+    if (weakTopics.length > 0) {
+      // Prioritize weakest topic
+      const weakest = weakTopics.sort((a, b) => a.accuracy - b.accuracy)[0];
+      challengeTopic = weakest.topic;
+      challengeSubject = weakest.subject;
+      description = `Practice ${weakest.topic} (${weakest.accuracy}% accuracy)`;
+    } else if (dueReviews.length > 0) {
+      const review = dueReviews[0];
+      challengeTopic = review.topic;
+      challengeSubject = review.subject;
+      description = `Review ${review.topic} to keep it fresh!`;
+    }
+
+    // Create challenge
+    const challengeId = await ctx.db.insert("dailyQuests", {
+      playerId: args.playerId,
+      date: today,
+      questType: "daily_challenge",
+      questName: `Daily: ${challengeTopic}`,
+      description,
+      targetCount: 5,
+      currentCount: 0,
+      isCompleted: false,
+      reward: {
+        diamonds: 20,
+        emeralds: 10,
+        xp: 50,
+      },
+    });
+
+    return challengeId;
+  },
+});
+
+/**
+ * Update daily challenge progress
+ */
+export const updateDailyChallengeProgress = mutation({
+  args: {
+    playerId: v.id("players"),
+    correct: v.boolean(),
+  },
+  handler: async (ctx, args) => {
+    const today = new Date().toISOString().split("T")[0];
+
+    const challenge = await ctx.db
+      .query("dailyQuests")
+      .withIndex("by_player_date", (q) =>
+        q.eq("playerId", args.playerId).eq("date", today)
+      )
+      .filter((q) =>
+        q.and(
+          q.eq(q.field("questType"), "daily_challenge"),
+          q.eq(q.field("isCompleted"), false)
+        )
+      )
+      .first();
+
+    if (!challenge) return null;
+
+    const newCount = challenge.currentCount + (args.correct ? 1 : 0);
+    const isCompleted = newCount >= challenge.targetCount;
+
+    await ctx.db.patch(challenge._id, {
+      currentCount: newCount,
+      isCompleted,
+      ...(isCompleted && { completedAt: new Date().toISOString() }),
+    });
+
+    return {
+      currentCount: newCount,
+      targetCount: challenge.targetCount,
+      isCompleted,
+      reward: isCompleted ? challenge.reward : null,
+    };
+  },
+});
+
 // Record that explanation helped (or didn't)
 export const recordExplanationFeedback = mutation({
   args: {
