@@ -43,6 +43,20 @@ export function HUD({ playerId, onProfileSettings }: HUDProps = {}) {
               <div className="xp-bar-mini">
                 <div className="xp-bar-mini-fill" style={{ width: `${xpPercent}%` }} />
               </div>
+              <span className="score-badge" style={{
+                background: "linear-gradient(135deg, #fbbf24, #f59e0b)",
+                color: "#000",
+                padding: "2px 8px",
+                borderRadius: "8px",
+                fontSize: "0.75em",
+                fontWeight: "bold",
+                marginLeft: "6px",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "3px",
+              }}>
+                ⭐ {((player.totalStars || 0) * 100 + (player.xp || 0)).toLocaleString()}
+              </span>
             </div>
           </div>
         </div>

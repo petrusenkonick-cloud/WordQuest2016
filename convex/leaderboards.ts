@@ -48,7 +48,7 @@ export const getLeaderboard = query({
     // Create entries
     const entries = filteredPlayers.slice(0, limit).map((p, index) => ({
       playerId: p._id,
-      displayName: p.displayName || p.name || "Anonymous",
+      displayName: p.name || "Anonymous",
       skin: p.skin || "🧙",
       normalizedScore: getScore(p),
       rawScore: p.totalRawScore || 0,
@@ -127,13 +127,13 @@ export const getPlayerRank = query({
       ),
       player: {
         id: player._id,
-        displayName: player.displayName || "Anonymous",
+        displayName: player.name || "Anonymous",
         normalizedScore: player.normalizedScore || 0,
         streak: player.streak || 0,
       },
       nearby: nearbyPlayers.map((p, i) => ({
         rank: startIndex + i + 1,
-        displayName: p.displayName || "Anonymous",
+        displayName: p.name || "Anonymous",
         normalizedScore: p.normalizedScore || 0,
         isCurrentPlayer: p._id === args.playerId,
       })),
@@ -224,7 +224,7 @@ export const updateLeaderboards = internalMutation({
     const createEntries = (players: typeof competitivePlayers) =>
       players.slice(0, 100).map((p, index) => ({
         playerId: p._id,
-        displayName: p.displayName || p.name || "Anonymous",
+        displayName: p.name || "Anonymous",
         skin: p.skin || "🧙",
         normalizedScore: p.normalizedScore || 0,
         rawScore: p.totalRawScore || 0,
@@ -425,7 +425,7 @@ export const getAgeLeagueLeaderboard = query({
 
     const entries = filteredPlayers.slice(0, limit).map((p, index) => ({
       playerId: p._id,
-      displayName: p.displayName || p.name || "Anonymous",
+      displayName: p.name || "Anonymous",
       skin: p.skin || "🧙",
       normalizedScore: p.normalizedScore || 0,
       rawScore: p.totalRawScore || 0,
@@ -479,7 +479,7 @@ export const getAgeLeaguesSummary = query({
         playerCount: leaguePlayers.length,
         topPlayer: topPlayer
           ? {
-              displayName: topPlayer.displayName || "Anonymous",
+              displayName: topPlayer.name || "Anonymous",
               normalizedScore: topPlayer.normalizedScore || 0,
             }
           : null,
@@ -585,7 +585,7 @@ export const getImprovementLeaderboard = query({
 
       improvements.push({
         playerId: player._id,
-        displayName: player.displayName || "Anonymous",
+        displayName: player.name || "Anonymous",
         ageGroup: player.ageGroup,
         improvementScore,
         accuracyImprovement: Math.round(accuracyImprovement),

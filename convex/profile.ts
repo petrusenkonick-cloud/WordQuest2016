@@ -245,7 +245,7 @@ export const getPlayersByAgeGroup = query({
 
     return players.map((p) => ({
       id: p._id,
-      displayName: p.displayName || "Anonymous",
+      displayName: p.name || "Anonymous",
       normalizedScore: p.normalizedScore || 0,
       level: p.level,
       streak: p.streak,
@@ -287,7 +287,7 @@ export const getTopPlayers = query({
     return competitivePlayers.slice(0, limit).map((p, index) => ({
       rank: index + 1,
       id: p._id,
-      displayName: p.displayName || "Anonymous",
+      displayName: p.name || "Anonymous",
       normalizedScore: p.normalizedScore || 0,
       level: p.level,
       ageGroup: p.ageGroup,

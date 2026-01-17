@@ -131,7 +131,7 @@ export const getPlayerComparison = query({
       player: {
         id: player._id,
         name: player.name,
-        displayName: player.displayName || "Anonymous",
+        displayName: player.name || "Anonymous",
         normalizedScore: player.normalizedScore || 0,
         streak: player.streak || 0,
         wordsLearned: player.wordsLearned || 0,
