@@ -164,16 +164,37 @@ export function LeaderboardPodium({ playerId, onViewFull }: LeaderboardPodiumPro
   );
 
   const topPlayers = leaderboard?.entries || [];
-  const hasPlayers = topPlayers.length > 0;
 
-  // Placeholder data for demo when no real players
-  const demoPlayers = [
-    { displayName: "WordMaster", skin: "🧙", normalizedScore: 2500, streak: 15, rank: 1 },
-    { displayName: "SpellKing", skin: "🦸", normalizedScore: 2100, streak: 12, rank: 2 },
-    { displayName: "QuestHero", skin: "🥷", normalizedScore: 1800, streak: 8, rank: 3 },
-  ];
+  // Define player type for display
+  type DisplayPlayer = {
+    displayName: string;
+    skin?: string;
+    normalizedScore: number;
+    streak?: number;
+    rank: number;
+  };
 
-  const displayPlayers = hasPlayers ? topPlayers : demoPlayers;
+  // Fill empty spots with placeholder if less than 3 players
+  // Cast to any to access skin field (added to API but types not regenerated)
+  const filledPlayers: DisplayPlayer[] = topPlayers.map(p => ({
+    displayName: p.displayName,
+    skin: (p as { skin?: string }).skin,
+    normalizedScore: p.normalizedScore,
+    streak: p.streak,
+    rank: p.rank,
+  }));
+
+  while (filledPlayers.length < 3) {
+    filledPlayers.push({
+      displayName: "???",
+      skin: "❓",
+      normalizedScore: 0,
+      streak: 0,
+      rank: filledPlayers.length + 1,
+    });
+  }
+
+  const displayPlayers = filledPlayers.slice(0, 3);
 
   // Reorder for podium display: 2nd, 1st, 3rd
   const podiumOrder = displayPlayers.length >= 3
@@ -354,7 +375,7 @@ export function LeaderboardPodium({ playerId, onViewFull }: LeaderboardPodiumPro
                     marginBottom: "4px",
                   }}
                 >
-                  {getSkinEmoji((player as { skin?: string })?.skin)}
+                  {getSkinEmoji(player?.skin)}
                 </motion.div>
 
                 {/* Name */}

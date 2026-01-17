@@ -49,9 +49,9 @@ export const getLeaderboard = query({
 
     const players = await playersQuery.collect();
 
-    // Filter competitive players
+    // Get all players with some activity (has name and played at least once)
     let filteredPlayers = players.filter(
-      (p) => p.competitionOptIn && p.normalizedScore !== undefined
+      (p) => p.name && (p.totalStars > 0 || p.xp > 0 || p.questsCompleted > 0)
     );
 
     // Filter by age group if specified
@@ -61,17 +61,24 @@ export const getLeaderboard = query({
       );
     }
 
-    // Sort by normalized score
-    filteredPlayers.sort(
-      (a, b) => (b.normalizedScore || 0) - (a.normalizedScore || 0)
-    );
+    // Calculate score: use normalizedScore if available, otherwise calculate from totalStars + xp
+    const getScore = (p: typeof players[0]) => {
+      if (p.normalizedScore !== undefined && p.normalizedScore > 0) {
+        return p.normalizedScore;
+      }
+      // Fallback: totalStars * 100 + xp
+      return (p.totalStars || 0) * 100 + (p.xp || 0);
+    };
+
+    // Sort by calculated score
+    filteredPlayers.sort((a, b) => getScore(b) - getScore(a));
 
     // Create entries
     const entries = filteredPlayers.slice(0, limit).map((p, index) => ({
       playerId: p._id,
       displayName: p.displayName || p.name || "Anonymous",
       skin: p.skin || "🧙",
-      normalizedScore: p.normalizedScore || 0,
+      normalizedScore: getScore(p),
       rawScore: p.totalRawScore || 0,
       accuracy: 0, // Would need to calculate from daily stats
       streak: p.streak || 0,
