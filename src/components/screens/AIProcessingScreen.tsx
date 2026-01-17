@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 
 interface AIProcessingScreenProps {
   images: string[];
@@ -55,65 +55,134 @@ async function analyzeWithGemini(images: string[]): Promise<AIAnalysisResult> {
 
 export function AIProcessingScreen({ images, onComplete, onError }: AIProcessingScreenProps) {
   const [progress, setProgress] = useState(0);
+  const [displayProgress, setDisplayProgress] = useState(0);
   const [currentStep, setCurrentStep] = useState(0);
-  const [statusText, setStatusText] = useState("Recognizing homework...");
+  const [statusText, setStatusText] = useState("Starting...");
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const progressInterval = useRef<NodeJS.Timeout | null>(null);
 
   const steps = [
-    { icon: "🔍", label: "Recognizing homework...", done: "Homework recognized!" },
-    { icon: "📄", label: `Processing ${images.length} page${images.length > 1 ? "s" : ""}...`, done: "All pages processed!" },
-    { icon: "🧠", label: "Understanding content...", done: "Content analyzed!" },
+    { icon: "📷", label: "Reading photos...", done: "Photos read!" },
+    { icon: "🔍", label: "Finding homework...", done: "Homework found!" },
+    { icon: "📄", label: `Processing ${images.length} page${images.length > 1 ? "s" : ""}...`, done: "Pages processed!" },
+    { icon: "🧠", label: "AI is thinking...", done: "Content analyzed!" },
     { icon: "🎮", label: "Creating game...", done: "Game ready!" },
   ];
 
+  // Smoothly animate progress to target value
+  useEffect(() => {
+    if (displayProgress < progress) {
+      const timer = setTimeout(() => {
+        setDisplayProgress(prev => Math.min(prev + 1, progress));
+      }, 30); // Smooth increment
+      return () => clearTimeout(timer);
+    }
+  }, [displayProgress, progress]);
+
+  // Gradual progress animation during AI call
+  const startGradualProgress = useCallback((from: number, to: number, duration: number) => {
+    if (progressInterval.current) {
+      clearInterval(progressInterval.current);
+    }
+
+    const steps = duration / 100; // Update every 100ms
+    const increment = (to - from) / steps;
+    let current = from;
+
+    progressInterval.current = setInterval(() => {
+      current += increment;
+      if (current >= to) {
+        current = to;
+        if (progressInterval.current) {
+          clearInterval(progressInterval.current);
+        }
+      }
+      setProgress(Math.round(current));
+    }, 100);
+  }, []);
+
   const processImages = useCallback(async () => {
     try {
-      // Step 1: Recognizing
+      // Step 1: Reading photos (0% -> 15%)
       setCurrentStep(0);
       setStatusText(steps[0].label);
-      await new Promise((r) => setTimeout(r, 1000));
-      setProgress(20);
+      startGradualProgress(0, 15, 800);
+      await new Promise((r) => setTimeout(r, 800));
 
-      // Step 2: Processing pages
+      // Step 2: Finding homework (15% -> 25%)
       setCurrentStep(1);
       setStatusText(steps[1].label);
-      // Simulate processing each page
-      for (let i = 0; i < images.length; i++) {
-        await new Promise((r) => setTimeout(r, 600));
-        setProgress(20 + ((i + 1) / images.length) * 30);
-        setStatusText(`Processing page ${i + 1} of ${images.length}...`);
-      }
-      setProgress(50);
+      startGradualProgress(15, 25, 600);
+      await new Promise((r) => setTimeout(r, 600));
 
-      // Step 3: Understanding
+      // Step 3: Processing pages (25% -> 45%)
       setCurrentStep(2);
-      setStatusText(steps[2].label);
-      await new Promise((r) => setTimeout(r, 1200));
-      setProgress(75);
+      const perPageTime = 400;
+      for (let i = 0; i < images.length; i++) {
+        setStatusText(`Processing page ${i + 1} of ${images.length}...`);
+        const pageProgress = 25 + ((i + 1) / images.length) * 20;
+        startGradualProgress(25 + (i / images.length) * 20, pageProgress, perPageTime);
+        await new Promise((r) => setTimeout(r, perPageTime));
+      }
 
-      // Step 4: Creating game - call real AI
+      // Step 4: AI thinking (45% -> 85%) - this is where real API call happens
       setCurrentStep(3);
       setStatusText(steps[3].label);
-      const result = await analyzeWithGemini(images);
-      setProgress(100);
-      setStatusText("Ready to play!");
+      setIsAnalyzing(true);
 
+      // Start slow gradual progress during AI call (will be interrupted when done)
+      startGradualProgress(45, 85, 30000); // 30 seconds max for this phase
+
+      const result = await analyzeWithGemini(images);
+
+      // AI done, stop gradual and jump to 90%
+      if (progressInterval.current) {
+        clearInterval(progressInterval.current);
+      }
+      setProgress(90);
+      setIsAnalyzing(false);
+
+      // Step 5: Creating game (90% -> 100%)
+      setCurrentStep(4);
+      setStatusText(steps[4].label);
+      startGradualProgress(90, 100, 500);
       await new Promise((r) => setTimeout(r, 500));
+
+      setStatusText("Ready to play!");
+      await new Promise((r) => setTimeout(r, 400));
+
       onComplete(result);
     } catch (error) {
+      if (progressInterval.current) {
+        clearInterval(progressInterval.current);
+      }
       // Pass the actual error message from API
       const errorMessage = error instanceof Error ? error.message : "Error processing homework. Please try again!";
       onError(errorMessage);
     }
-  }, [images, onComplete, onError]);
+  }, [images, onComplete, onError, startGradualProgress]);
 
   useEffect(() => {
     processImages();
+
+    return () => {
+      if (progressInterval.current) {
+        clearInterval(progressInterval.current);
+      }
+    };
   }, [processImages]);
 
   return (
     <div className="ai-processing active">
-      {/* Wizard */}
-      <div className="ai-wizard">🧙‍♂️</div>
+      {/* Wizard with pulse animation during analysis */}
+      <div
+        className="ai-wizard"
+        style={{
+          animation: isAnalyzing ? "pulse 1.5s infinite" : undefined,
+        }}
+      >
+        🧙‍♂️
+      </div>
 
       {/* Title */}
       <h2 className="ai-title">Creating Adventure...</h2>
@@ -121,22 +190,46 @@ export function AIProcessingScreen({ images, onComplete, onError }: AIProcessing
       {/* Status */}
       <p className="ai-status">{statusText}</p>
 
-      {/* Progress bar */}
-      <div className="ai-progress">
-        <div className="ai-progress-bar" style={{ width: `${progress}%` }} />
+      {/* Progress bar with percentage */}
+      <div style={{ width: "80%", maxWidth: "300px", textAlign: "center" }}>
+        <div className="ai-progress">
+          <div
+            className="ai-progress-bar"
+            style={{
+              width: `${displayProgress}%`,
+              transition: "width 0.1s linear",
+            }}
+          />
+        </div>
+        {/* Percentage display */}
+        <div style={{
+          color: "#a5b4fc",
+          fontSize: "1.2em",
+          fontWeight: "bold",
+          marginTop: "8px",
+          fontFamily: "monospace",
+        }}>
+          {displayProgress}%
+        </div>
       </div>
 
-      {/* Steps */}
+      {/* Steps with checkmarks */}
       <div className="ai-steps">
         {steps.map((step, i) => (
           <div
             key={i}
             className={`ai-step ${i < currentStep ? "done" : ""} ${i === currentStep ? "current" : ""}`}
           >
-            <span className="ai-step-icon">
+            <span className="ai-step-icon" style={{
+              animation: i === currentStep ? "pulse 1s infinite" : undefined,
+            }}>
               {i < currentStep ? "✅" : step.icon}
             </span>
-            <span>{i < currentStep ? step.done : step.label}</span>
+            <span style={{
+              color: i < currentStep ? "#22c55e" : i === currentStep ? "#fff" : "#6b7280",
+            }}>
+              {i < currentStep ? step.done : step.label}
+            </span>
           </div>
         ))}
       </div>
@@ -162,8 +255,12 @@ export function AIProcessingScreen({ images, onComplete, onError }: AIProcessing
               height: "50px",
               objectFit: "cover",
               borderRadius: "6px",
-              border: "2px solid rgba(255,255,255,0.2)",
-              opacity: 0.6,
+              border: i === Math.min(currentStep, images.length - 1) && currentStep === 2
+                ? "2px solid #8b5cf6"
+                : "2px solid rgba(255,255,255,0.2)",
+              opacity: currentStep > 2 || (currentStep === 2 && i <= Math.floor((displayProgress - 25) / 20 * images.length))
+                ? 1 : 0.4,
+              transition: "all 0.3s ease",
             }}
           />
         ))}

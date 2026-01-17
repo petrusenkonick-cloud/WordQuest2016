@@ -38,6 +38,7 @@ import { GameWorld } from "@/components/ui/GameWorld";
 import { DailyRewardModal } from "@/components/modals/DailyRewardModal";
 import { LevelCompleteModal } from "@/components/modals/LevelCompleteModal";
 import { AchievementModal } from "@/components/modals/AchievementModal";
+import { ErrorModal } from "@/components/modals/ErrorModal";
 
 // Game Components
 import { MiningOverlay } from "@/components/game/MiningOverlay";
@@ -431,6 +432,9 @@ export default function Home() {
   const [miningDepth, setMiningDepth] = useState(0);
   const { checkGemDrop } = useGemDrop({ playerId, enabled: true });
 
+  // Error modal state
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
   // Use Convex data for completed levels, inventory, and owned items
   const completedLevels = levelProgress;
   const inventory = convexInventory.length > 0
@@ -754,7 +758,7 @@ export default function Home() {
   }, [createHomeworkSession, playerId, capturedImages]);
 
   const handleAIError = useCallback((error: string) => {
-    alert(error);
+    setErrorMessage(error);
     setShowAIProcessing(false);
     setCapturedImages([]);
   }, []);
@@ -1490,6 +1494,14 @@ export default function Home() {
             setAchievementData(null);
           }}
           achievement={achievementData}
+        />
+      )}
+
+      {/* Error Modal - shows when homework scanning fails */}
+      {errorMessage && (
+        <ErrorModal
+          error={errorMessage}
+          onClose={() => setErrorMessage(null)}
         />
       )}
 

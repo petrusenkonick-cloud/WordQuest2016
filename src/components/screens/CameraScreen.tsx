@@ -54,7 +54,7 @@ function AnimatedTip({ emoji, text }: { emoji: string; text: string }) {
 }
 
 // Maximum photos allowed
-const MAX_PHOTOS = 50;
+const MAX_PHOTOS = 10;
 
 export function CameraScreen({ onCapture, onCancel }: CameraScreenProps) {
   const [step, setStep] = useState<"intro" | "camera" | "preview" | "processing">("intro");

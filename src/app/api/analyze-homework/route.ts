@@ -5,7 +5,7 @@ const GEMINI_MODEL = "gemini-3-flash-preview";
 const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
 // Maximum photos allowed (must match frontend)
-const MAX_PHOTOS = 50;
+const MAX_PHOTOS = 10;
 // Timeout for API call (2 minutes for large uploads)
 const API_TIMEOUT_MS = 120000;
 
