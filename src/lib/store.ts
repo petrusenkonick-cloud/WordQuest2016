@@ -44,6 +44,7 @@ export type ScreenType =
   | "quest-map"
   | "spell-book"
   | "profile-setup"
+  | "profile-settings"
   | "dashboard"
   | "leaderboard"
   | "gem-hub";

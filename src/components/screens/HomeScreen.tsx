@@ -7,6 +7,7 @@ import { api } from "../../../convex/_generated/api";
 import { Id } from "../../../convex/_generated/dataModel";
 import { useEffect } from "react";
 import { AudioControls } from "../ui/AudioControls";
+import { LeaderboardPodium } from "../ui/LeaderboardPodium";
 
 // Skin emoji mapping for legacy text values
 const SKIN_EMOJI_MAP: Record<string, string> = {
@@ -285,6 +286,9 @@ export function HomeScreen({
           </div>
         )}
       </div>
+
+      {/* Top Wizards Leaderboard */}
+      <LeaderboardPodium playerId={playerId} onViewFull={onLeaderboard} />
 
       {/* Daily Quests Progress */}
       {dailyQuests && dailyQuests.length > 0 && (
