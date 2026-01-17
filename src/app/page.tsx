@@ -433,6 +433,16 @@ export default function Home() {
   const [showHint, setShowHint] = useState(false);
   const [currentHint, setCurrentHint] = useState<string | null>(null);
   const [mustAnswerCorrectly, setMustAnswerCorrectly] = useState(false); // After 2nd wrong, must get it right
+
+  // Anti-cheat: Time tracking per question
+  const [questionStartTime, setQuestionStartTime] = useState<number | null>(null);
+  const [responseTimeData, setResponseTimeData] = useState<Array<{
+    questionIndex: number;
+    responseTimeMs: number;
+    isSuspiciouslyFast: boolean; // < 3 seconds
+    isSuspiciouslySlow: boolean; // > 2 minutes
+  }>>([]);
+  const [tabSwitchCount, setTabSwitchCount] = useState(0);
   const [isSpeaking, setIsSpeaking] = useState(false);
 
   // Similar questions system (instead of showing answer)
@@ -521,6 +531,22 @@ export default function Home() {
       });
     }
   }, [playerId, weeklyQuestsData, generateWeeklyQuests]);
+
+  // Anti-cheat: Track tab switches during gameplay
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden && isPlayingAIGame) {
+        setTabSwitchCount(prev => {
+          const newCount = prev + 1;
+          console.warn(`⚠️ Tab switch detected during game! Total: ${newCount}`);
+          return newCount;
+        });
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, [isPlayingAIGame]);
 
   // Handlers
   const handleLoadingComplete = useCallback(() => {
@@ -684,6 +710,9 @@ export default function Home() {
     setAiGameProgress({ current: 0, correct: 0, mistakes: 0 });
     setSelectedAnswer(null);
     setShowFeedback(false);
+    setQuestionStartTime(Date.now()); // Anti-cheat: Start timer
+    setResponseTimeData([]); // Reset response time data
+    setTabSwitchCount(0); // Reset tab switch count
   }, []);
 
   const handleStartQuest = useCallback((questId: string, chapterId: number) => {
@@ -735,6 +764,9 @@ export default function Home() {
     setAiGameProgress({ current: 0, correct: 0, mistakes: 0 });
     setSelectedAnswer(null);
     setShowFeedback(false);
+    setQuestionStartTime(Date.now()); // Anti-cheat: Start timer
+    setResponseTimeData([]); // Reset response time data
+    setTabSwitchCount(0); // Reset tab switch count
   }, [weeklyQuestsData]);
 
   // Start a Spaced Repetition review session
@@ -794,6 +826,9 @@ export default function Home() {
       setAiGameProgress({ current: 0, correct: 0, mistakes: 0 });
       setSelectedAnswer(null);
       setShowFeedback(false);
+      setQuestionStartTime(Date.now()); // Anti-cheat: Start timer
+      setResponseTimeData([]); // Reset response time data
+      setTabSwitchCount(0); // Reset tab switch count
 
     } catch (error) {
       console.error("Error starting review:", error);
@@ -870,6 +905,9 @@ export default function Home() {
     setAiGameProgress({ current: 0, correct: 0, mistakes: 0 });
     setSelectedAnswer(null);
     setShowFeedback(false);
+    setQuestionStartTime(Date.now()); // Anti-cheat: Start timer
+    setResponseTimeData([]); // Reset response time data
+    setTabSwitchCount(0); // Reset tab switch count
   }, [createHomeworkSession, playerId, capturedImages]);
 
   const handleAIError = useCallback((error: string) => {
@@ -882,6 +920,28 @@ export default function Home() {
   const handleAnswerSelect = useCallback(
     async (answer: string) => {
       if (showFeedback || !aiGameData) return;
+
+      // Anti-cheat: Record response time (only on first attempt per question)
+      if (questionStartTime && currentQuestionAttempts === 0) {
+        const responseTime = Date.now() - questionStartTime;
+        const isSuspiciouslyFast = responseTime < 3000; // Less than 3 seconds
+        const isSuspiciouslySlow = responseTime > 120000; // More than 2 minutes
+
+        setResponseTimeData(prev => [...prev, {
+          questionIndex: aiGameProgress.current,
+          responseTimeMs: responseTime,
+          isSuspiciouslyFast,
+          isSuspiciouslySlow,
+        }]);
+
+        // Log suspicious activity for debugging
+        if (isSuspiciouslyFast) {
+          console.warn(`⚠️ Suspiciously fast answer: ${responseTime}ms for question ${aiGameProgress.current + 1}`);
+        }
+        if (isSuspiciouslySlow) {
+          console.warn(`⚠️ Suspiciously slow answer: ${Math.round(responseTime / 1000)}s for question ${aiGameProgress.current + 1}`);
+        }
+      }
 
       setSelectedAnswer(answer);
       const currentQ = aiGameData.questions[aiGameProgress.current];
@@ -1079,7 +1139,7 @@ export default function Home() {
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [aiGameData, aiGameProgress, showFeedback, awardCurrency, spawnParticles, playerId, trackError, currentHomeworkSessionId, addToSpellBook, currentPracticeQuestId, answerPracticeQuestion, updateTopicProgress, currentQuestionAttempts]
+    [aiGameData, aiGameProgress, showFeedback, awardCurrency, spawnParticles, playerId, trackError, currentHomeworkSessionId, addToSpellBook, currentPracticeQuestId, answerPracticeQuestion, updateTopicProgress, currentQuestionAttempts, questionStartTime]
   );
 
   // Move to next question helper
@@ -1095,6 +1155,7 @@ export default function Home() {
       setAiGameProgress(newProgress);
       setSelectedAnswer(null);
       setShowFeedback(false);
+      setQuestionStartTime(Date.now()); // Anti-cheat: Reset timer for next question
 
       // Check if game is complete
       if (newProgress.current >= aiGameData.questions.length) {
