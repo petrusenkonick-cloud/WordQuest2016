@@ -32,40 +32,55 @@ export async function POST(request: NextRequest) {
       throw new Error("GEMINI_API_KEY not configured");
     }
 
-    const prompt = `You are an educational AI that generates practice questions for children.
-Your task is to create a SIMILAR but EASIER question about the same concept.
+    // Build difficulty-specific instructions
+    const difficultyInstructions = {
+      easier: `Make it noticeably EASIER:
+- Use simpler words, clearer examples
+- For math: use smaller numbers
+- For English: use more common words
+- The goal is to help understand the concept through a simpler example`,
+      same: `Keep the SAME difficulty level:
+- Create a DIFFERENT question testing the EXACT same concept
+- The question must be DIFFERENT from the original (not the same question!)
+- Keep similar complexity and word choice
+- This verifies the child truly understood, not just memorized`,
+      harder: `Make it slightly HARDER:
+- Use more complex examples
+- For math: use larger numbers or add a step
+- For English: use less common words
+- This challenges mastery of the concept`,
+    };
 
-The goal is to help the child understand the concept through a simpler example before returning to the harder question.
+    const prompt = `You are an educational AI that generates practice questions for children.
+Your task is to create a ${difficulty.toUpperCase()} question about the same concept.
+
+${difficultyInstructions[difficulty]}
 
 IMPORTANT RULES:
-1. The new question MUST test the SAME concept/topic
-2. Make it noticeably EASIER - use simpler words, clearer examples
-3. For math: use smaller numbers
-4. For English: use more common words
-5. Always generate exactly 4 multiple choice options
-6. The correct answer should be obviously correct to someone who understands the concept
-7. Make distractors reasonable but clearly wrong
-8. Keep language age-appropriate for children (ages 6-12)
+1. The new question MUST test the SAME concept/topic as the original
+2. The new question must be DIFFERENT from the original (different wording, different numbers/words)
+3. Always generate exactly 4 multiple choice options
+4. The correct answer should be clearly correct to someone who understands the concept
+5. Make distractors reasonable but clearly wrong
+6. Keep language age-appropriate for children (ages 6-12)
 
-The child got this question WRONG:
-Question: ${originalQuestion}
+Original question: ${originalQuestion}
 Correct answer: ${originalCorrect}
-Child's wrong answer: ${wrongAnswer}
+${wrongAnswer ? `Child's wrong answer: ${wrongAnswer}` : ""}
 Topic: ${topic}
 Subject: ${subject}
 
-Generate a SIMILAR but ${difficulty.toUpperCase()} question about the same concept.
-This should help the child understand the concept through a simpler example.
+Generate a ${difficulty.toUpperCase()} question about the same concept.
 
 Return ONLY valid JSON with this exact structure (no markdown, no explanation):
 {
-  "text": "The easier question text",
+  "text": "The new question text",
   "type": "multiple_choice",
   "options": ["option1", "option2", "option3", "option4"],
   "correct": "the correct answer (must match one of the options exactly)",
   "explanation": "Brief explanation of why this is correct",
   "hint": "A helpful hint that guides without giving away the answer",
-  "isEasier": true
+  "isEasier": ${difficulty === "easier"}
 }`;
 
     const response = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {

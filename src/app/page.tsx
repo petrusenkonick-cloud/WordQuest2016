@@ -460,6 +460,18 @@ export default function Home() {
   const [loadingSimilarQuestion, setLoadingSimilarQuestion] = useState(false);
   const [originalQuestionIndex, setOriginalQuestionIndex] = useState<number | null>(null); // Track which question we're helping with
 
+  // Verification question - after explanation, verify child truly understood
+  const [verificationQuestion, setVerificationQuestion] = useState<{
+    text: string;
+    type: "multiple_choice";
+    options: string[];
+    correct: string;
+    explanation: string;
+    hint: string;
+  } | null>(null);
+  const [showVerificationQuestion, setShowVerificationQuestion] = useState(false);
+  const [loadingVerificationQuestion, setLoadingVerificationQuestion] = useState(false);
+
   // Store
   const player = useAppStore((state) => state.player);
   const setPlayer = useAppStore((state) => state.setPlayer);
@@ -1028,11 +1040,47 @@ export default function Home() {
           }
         }
 
-        // Reset attempt state and move to next question
-        setTimeout(() => {
+        // Reset attempt state and move to next question (or show verification)
+        setTimeout(async () => {
           setShowFeedback(false);
           setShowHint(false);
           setCurrentHint(null);
+
+          // If they were in mustAnswerCorrectly mode (saw explanation),
+          // generate a VERIFICATION question to ensure they truly understood
+          if (mustAnswerCorrectly && aiGameData) {
+            setLoadingVerificationQuestion(true);
+            try {
+              const topic = detectTopic(currentQ.text, aiGameData.subject);
+              const response = await fetch("/api/similar-question", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  originalQuestion: currentQ.text,
+                  originalCorrect: currentQ.correct,
+                  topic,
+                  subject: aiGameData.subject,
+                  wrongAnswer: "", // Not relevant for verification
+                  difficulty: "same", // Same difficulty, different question
+                }),
+              });
+
+              const data = await response.json();
+              if (data.success && data.question) {
+                setVerificationQuestion(data.question);
+                setShowVerificationQuestion(true);
+                setLoadingVerificationQuestion(false);
+                setMustAnswerCorrectly(false);
+                setCurrentQuestionAttempts(0);
+                return; // Don't move to next question yet
+              }
+            } catch (err) {
+              console.error("Failed to generate verification question:", err);
+            }
+            setLoadingVerificationQuestion(false);
+          }
+
+          // Normal flow - move to next question
           setMustAnswerCorrectly(false);
           setCurrentQuestionAttempts(0);
           moveToNextQuestion(currentQuestionAttempts === 0); // Only count as "correct" if first try
@@ -1329,6 +1377,39 @@ export default function Home() {
     }
   }, [similarQuestion, aiGameData, originalQuestionIndex]);
 
+  // Handle verification question answer - verifies child truly understood the concept
+  const handleVerificationQuestionAnswer = useCallback((answer: string) => {
+    if (!verificationQuestion) return;
+
+    const isCorrect = answer.toLowerCase().trim() === verificationQuestion.correct.toLowerCase().trim();
+
+    if (isCorrect) {
+      // Great! They truly understood - move to next question
+      setShowVerificationQuestion(false);
+      setVerificationQuestion(null);
+      setSelectedAnswer(null);
+
+      // Show success message briefly
+      setFeedbackCorrect(true);
+      setShowFeedback(true);
+
+      setTimeout(() => {
+        setShowFeedback(false);
+        moveToNextQuestion(false); // Don't count as first-try correct
+      }, 1000);
+    } else {
+      // They didn't understand - show hint and let them try again
+      setSelectedAnswer(null);
+      setCurrentHint(verificationQuestion.hint || "Think carefully about what you learned!");
+      setShowHint(true);
+
+      // Show wrong feedback briefly
+      setFeedbackCorrect(false);
+      setShowFeedback(true);
+      setTimeout(() => setShowFeedback(false), 800);
+    }
+  }, [verificationQuestion, moveToNextQuestion]);
+
   // Handle mining complete
   const handleMiningComplete = useCallback((gemsFound: { gemType: string; isWhole: boolean; rarity: string }[]) => {
     setShowMiningOverlay(false);
@@ -1401,6 +1482,11 @@ export default function Home() {
     setCurrentHint(null);
     setMustAnswerCorrectly(false);
     setHomeworkAnswers([]);
+    // Reset similar/verification question state
+    setSimilarQuestion(null);
+    setShowSimilarQuestion(false);
+    setVerificationQuestion(null);
+    setShowVerificationQuestion(false);
     // Reset anti-cheat tracking
     setTabSwitchCount(0);
     setShowTabSwitchWarning(false);
@@ -1693,7 +1779,136 @@ export default function Home() {
           </div>
         )}
 
-        {!showSimilarQuestion && !loadingSimilarQuestion && (
+        {/* Loading verification question */}
+        {loadingVerificationQuestion && (
+          <div style={{
+            background: "linear-gradient(145deg, rgba(30, 58, 95, 0.95) 0%, rgba(23, 37, 84, 0.95) 100%)",
+            border: "2px solid rgba(34, 197, 94, 0.4)",
+            borderRadius: "16px",
+            padding: "24px",
+            marginBottom: "16px",
+            textAlign: "center",
+          }}>
+            <div className="loading-dots" style={{ marginBottom: "8px" }}>
+              <span style={{ fontSize: "2em" }}>🧠</span>
+            </div>
+            <p style={{ color: "#86efac", margin: 0 }}>
+              Checking your understanding...
+            </p>
+          </div>
+        )}
+
+        {/* Verification question overlay - different color to distinguish from practice */}
+        {showVerificationQuestion && verificationQuestion && (
+          <div style={{
+            background: "linear-gradient(145deg, rgba(22, 78, 56, 0.98) 0%, rgba(20, 83, 45, 0.98) 100%)",
+            border: "3px solid rgba(34, 197, 94, 0.6)",
+            borderRadius: "20px",
+            padding: "24px",
+            marginBottom: "16px",
+            boxShadow: "0 20px 40px rgba(0, 0, 0, 0.4), 0 0 40px rgba(34, 197, 94, 0.2)",
+          }}>
+            <div style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "12px",
+              marginBottom: "16px",
+            }}>
+              <span style={{ fontSize: "2em" }}>🧠</span>
+              <div>
+                <h3 style={{ margin: 0, color: "#86efac", fontSize: "1.1em" }}>
+                  Quick Check!
+                </h3>
+                <p style={{ margin: "4px 0 0 0", color: "#4ade80", fontSize: "0.85em" }}>
+                  Prove you understood - answer this similar question
+                </p>
+              </div>
+            </div>
+
+            {showFeedback && (
+              <div style={{
+                background: feedbackCorrect ? "rgba(34, 197, 94, 0.3)" : "rgba(239, 68, 68, 0.3)",
+                border: `2px solid ${feedbackCorrect ? "#22c55e" : "#ef4444"}`,
+                borderRadius: "8px",
+                padding: "8px 12px",
+                marginBottom: "12px",
+                textAlign: "center",
+              }}>
+                <span style={{ color: feedbackCorrect ? "#86efac" : "#fca5a5", fontWeight: "bold" }}>
+                  {feedbackCorrect ? "✅ Correct!" : "❌ Try again!"}
+                </span>
+              </div>
+            )}
+
+            {showHint && currentHint && !showFeedback && (
+              <div style={{
+                background: "rgba(251, 191, 36, 0.15)",
+                border: "1px solid rgba(251, 191, 36, 0.4)",
+                borderRadius: "8px",
+                padding: "8px 12px",
+                marginBottom: "12px",
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+              }}>
+                <span>💡</span>
+                <span style={{ color: "#fbbf24", fontSize: "0.9em" }}>{currentHint}</span>
+              </div>
+            )}
+
+            <div style={{
+              background: "rgba(0, 0, 0, 0.3)",
+              borderRadius: "12px",
+              padding: "16px",
+              marginBottom: "16px",
+            }}>
+              <p style={{ color: "#e2e8f0", fontSize: "1.1em", margin: 0, lineHeight: 1.5 }}>
+                {verificationQuestion.text}
+              </p>
+            </div>
+
+            <div style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gap: "12px",
+            }}>
+              {verificationQuestion.options.map((option) => (
+                <button
+                  key={option}
+                  onClick={() => handleVerificationQuestionAnswer(option)}
+                  disabled={showFeedback}
+                  style={{
+                    background: "linear-gradient(135deg, rgba(34, 197, 94, 0.2) 0%, rgba(22, 163, 74, 0.2) 100%)",
+                    border: "2px solid rgba(34, 197, 94, 0.4)",
+                    borderRadius: "12px",
+                    padding: "16px",
+                    color: "#e2e8f0",
+                    fontSize: "1em",
+                    cursor: showFeedback ? "not-allowed" : "pointer",
+                    opacity: showFeedback ? 0.6 : 1,
+                    transition: "all 0.2s ease",
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!showFeedback) {
+                      e.currentTarget.style.background = "linear-gradient(135deg, rgba(34, 197, 94, 0.4) 0%, rgba(22, 163, 74, 0.4) 100%)";
+                      e.currentTarget.style.borderColor = "rgba(34, 197, 94, 0.8)";
+                      e.currentTarget.style.transform = "translateY(-2px)";
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = "linear-gradient(135deg, rgba(34, 197, 94, 0.2) 0%, rgba(22, 163, 74, 0.2) 100%)";
+                    e.currentTarget.style.borderColor = "rgba(34, 197, 94, 0.4)";
+                    e.currentTarget.style.transform = "translateY(0)";
+                  }}
+                >
+                  {option}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {!showSimilarQuestion && !loadingSimilarQuestion && !showVerificationQuestion && !loadingVerificationQuestion && (
           currentQ.type === "fill_blank" ? (
             <div className="fill-blank-input">
               <input
