@@ -1397,7 +1397,7 @@ export default function Home() {
   // Game phase
   return (
     <>
-      <GameWorld playerId={playerId}>{renderScreen()}</GameWorld>
+      <GameWorld playerId={playerId} onProfileSettings={handleOpenProfileSettings}>{renderScreen()}</GameWorld>
 
       {/* Camera Screen */}
       {showCamera && (

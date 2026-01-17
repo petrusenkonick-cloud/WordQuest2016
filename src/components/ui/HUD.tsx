@@ -7,9 +7,10 @@ import { Id } from "../../../convex/_generated/dataModel";
 
 interface HUDProps {
   playerId?: Id<"players"> | null;
+  onProfileSettings?: () => void;
 }
 
-export function HUD({ playerId }: HUDProps = {}) {
+export function HUD({ playerId, onProfileSettings }: HUDProps = {}) {
   const player = useAppStore((state) => state.player);
   const toggleGemInventory = useAppStore((state) => state.toggleGemInventory);
   const xpPercent = (player.xp / player.xpNext) * 100;
@@ -25,8 +26,12 @@ export function HUD({ playerId }: HUDProps = {}) {
   return (
     <div className="hud">
       <div className="hud-top">
-        {/* Player Info */}
-        <div className="player-info">
+        {/* Player Info - Clickable for settings */}
+        <div
+          className="player-info"
+          onClick={onProfileSettings}
+          style={{ cursor: onProfileSettings ? "pointer" : "default" }}
+        >
           <div className="player-avatar">{player.skin}</div>
           <div className="player-details">
             <h3>{player.name}</h3>

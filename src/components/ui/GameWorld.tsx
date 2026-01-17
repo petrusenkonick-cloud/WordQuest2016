@@ -9,9 +9,10 @@ import { Id } from "../../../convex/_generated/dataModel";
 interface GameWorldProps {
   children: ReactNode;
   playerId?: Id<"players"> | null;
+  onProfileSettings?: () => void;
 }
 
-export function GameWorld({ children, playerId }: GameWorldProps) {
+export function GameWorld({ children, playerId, onProfileSettings }: GameWorldProps) {
   const particles = useAppStore((state) => state.particles);
   const floatingRewards = useAppStore((state) => state.floatingRewards);
 
@@ -34,7 +35,7 @@ export function GameWorld({ children, playerId }: GameWorldProps) {
       <div className="sun" />
 
       {/* HUD */}
-      <HUD playerId={playerId} />
+      <HUD playerId={playerId} onProfileSettings={onProfileSettings} />
 
       {/* Main Content */}
       <div className="main-container">{children}</div>
