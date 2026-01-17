@@ -176,6 +176,13 @@ export function HomeScreen({
       {/* Top Wizards Leaderboard */}
       <LeaderboardPodium playerId={playerId} onViewFull={onLeaderboard} />
 
+      {/* MAIN FEATURE: Scan Homework Button - RIGHT AFTER LEADERBOARD */}
+      <div className="scan-homework-btn" onClick={onScanHomework}>
+        <span className="camera-icon">📸</span>
+        <h3>SCAN HOMEWORK</h3>
+        <p>AI creates a game from your homework!</p>
+      </div>
+
       {/* Daily Quests Progress */}
       {dailyQuests && dailyQuests.length > 0 && (
         <div style={{
@@ -352,13 +359,6 @@ export function HomeScreen({
           <div className="value">{player.questsCompleted}</div>
           <div className="label">Quests</div>
         </div>
-      </div>
-
-      {/* MAIN FEATURE: Scan Homework Button */}
-      <div className="scan-homework-btn" onClick={onScanHomework}>
-        <span className="camera-icon">📸</span>
-        <h3>SCAN HOMEWORK</h3>
-        <p>AI creates a game from your homework!</p>
       </div>
 
       {/* Practice Arena - Combined practice button */}

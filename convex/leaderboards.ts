@@ -33,12 +33,8 @@ export const getLeaderboard = query({
       );
     }
 
-    // Calculate score: use normalizedScore if available, otherwise calculate from totalStars + xp
+    // Calculate score: always use totalStars * 100 + xp for consistency across app
     const getScore = (p: typeof players[0]) => {
-      if (p.normalizedScore !== undefined && p.normalizedScore > 0) {
-        return p.normalizedScore;
-      }
-      // Fallback: totalStars * 100 + xp
       return (p.totalStars || 0) * 100 + (p.xp || 0);
     };
 
