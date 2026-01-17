@@ -104,6 +104,13 @@ export default defineSchema({
     status: v.string(),
     score: v.optional(v.number()),
     stars: v.optional(v.number()),
+    // AI-analyzed difficulty for fair scoring
+    difficulty: v.optional(v.object({
+      gradeLevel: v.number(),        // 1-11 (detected grade level)
+      multiplier: v.number(),        // 1.0 - 2.0 (scoring multiplier)
+      topics: v.array(v.string()),   // detected topics
+      analyzedByAI: v.boolean(),
+    })),
     // User's answers for each question (to show summary at end)
     userAnswers: v.optional(
       v.array(

@@ -33,8 +33,13 @@ export const getLeaderboard = query({
       );
     }
 
-    // Calculate score: always use totalStars * 100 + xp for consistency across app
+    // Calculate score: use normalizedScore if available (includes difficulty & age bonuses)
+    // Otherwise fallback to simple formula for players who haven't done homework yet
     const getScore = (p: typeof players[0]) => {
+      if (p.normalizedScore !== undefined && p.normalizedScore > 0) {
+        return p.normalizedScore;
+      }
+      // Fallback for players without normalized score
       return (p.totalStars || 0) * 100 + (p.xp || 0);
     };
 

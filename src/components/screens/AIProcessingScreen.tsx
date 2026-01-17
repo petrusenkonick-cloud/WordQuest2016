@@ -24,6 +24,13 @@ export interface AIAnalysisResult {
   }[];
   gameName: string;
   gameIcon: string;
+  // AI-analyzed difficulty for fair scoring
+  difficulty?: {
+    gradeLevel: number;      // 1-11
+    multiplier: number;      // 1.0 - 2.0
+    topics: string[];        // detected topics
+    complexity?: string;     // "easy", "medium", "hard"
+  };
 }
 
 // Call real Gemini API to analyze homework images

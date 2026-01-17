@@ -38,7 +38,7 @@ interface ConvexSyncContextType {
     stars: number,
     score: number,
     rewards: { diamonds: number; emeralds: number; xp: number },
-    sessionStats?: { accuracy: number; questionsAnswered: number }
+    sessionStats?: { accuracy: number; questionsAnswered: number; difficultyMultiplier?: number }
   ) => Promise<unknown[] | undefined>;
   purchaseItemSync: (
     itemId: string,
@@ -240,7 +240,7 @@ export function ConvexSyncProvider({ children }: { children: ReactNode }) {
     stars: number,
     score: number,
     rewards: { diamonds: number; emeralds: number; xp: number },
-    sessionStats?: { accuracy: number; questionsAnswered: number }
+    sessionStats?: { accuracy: number; questionsAnswered: number; difficultyMultiplier?: number }
   ) => {
     if (!playerId) return;
 
@@ -265,7 +265,10 @@ export function ConvexSyncProvider({ children }: { children: ReactNode }) {
     if (sessionStats && sessionStats.questionsAnswered > 0) {
       try {
         // Raw score calculation: correct answers * 100 + bonus for stars
-        const rawScoreToAdd = score * 100 + stars * 50;
+        // Apply difficulty multiplier from AI analysis (harder homework = more points)
+        const difficultyMultiplier = sessionStats.difficultyMultiplier || 1.0;
+        const baseScore = score * 100 + stars * 50;
+        const rawScoreToAdd = Math.round(baseScore * difficultyMultiplier);
         await updateNormalizedScoreMutation({
           playerId,
           rawScoreToAdd,

@@ -732,6 +732,13 @@ export default function Home() {
           hint: q.hint,
           pageRef: q.pageRef,
         })),
+        // Pass AI-analyzed difficulty for fair scoring
+        difficulty: result.difficulty ? {
+          gradeLevel: result.difficulty.gradeLevel,
+          multiplier: result.difficulty.multiplier,
+          topics: result.difficulty.topics,
+          analyzedByAI: true,
+        } : undefined,
       });
       setCurrentHomeworkSessionId(sessionId || null);
     } catch (error) {
@@ -940,9 +947,12 @@ export default function Home() {
         // Calculate session stats for normalized scoring
         const totalQuestions = aiGameData.questions.length;
         const accuracy = totalQuestions > 0 ? Math.round((newProgress.correct / totalQuestions) * 100) : 0;
+        // Include difficulty multiplier from AI analysis (default 1.0 if not available)
+        const difficultyMultiplier = aiGameData.difficulty?.multiplier || 1.0;
         const sessionStats = {
           accuracy,
           questionsAnswered: totalQuestions,
+          difficultyMultiplier,
         };
 
         // Complete level via Convex and check for achievements

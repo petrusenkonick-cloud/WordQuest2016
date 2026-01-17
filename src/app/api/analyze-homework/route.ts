@@ -124,6 +124,25 @@ Return this JSON structure:
 7. For math problems, show the answer AND brief solution steps in explanation
 8. Explanations should help the child UNDERSTAND, not just copy
 
+## DIFFICULTY ANALYSIS (REQUIRED):
+
+You MUST include a "difficulty" object in your response:
+{
+  "difficulty": {
+    "gradeLevel": 5,           // Estimated grade level 1-11 based on content complexity
+    "multiplier": 1.3,         // Score multiplier: Grade 1-2 = 1.0, Grade 3-4 = 1.2, Grade 5-6 = 1.4, Grade 7-8 = 1.6, Grade 9-11 = 1.8-2.0
+    "topics": ["fractions", "word problems"],  // Main topics detected
+    "complexity": "medium"     // "easy", "medium", "hard" based on cognitive demands
+  }
+}
+
+Difficulty multiplier rules:
+- Grade 1-2: multiplier = 1.0
+- Grade 3-4: multiplier = 1.2
+- Grade 5-6: multiplier = 1.4
+- Grade 7-8: multiplier = 1.6
+- Grade 9-11: multiplier = 1.8-2.0
+
 PURPOSE: Child solves homework here → learns the answers → writes them on paper
 
 Return ONLY the JSON, no markdown, no extra text.`;

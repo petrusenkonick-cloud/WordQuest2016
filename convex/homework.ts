@@ -24,6 +24,13 @@ export const createHomeworkSession = mutation({
         pageRef: v.optional(v.number()),
       })
     ),
+    // AI-analyzed difficulty for fair scoring
+    difficulty: v.optional(v.object({
+      gradeLevel: v.number(),
+      multiplier: v.number(),
+      topics: v.array(v.string()),
+      analyzedByAI: v.boolean(),
+    })),
   },
   handler: async (ctx, args) => {
     // Check for existing active session with same content (deduplication)
@@ -84,6 +91,8 @@ export const createHomeworkSession = mutation({
       questions: args.questions,
       status: "active",
       createdAt: new Date().toISOString(),
+      // Save AI-analyzed difficulty for scoring
+      difficulty: args.difficulty,
     });
 
     return sessionId;

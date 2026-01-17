@@ -22,7 +22,18 @@ export function HUD({ playerId, onProfileSettings }: HUDProps = {}) {
     playerId ? { playerId } : "skip"
   );
 
+  // Fetch player profile to get normalizedScore
+  const playerProfile = useQuery(
+    api.profile.getPlayerProfile,
+    playerId ? { playerId } : "skip"
+  );
+
   const totalGems = playerGems?.reduce((sum, g) => sum + g.wholeGems, 0) || 0;
+
+  // Use normalizedScore if available, otherwise fallback to simple formula
+  const displayScore = playerProfile?.normalizedScore && playerProfile.normalizedScore > 0
+    ? playerProfile.normalizedScore
+    : (player.totalStars || 0) * 100 + (player.xp || 0);
 
   return (
     <div className="hud">
@@ -55,7 +66,7 @@ export function HUD({ playerId, onProfileSettings }: HUDProps = {}) {
                 alignItems: "center",
                 gap: "3px",
               }}>
-                ⭐ {((player.totalStars || 0) * 100 + (player.xp || 0)).toLocaleString()}
+                ⭐ {displayScore.toLocaleString()}
               </span>
             </div>
           </div>
