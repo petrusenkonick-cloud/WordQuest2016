@@ -37,7 +37,8 @@ interface ConvexSyncContextType {
     levelId: string,
     stars: number,
     score: number,
-    rewards: { diamonds: number; emeralds: number; xp: number }
+    rewards: { diamonds: number; emeralds: number; xp: number },
+    sessionStats?: { accuracy: number; questionsAnswered: number }
   ) => Promise<unknown[] | undefined>;
   purchaseItemSync: (
     itemId: string,
@@ -110,6 +111,7 @@ export function ConvexSyncProvider({ children }: { children: ReactNode }) {
   const purchaseItemMutation = useMutation(api.shop.purchaseItem);
   const equipItemMutation = useMutation(api.shop.equipItem);
   const checkAchievementsMutation = useMutation(api.achievements.checkAchievements);
+  const updateNormalizedScoreMutation = useMutation(api.profile.updateNormalizedScore);
 
   // Additional queries
   const levelProgressQuery = useQuery(
@@ -237,7 +239,8 @@ export function ConvexSyncProvider({ children }: { children: ReactNode }) {
     levelId: string,
     stars: number,
     score: number,
-    rewards: { diamonds: number; emeralds: number; xp: number }
+    rewards: { diamonds: number; emeralds: number; xp: number },
+    sessionStats?: { accuracy: number; questionsAnswered: number }
   ) => {
     if (!playerId) return;
 
@@ -257,6 +260,22 @@ export function ConvexSyncProvider({ children }: { children: ReactNode }) {
     await addCurrencyMutation({ playerId, currency: "emeralds", amount: rewards.emeralds });
     await updateQuestsCompletedMutation({ playerId });
     await updateTotalStarsMutation({ playerId, stars });
+
+    // Update normalized score for leaderboard (if session stats provided)
+    if (sessionStats && sessionStats.questionsAnswered > 0) {
+      try {
+        // Raw score calculation: correct answers * 100 + bonus for stars
+        const rawScoreToAdd = score * 100 + stars * 50;
+        await updateNormalizedScoreMutation({
+          playerId,
+          rawScoreToAdd,
+          accuracy: sessionStats.accuracy,
+          questionsAnswered: sessionStats.questionsAnswered,
+        });
+      } catch (err) {
+        console.error("Failed to update normalized score:", err);
+      }
+    }
 
     // Check achievements
     return await checkAchievementsMutation({ playerId });

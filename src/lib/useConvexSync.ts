@@ -39,6 +39,7 @@ export function useConvexSync() {
   const updateQuestsCompleted = useMutation(api.players.updateQuestsCompleted);
   const updateWordsLearned = useMutation(api.players.updateWordsLearned);
   const updateTotalStars = useMutation(api.players.updateTotalStars);
+  const updateNormalizedScore = useMutation(api.profile.updateNormalizedScore);
 
   // Level mutations
   const completeLevel = useMutation(api.levels.completeLevel);
@@ -187,7 +188,13 @@ export function useConvexSync() {
 
   // Complete level with Convex sync
   const completeLevelSync = useCallback(
-    async (levelId: string, stars: number, score: number, rewards: { diamonds: number; emeralds: number; xp: number }) => {
+    async (
+      levelId: string,
+      stars: number,
+      score: number,
+      rewards: { diamonds: number; emeralds: number; xp: number },
+      sessionStats?: { accuracy: number; questionsAnswered: number }
+    ) => {
       if (!playerIdRef.current) return;
 
       // Optimistic update
@@ -219,6 +226,22 @@ export function useConvexSync() {
       await updateQuestsCompleted({ playerId: playerIdRef.current });
       await updateTotalStars({ playerId: playerIdRef.current, stars });
 
+      // Update normalized score for leaderboard (if session stats provided)
+      if (sessionStats && sessionStats.questionsAnswered > 0) {
+        try {
+          // Raw score calculation: correct answers * 100 + bonus for stars
+          const rawScoreToAdd = score * 100 + stars * 50;
+          await updateNormalizedScore({
+            playerId: playerIdRef.current,
+            rawScoreToAdd,
+            accuracy: sessionStats.accuracy,
+            questionsAnswered: sessionStats.questionsAnswered,
+          });
+        } catch (err) {
+          console.error("Failed to update normalized score:", err);
+        }
+      }
+
       // Check achievements
       const newAchievements = await checkAchievements({ playerId: playerIdRef.current });
       return newAchievements;
@@ -231,6 +254,7 @@ export function useConvexSync() {
       addCurrency,
       updateQuestsCompleted,
       updateTotalStars,
+      updateNormalizedScore,
       checkAchievements,
     ]
   );

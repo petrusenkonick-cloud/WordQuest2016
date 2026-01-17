@@ -937,8 +937,16 @@ export default function Home() {
           xp: 100 + newProgress.correct * 20,
         };
 
+        // Calculate session stats for normalized scoring
+        const totalQuestions = aiGameData.questions.length;
+        const accuracy = totalQuestions > 0 ? Math.round((newProgress.correct / totalQuestions) * 100) : 0;
+        const sessionStats = {
+          accuracy,
+          questionsAnswered: totalQuestions,
+        };
+
         // Complete level via Convex and check for achievements
-        const newAchievements = await completeLevelSync("ai-game", stars, newProgress.correct, rewards);
+        const newAchievements = await completeLevelSync("ai-game", stars, newProgress.correct, rewards, sessionStats);
 
         // Mark homework session as completed and save answers
         if (currentHomeworkSessionId) {
