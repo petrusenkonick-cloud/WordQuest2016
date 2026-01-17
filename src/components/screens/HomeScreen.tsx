@@ -8,6 +8,28 @@ import { Id } from "../../../convex/_generated/dataModel";
 import { useEffect } from "react";
 import { AudioControls } from "../ui/AudioControls";
 
+// Skin emoji mapping for legacy text values
+const SKIN_EMOJI_MAP: Record<string, string> = {
+  boy: "👦",
+  girl: "👧",
+  steve: "🧑",
+  alex: "👧",
+  knight: "🦸",
+  wizard: "🧙",
+  ninja: "🥷",
+  robot: "🤖",
+  elf: "🧝",
+  prince: "🤴",
+};
+
+const getSkinEmoji = (skin: string | undefined): string => {
+  if (!skin) return "🧙";
+  // If it's already an emoji (starts with emoji-like character), return as is
+  if (skin.length <= 2 && !/^[a-zA-Z]/.test(skin)) return skin;
+  // Otherwise, look up in mapping
+  return SKIN_EMOJI_MAP[skin.toLowerCase()] || "🧙";
+};
+
 // Level data
 const LEVELS = [
   {
@@ -92,6 +114,7 @@ interface HomeScreenProps {
   onInventory?: () => void;
   onAchievements?: () => void;
   onGemHub?: () => void;
+  onProfileSettings?: () => void;
 }
 
 export function HomeScreen({
@@ -112,6 +135,7 @@ export function HomeScreen({
   onInventory,
   onAchievements,
   onGemHub,
+  onProfileSettings,
 }: HomeScreenProps) {
   const player = useAppStore((state) => state.player);
   const showDailyReward = useAppStore((state) => state.showDailyRewardModal);
@@ -181,24 +205,43 @@ export function HomeScreen({
         padding: "10px 0",
         marginBottom: "10px",
       }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+        <div
+          onClick={onProfileSettings}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "14px",
+            cursor: "pointer",
+            padding: "12px 16px",
+            borderRadius: "14px",
+            background: "linear-gradient(135deg, rgba(99, 102, 241, 0.4) 0%, rgba(139, 92, 246, 0.5) 100%)",
+            border: "2px solid rgba(165, 180, 252, 0.5)",
+            transition: "all 0.2s ease",
+            boxShadow: "0 4px 15px rgba(99, 102, 241, 0.3)",
+          }}
+        >
           <div style={{
-            width: "45px",
-            height: "45px",
+            width: "56px",
+            height: "56px",
             borderRadius: "50%",
-            background: "linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%)",
+            background: "linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            fontSize: "1.5em",
-            border: "2px solid #a5b4fc",
+            fontSize: "2em",
+            border: "3px solid #c4b5fd",
+            boxShadow: "0 4px 12px rgba(139, 92, 246, 0.5), inset 0 2px 4px rgba(255,255,255,0.2)",
           }}>
-            🧙
+            {getSkinEmoji(player.skin)}
           </div>
           <div>
-            <div style={{ fontWeight: "bold", color: "white" }}>{player.name}</div>
-            <div style={{ fontSize: "0.8em", color: "#a5b4fc" }}>
+            <div style={{ fontWeight: "bold", color: "white", fontSize: "1.15em" }}>{player.name}</div>
+            <div style={{ fontSize: "1em", color: "white", marginTop: "3px", opacity: 0.9 }}>
               {wizardProfile?.wizardTitle || "Apprentice"} • Lvl {wizardProfile?.academyLevel || 1}
+            </div>
+            <div style={{ fontSize: "0.8em", color: "rgba(255,255,255,0.7)", marginTop: "5px", display: "flex", alignItems: "center", gap: "4px" }}>
+              <span>⚙️</span>
+              <span>Profile Settings</span>
             </div>
           </div>
         </div>
@@ -385,90 +428,6 @@ export function HomeScreen({
               Top Wizards
             </div>
           </div>
-        </div>
-      </div>
-
-      {/* Shop, Inventory, Achievements, GemHub Row */}
-      <div style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(4, 1fr)",
-        gap: "8px",
-        marginBottom: "15px",
-      }}>
-        {/* Shop */}
-        <div
-          onClick={onShop}
-          style={{
-            background: "linear-gradient(135deg, rgba(236, 72, 153, 0.3) 0%, rgba(30, 27, 75, 0.4) 100%)",
-            borderRadius: "10px",
-            padding: "12px 8px",
-            cursor: "pointer",
-            border: "1px solid #ec489980",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            gap: "4px",
-          }}
-        >
-          <span style={{ fontSize: "1.6em" }}>🛒</span>
-          <div style={{ fontSize: "0.7em", fontWeight: "bold" }}>SHOP</div>
-        </div>
-
-        {/* Inventory */}
-        <div
-          onClick={onInventory}
-          style={{
-            background: "linear-gradient(135deg, rgba(34, 197, 94, 0.3) 0%, rgba(30, 27, 75, 0.4) 100%)",
-            borderRadius: "10px",
-            padding: "12px 8px",
-            cursor: "pointer",
-            border: "1px solid #22c55e80",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            gap: "4px",
-          }}
-        >
-          <span style={{ fontSize: "1.6em" }}>🎒</span>
-          <div style={{ fontSize: "0.7em", fontWeight: "bold" }}>ITEMS</div>
-        </div>
-
-        {/* Achievements */}
-        <div
-          onClick={onAchievements}
-          style={{
-            background: "linear-gradient(135deg, rgba(251, 191, 36, 0.3) 0%, rgba(30, 27, 75, 0.4) 100%)",
-            borderRadius: "10px",
-            padding: "12px 8px",
-            cursor: "pointer",
-            border: "1px solid #fbbf2480",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            gap: "4px",
-          }}
-        >
-          <span style={{ fontSize: "1.6em" }}>🎖️</span>
-          <div style={{ fontSize: "0.7em", fontWeight: "bold" }}>BADGES</div>
-        </div>
-
-        {/* Gem Hub */}
-        <div
-          onClick={onGemHub}
-          style={{
-            background: "linear-gradient(135deg, rgba(6, 182, 212, 0.3) 0%, rgba(30, 27, 75, 0.4) 100%)",
-            borderRadius: "10px",
-            padding: "12px 8px",
-            cursor: "pointer",
-            border: "1px solid #06b6d480",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            gap: "4px",
-          }}
-        >
-          <span style={{ fontSize: "1.6em" }}>💎</span>
-          <div style={{ fontSize: "0.7em", fontWeight: "bold" }}>GEMS</div>
         </div>
       </div>
 

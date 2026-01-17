@@ -118,10 +118,10 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     };
 
     const sizeStyles = {
-      sm: "text-[8px] px-3 py-2 min-h-[32px] border-2",
-      md: "text-[10px] px-5 py-3 min-h-[44px] border-3",
-      lg: "text-[12px] px-7 py-4 min-h-[56px] border-4",
-      xl: "text-[14px] px-10 py-5 min-h-[68px] border-4",
+      sm: "text-[12px] px-3 py-2 min-h-[36px] border-2",
+      md: "text-[14px] px-5 py-3 min-h-[48px] border-3",
+      lg: "text-[16px] px-7 py-4 min-h-[58px] border-4",
+      xl: "text-[18px] px-10 py-5 min-h-[72px] border-4",
     };
 
     const glowStyles = glow ? `

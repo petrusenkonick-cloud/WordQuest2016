@@ -5,15 +5,15 @@ import { SignInButton, SignUpButton, useAuth } from "@clerk/nextjs";
 import { useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 
-const SKINS = ["🧑", "👦", "🧒", "🦸", "🧙", "🥷"];
+const SKINS = ["🧑", "👦", "👧", "🦸", "🧙", "🥷", "🧝", "🤴"];
 
 // Age groups with fun animal mascots
 const AGE_GROUPS = [
-  { id: "5-6", label: "5-6 лет", sublabel: "1 класс", emoji: "🐣", color: "#FFE066" },
-  { id: "7-8", label: "7-8 лет", sublabel: "2-3 класс", emoji: "🐥", color: "#4ECDC4" },
-  { id: "9-10", label: "9-10 лет", sublabel: "4-5 класс", emoji: "🦊", color: "#FF6B6B" },
-  { id: "11-12", label: "11-12 лет", sublabel: "6-7 класс", emoji: "🦁", color: "#45B7D1" },
-  { id: "13+", label: "13+ лет", sublabel: "8+ класс", emoji: "🐺", color: "#96CEB4" },
+  { id: "5-6", label: "5-6 years", sublabel: "Grade 1", emoji: "🐣", color: "#FFE066" },
+  { id: "7-8", label: "7-8 years", sublabel: "Grade 2-3", emoji: "🐥", color: "#4ECDC4" },
+  { id: "9-10", label: "9-10 years", sublabel: "Grade 4-5", emoji: "🦊", color: "#FF6B6B" },
+  { id: "11-12", label: "11-12 years", sublabel: "Grade 6-7", emoji: "🦁", color: "#45B7D1" },
+  { id: "13+", label: "13+ years", sublabel: "Grade 8+", emoji: "🐺", color: "#96CEB4" },
 ];
 
 // Map to grade ranges for backend
@@ -154,10 +154,10 @@ export function LoginScreen({ onStart, defaultName = "" }: LoginScreenProps) {
         {mode === "age-select" && (
           <>
             <p style={{ color: "#4ECDC4", margin: "15px 0 10px", fontSize: "1.1em", fontWeight: "bold" }}>
-              Сколько тебе лет?
+              How old are you?
             </p>
             <p style={{ color: "#AAA", margin: "0 0 15px", fontSize: "0.9em" }}>
-              Мы подберём задания специально для тебя!
+              We&apos;ll customize quests just for you!
             </p>
 
             <div style={{
@@ -210,7 +210,7 @@ export function LoginScreen({ onStart, defaultName = "" }: LoginScreenProps) {
                 cursor: selectedAge ? "pointer" : "not-allowed",
               }}
             >
-              Далее →
+              Next →
             </button>
 
             {!isSignedIn && (
@@ -227,7 +227,7 @@ export function LoginScreen({ onStart, defaultName = "" }: LoginScreenProps) {
                   fontSize: "0.9em",
                 }}
               >
-                ← Назад
+                ← Back
               </button>
             )}
           </>
@@ -264,7 +264,7 @@ export function LoginScreen({ onStart, defaultName = "" }: LoginScreenProps) {
                     fontSize: "0.8em",
                   }}
                 >
-                  изменить
+                  change
                 </button>
               </div>
             )}
@@ -275,7 +275,7 @@ export function LoginScreen({ onStart, defaultName = "" }: LoginScreenProps) {
                 className="player-input"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="Твоё имя..."
+                placeholder="Your name..."
                 onKeyDown={(e) => e.key === "Enter" && canPlay && handleStart()}
                 maxLength={20}
                 style={{
@@ -320,7 +320,7 @@ export function LoginScreen({ onStart, defaultName = "" }: LoginScreenProps) {
             )}
 
             <p style={{ color: "#AAA", margin: "15px 0 10px", fontSize: "1.1em" }}>
-              Выбери персонажа:
+              Choose your character:
             </p>
 
             <div className="skin-select">
@@ -348,7 +348,7 @@ export function LoginScreen({ onStart, defaultName = "" }: LoginScreenProps) {
                 cursor: canPlay ? "pointer" : "not-allowed",
               }}
             >
-              ▶️ ИГРАТЬ
+              ▶️ PLAY
             </button>
 
             <button
@@ -364,7 +364,7 @@ export function LoginScreen({ onStart, defaultName = "" }: LoginScreenProps) {
                 fontSize: "0.9em",
               }}
             >
-              ← Назад
+              ← Back
             </button>
           </>
         )}

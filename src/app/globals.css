@@ -41,6 +41,7 @@
 
 /* Smooth scrolling */
 html {
+  font-size: 18px; /* Base font size for desktop - optimized for children's eyes */
   scroll-behavior: smooth;
   -webkit-text-size-adjust: 100%;
   -webkit-tap-highlight-color: transparent;
@@ -173,7 +174,7 @@ body {
 .player-avatar { width: 45px; height: 45px; background: var(--stone); border: 3px solid var(--obsidian); display: flex; align-items: center; justify-content: center; font-size: 1.6em; }
 .player-details h3 { font-family: 'Press Start 2P'; font-size: 0.6em; color: white; text-shadow: 2px 2px 0 #000; }
 .player-level { display: flex; align-items: center; gap: 6px; margin-top: 4px; }
-.level-badge { background: var(--gold); color: #000; padding: 2px 6px; font-family: 'Press Start 2P'; font-size: 0.4em; }
+.level-badge { background: var(--gold); color: #000; padding: 2px 6px; font-family: 'Press Start 2P'; font-size: 0.6em; }
 .xp-bar-mini { width: 90px; height: 7px; background: var(--border-darker); border: 2px solid var(--border-dark); }
 .xp-bar-mini-fill { height: 100%; background: var(--emerald); transition: width 0.5s; }
 .currencies { display: flex; gap: 10px; flex-wrap: wrap; }
@@ -182,7 +183,7 @@ body {
 .currency-item.emeralds { border-color: var(--emerald); }
 .currency-item.gold { border-color: var(--gold); }
 .currency-item .icon { font-size: 1.1em; }
-.currency-item .amount { font-family: 'Press Start 2P'; font-size: 0.5em; color: white; text-shadow: 2px 2px 0 #000; }
+.currency-item .amount { font-family: 'Press Start 2P'; font-size: 0.7em; color: white; text-shadow: 2px 2px 0 #000; }
 
 /* MAIN */
 .main-container { position: relative; z-index: 10; max-width: 900px; margin: 0 auto; padding: 90px 15px 75px; }
@@ -248,7 +249,7 @@ body {
 .level-progress { margin-top: 10px; display: flex; align-items: center; gap: 8px; }
 .level-progress-bar { flex: 1; height: 9px; background: var(--border-darker); border: 2px solid var(--border-dark); }
 .level-progress-fill { height: 100%; background: var(--diamond); transition: width 0.5s; }
-.level-progress-text { font-family: 'Press Start 2P'; font-size: 0.4em; color: white; }
+.level-progress-text { font-family: 'Press Start 2P'; font-size: 0.6em; color: white; }
 .lock-overlay { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 2.2em; }
 
 /* SHOP */
@@ -256,7 +257,7 @@ body {
 .shop-tab {
   background: linear-gradient(180deg, var(--stone), var(--stone-dark));
   border: 4px solid var(--obsidian); padding: 8px 16px;
-  font-family: 'Press Start 2P'; font-size: 0.45em; color: white; cursor: pointer;
+  font-family: 'Press Start 2P'; font-size: 0.65em; color: white; cursor: pointer;
   transition: all 0.2s;
 }
 .shop-tab:hover, .shop-tab.active { background: linear-gradient(180deg, var(--gold), var(--gold-dark)); color: #000; }
@@ -269,8 +270,8 @@ body {
 .shop-item:hover { transform: translateY(-4px); border-color: var(--gold); }
 .shop-item.owned { border-color: var(--emerald); }
 .shop-item-icon { font-size: 2.2em; margin-bottom: 8px; }
-.shop-item-name { font-family: 'Press Start 2P'; font-size: 0.45em; color: white; margin-bottom: 6px; }
-.shop-item-price { display: flex; align-items: center; justify-content: center; gap: 4px; font-family: 'Press Start 2P'; font-size: 0.5em; color: var(--gold); }
+.shop-item-name { font-family: 'Press Start 2P'; font-size: 0.65em; color: white; margin-bottom: 6px; }
+.shop-item-price { display: flex; align-items: center; justify-content: center; gap: 4px; font-family: 'Press Start 2P'; font-size: 0.7em; color: var(--gold); }
 
 /* INVENTORY */
 .inventory-grid { display: grid; grid-template-columns: repeat(9, 1fr); gap: 4px; background: var(--border-darker); padding: 8px; border: 5px solid var(--border-dark); }
@@ -291,9 +292,9 @@ body {
 .achievement-card.locked { filter: grayscale(1); opacity: 0.6; }
 .achievement-card.unlocked { border-color: var(--gold); }
 .achievement-icon { font-size: 2.2em; width: 60px; text-align: center; }
-.achievement-info h3 { font-family: 'Press Start 2P'; font-size: 0.55em; color: var(--gold); text-shadow: 2px 2px 0 #000; margin-bottom: 4px; }
+.achievement-info h3 { font-family: 'Press Start 2P'; font-size: 0.7em; color: var(--gold); text-shadow: 2px 2px 0 #000; margin-bottom: 4px; }
 .achievement-info p { color: #AAA; font-size: 0.95em; }
-.achievement-reward { margin-left: auto; text-align: right; font-family: 'Press Start 2P'; font-size: 0.5em; color: var(--emerald); }
+.achievement-reward { margin-left: auto; text-align: right; font-family: 'Press Start 2P'; font-size: 0.7em; color: var(--emerald); }
 
 /* GAME AREA */
 .game-area {
@@ -306,10 +307,10 @@ body {
 .game-title { font-family: 'Press Start 2P'; font-size: 0.8em; color: white; text-shadow: 2px 2px 0 #000; }
 .xp-progress { background: var(--border-darker); border: 4px solid #000; height: 22px; margin-bottom: 18px; position: relative; }
 .xp-progress-bar { height: 100%; background: linear-gradient(180deg, #8F8, #5D5 50%, #3B3); transition: width 0.5s; }
-.xp-progress-text { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); font-family: 'Press Start 2P'; font-size: 0.4em; color: white; text-shadow: 1px 1px 0 #000; }
+.xp-progress-text { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); font-family: 'Press Start 2P'; font-size: 0.6em; color: white; text-shadow: 1px 1px 0 #000; }
 .question-card { background: linear-gradient(180deg, #D4A574, #C49A6C); border: 5px solid var(--wood-plank); padding: 20px; margin-bottom: 15px; }
 .question-header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-.question-number { font-family: 'Press Start 2P'; font-size: 0.5em; color: var(--dirt-dark); }
+.question-number { font-family: 'Press Start 2P'; font-size: 0.7em; color: var(--dirt-dark); }
 .question-text { font-size: 1.4em; color: #2D1810; line-height: 1.5; }
 .question-hint { display: flex; align-items: flex-start; gap: 8px; margin-top: 12px; padding: 10px; background: rgba(255,255,255,0.3); border-left: 4px solid var(--gold); }
 .question-hint .hint-icon { font-size: 1.2em; }
@@ -349,7 +350,7 @@ body {
 .answer-input { width: 100%; padding: 12px 15px; font-size: 1.25em; font-family: 'VT323'; background: linear-gradient(180deg, #4A4A4A, #2D2D2D); border: 4px solid var(--border-darker); color: white; margin-bottom: 12px; outline: none; }
 .answer-input:focus { border-color: var(--diamond); box-shadow: 0 0 12px var(--diamond); }
 .word-bank { background: linear-gradient(180deg, var(--dirt), var(--dirt-dark)); border: 5px solid #3D2A0F; padding: 15px; margin: 12px 0; display: flex; flex-wrap: wrap; gap: 8px; }
-.word-bank-title { width: 100%; font-family: 'Press Start 2P'; font-size: 0.5em; color: var(--gold); margin-bottom: 8px; text-shadow: 2px 2px 0 #000; }
+.word-bank-title { width: 100%; font-family: 'Press Start 2P'; font-size: 0.7em; color: var(--gold); margin-bottom: 8px; text-shadow: 2px 2px 0 #000; }
 .word-chip { background: linear-gradient(180deg, #8B8B8B, #5A5A5A); border: 3px solid var(--border-dark); padding: 8px 14px; font-family: 'VT323'; font-size: 1.1em; color: white; cursor: pointer; transition: all 0.1s; }
 .word-chip:hover { background: linear-gradient(180deg, var(--diamond), #2AC); transform: scale(1.05); }
 .options-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin: 15px 0; }
@@ -365,10 +366,10 @@ body {
 .feedback p { color: #EEE; font-size: 1.1em; }
 .hint-box { background: linear-gradient(135deg, rgba(75,0,130,0.9), rgba(30,0,60,0.9)); border: 4px solid #4B0082; padding: 15px; margin: 12px 0; display: none; box-shadow: 0 0 18px rgba(75,0,130,0.5); }
 .hint-box.show { display: block; animation: pop 0.3s ease-out; }
-.hint-box h4 { font-family: 'Press Start 2P'; font-size: 0.55em; color: #DDA0DD; margin-bottom: 8px; }
+.hint-box h4 { font-family: 'Press Start 2P'; font-size: 0.7em; color: #DDA0DD; margin-bottom: 8px; }
 .hint-box p { color: #E6E6FA; font-size: 1.1em; }
 .learning-box { background: linear-gradient(180deg, #2E5A1C, #1E3A12); border: 4px solid #0F2008; padding: 15px; margin: 12px 0; }
-.learning-box h4 { font-family: 'Press Start 2P'; font-size: 0.5em; color: var(--emerald); margin-bottom: 8px; }
+.learning-box h4 { font-family: 'Press Start 2P'; font-size: 0.7em; color: var(--emerald); margin-bottom: 8px; }
 .learning-box p { color: #CFC; font-size: 1.1em; }
 
 /* BUTTONS */
@@ -399,7 +400,7 @@ body {
 .nav-btn { background: linear-gradient(180deg, #5A5A5A, #3D3D3D); border: 3px solid #2D2D2D; padding: 6px 15px; cursor: pointer; transition: all 0.2s; display: flex; flex-direction: column; align-items: center; gap: 3px; }
 .nav-btn:hover, .nav-btn.active { background: linear-gradient(180deg, var(--gold), var(--gold-dark)); border-color: #8B7000; }
 .nav-btn .icon { font-size: 1.2em; }
-.nav-btn .label { font-family: 'Press Start 2P'; font-size: 0.3em; color: white; }
+.nav-btn .label { font-family: 'Press Start 2P'; font-size: 0.55em; color: white; }
 
 /* MODALS */
 .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 5000; display: none; align-items: center; justify-content: center; }
@@ -414,7 +415,7 @@ body {
 .daily-day { background: #2D2D2D; border: 3px solid var(--border-darker); padding: 6px 3px; text-align: center; }
 .daily-day.claimed { background: var(--emerald); border-color: #085; }
 .daily-day.current { border-color: var(--gold); animation: pulse 1s ease-in-out infinite; }
-.daily-day .day-num { font-family: 'Press Start 2P'; font-size: 0.35em; color: #888; }
+.daily-day .day-num { font-family: 'Press Start 2P'; font-size: 0.5em; color: #888; }
 .daily-day .day-reward { font-size: 1.2em; margin-top: 3px; }
 .level-complete-stars { display: flex; justify-content: center; gap: 10px; margin: 15px 0; }
 .star { font-size: 2.2em; opacity: 0.3; transition: all 0.5s; }
@@ -576,7 +577,7 @@ body {
 
 /* Mobile Large (480px - 768px) */
 @media (max-width: 768px) {
-  html { font-size: 15px; }
+  html { font-size: 17px; }
   .main-container { padding: 85px 12px 70px; }
   .hud { padding: 10px 12px; }
   .hud-top { flex-direction: row; flex-wrap: wrap; gap: 10px; }
@@ -590,11 +591,11 @@ body {
   .level-card h3 { font-size: 0.55em; }
   .shop-grid { grid-template-columns: repeat(2, 1fr); }
   .shop-tabs { gap: 5px; }
-  .shop-tab { padding: 8px 12px; font-size: 0.4em; }
+  .shop-tab { padding: 8px 12px; font-size: 0.55em; }
   .inventory-grid { grid-template-columns: repeat(5, 1fr); }
   .bottom-nav { padding: 8px 10px; }
   .nav-btn { padding: 8px 12px; }
-  .nav-btn .label { font-size: 0.35em; }
+  .nav-btn .label { font-size: 0.55em; }
   .scan-homework-btn { padding: 15px; margin: 15px 0; }
   .scan-homework-btn h3 { font-size: 0.9em; }
   .scan-homework-btn p { font-size: 0.9em; }
@@ -607,7 +608,7 @@ body {
 
 /* Mobile Small (<480px) */
 @media (max-width: 480px) {
-  html { font-size: 14px; }
+  html { font-size: 16px; }
   .main-container { padding: 80px 10px 65px; }
   .hud-top { justify-content: space-between; }
   .player-avatar { width: 40px; height: 40px; font-size: 1.3em; }
@@ -637,7 +638,7 @@ body {
 
 /* Extra Small (<360px) - very small phones */
 @media (max-width: 360px) {
-  html { font-size: 13px; }
+  html { font-size: 15px; }
   .hud { padding: 8px; }
   .player-details { display: none; }
   .currencies { gap: 5px; }
@@ -654,7 +655,7 @@ body {
   .player-avatar { width: 32px; height: 32px; font-size: 1em; }
   .player-details { display: none; }
   .currency-item { padding: 4px 8px; }
-  .currency-item .amount { font-size: 0.45em; }
+  .currency-item .amount { font-size: 0.6em; }
 
   .main-container { padding: 55px 15px 55px; }
   .stats-grid { grid-template-columns: repeat(4, 1fr); gap: 6px; }
@@ -665,11 +666,11 @@ body {
 
   .level-grid { grid-template-columns: repeat(3, 1fr); gap: 10px; }
   .level-card { padding: 10px; }
-  .level-card h3 { font-size: 0.5em; }
+  .level-card h3 { font-size: 0.55em; }
   .level-icon { font-size: 1.5em; }
 
   .daily-banner { padding: 10px; }
-  .daily-banner h3 { font-size: 0.5em; }
+  .daily-banner h3 { font-size: 0.55em; }
   .daily-icon { font-size: 1.5em; }
 
   .scan-homework-btn { padding: 10px; margin: 10px 0; }
@@ -679,7 +680,7 @@ body {
   .bottom-nav { padding: 4px 10px; }
   .nav-btn { padding: 4px 12px; }
   .nav-btn .icon { font-size: 1em; }
-  .nav-btn .label { font-size: 0.25em; }
+  .nav-btn .label { font-size: 0.55em; }
 
   .shop-grid { grid-template-columns: repeat(4, 1fr); gap: 8px; }
   .shop-item { padding: 8px; }
@@ -1042,7 +1043,7 @@ body {
 
 .question-label {
   font-family: 'Press Start 2P', monospace;
-  font-size: 0.4em;
+  font-size: 0.6em;
   color: var(--diamond);
   margin-bottom: 6px;
 }
@@ -1081,7 +1082,7 @@ body {
 
 .answer-label {
   font-family: 'Press Start 2P', monospace;
-  font-size: 0.35em;
+  font-size: 0.55em;
   color: rgba(255,255,255,0.7);
   margin-bottom: 6px;
 }
@@ -1119,7 +1120,7 @@ body {
   align-items: center;
   gap: 8px;
   font-family: 'Press Start 2P', monospace;
-  font-size: 0.5em;
+  font-size: 0.7em;
   color: var(--emerald);
   margin-bottom: 10px;
 }
@@ -1148,7 +1149,7 @@ body {
 
 .hint-label {
   font-family: 'Press Start 2P', monospace;
-  font-size: 0.4em;
+  font-size: 0.6em;
   color: #DDA0DD;
 }
 

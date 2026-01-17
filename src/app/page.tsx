@@ -556,6 +556,10 @@ export default function Home() {
     setScreen("gem-hub");
   }, [setScreen]);
 
+  const handleOpenProfileSettings = useCallback(() => {
+    setScreen("profile-settings");
+  }, [setScreen]);
+
   // Play a saved homework session from WEEKLY QUESTS
   const handlePlayHomework = useCallback((homework: {
     _id: Id<"homeworkSessions">;
@@ -1282,6 +1286,7 @@ export default function Home() {
             onInventory={handleOpenInventory}
             onAchievements={handleOpenAchievements}
             onGemHub={handleOpenGemHub}
+            onProfileSettings={handleOpenProfileSettings}
           />
         );
       case "shop":
@@ -1337,6 +1342,14 @@ export default function Home() {
           />
         );
       case "profile-setup":
+        return (
+          <ProfileSetupScreen
+            playerId={playerId}
+            onComplete={() => setScreen("home")}
+            onSkip={() => setScreen("home")}
+          />
+        );
+      case "profile-settings":
         return (
           <ProfileSetupScreen
             playerId={playerId}
