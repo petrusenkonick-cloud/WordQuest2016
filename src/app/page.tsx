@@ -1485,14 +1485,14 @@ export default function Home() {
                   fontWeight: "bold",
                   fontSize: "1em",
                 }}>
-                  Мы видим, что ты переключал вкладки!
+                  We noticed you switched tabs!
                 </p>
                 <p style={{
                   margin: "4px 0 0 0",
                   color: "#fecaca",
                   fontSize: "0.85em",
                 }}>
-                  Попробуй решить сам — так ты научишься лучше! 💪
+                  Try solving it yourself — you'll learn better! 💪
                 </p>
               </div>
               <span style={{ fontSize: "1.2em", marginLeft: "auto" }}>
