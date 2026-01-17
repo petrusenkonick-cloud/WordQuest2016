@@ -24,6 +24,7 @@ import { ParentSettingsScreen } from "@/components/screens/ParentSettingsScreen"
 import { QuestMapScreen } from "@/components/screens/QuestMapScreen";
 import { SpellBookScreen } from "@/components/screens/SpellBookScreen";
 import { ProfileSetupScreen } from "@/components/screens/ProfileSetupScreen";
+import { ProfileSettingsScreen } from "@/components/screens/ProfileSettingsScreen";
 import { GeneralDashboardScreen } from "@/components/screens/GeneralDashboardScreen";
 import { LeaderboardScreen } from "@/components/screens/LeaderboardScreen";
 import { GemHubScreen } from "@/components/screens/GemHubScreen";
@@ -1351,10 +1352,9 @@ export default function Home() {
         );
       case "profile-settings":
         return (
-          <ProfileSetupScreen
+          <ProfileSettingsScreen
             playerId={playerId}
-            onComplete={() => setScreen("home")}
-            onSkip={() => setScreen("home")}
+            onBack={() => setScreen("home")}
           />
         );
       case "dashboard":

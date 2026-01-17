@@ -10,6 +10,31 @@ interface LeaderboardPodiumProps {
   onViewFull?: () => void;
 }
 
+// Skin emoji mapping for legacy text values
+const SKIN_EMOJI_MAP: Record<string, string> = {
+  boy: "👦",
+  girl: "👧",
+  steve: "🧑",
+  alex: "👧",
+  knight: "🦸",
+  wizard: "🧙",
+  ninja: "🥷",
+  robot: "🤖",
+  elf: "🧝",
+  prince: "🤴",
+  princess: "👸",
+  warrior: "⚔️",
+  mage: "🔮",
+};
+
+const getSkinEmoji = (skin: string | undefined): string => {
+  if (!skin) return "🧙";
+  // If it's already an emoji (starts with emoji-like character), return as is
+  if (skin.length <= 2 && !/^[a-zA-Z]/.test(skin)) return skin;
+  // Otherwise, look up in mapping
+  return SKIN_EMOJI_MAP[skin.toLowerCase()] || "🧙";
+};
+
 // Crown SVG components with animations
 const GoldCrown = () => (
   <motion.svg
@@ -143,9 +168,9 @@ export function LeaderboardPodium({ playerId, onViewFull }: LeaderboardPodiumPro
 
   // Placeholder data for demo when no real players
   const demoPlayers = [
-    { displayName: "WordMaster", normalizedScore: 2500, streak: 15, rank: 1 },
-    { displayName: "SpellKing", normalizedScore: 2100, streak: 12, rank: 2 },
-    { displayName: "QuestHero", normalizedScore: 1800, streak: 8, rank: 3 },
+    { displayName: "WordMaster", skin: "🧙", normalizedScore: 2500, streak: 15, rank: 1 },
+    { displayName: "SpellKing", skin: "🦸", normalizedScore: 2100, streak: 12, rank: 2 },
+    { displayName: "QuestHero", skin: "🥷", normalizedScore: 1800, streak: 8, rank: 3 },
   ];
 
   const displayPlayers = hasPlayers ? topPlayers : demoPlayers;
@@ -314,7 +339,7 @@ export function LeaderboardPodium({ playerId, onViewFull }: LeaderboardPodiumPro
                   zIndex: 2,
                 }}
               >
-                {/* Player emoji */}
+                {/* Player avatar/skin */}
                 <motion.div
                   animate={isFirst ? {
                     y: [0, -3, 0],
@@ -329,7 +354,7 @@ export function LeaderboardPodium({ playerId, onViewFull }: LeaderboardPodiumPro
                     marginBottom: "4px",
                   }}
                 >
-                  {isFirst ? "🧙‍♂️" : isSecond ? "🧝" : "🥷"}
+                  {getSkinEmoji((player as { skin?: string })?.skin)}
                 </motion.div>
 
                 {/* Name */}

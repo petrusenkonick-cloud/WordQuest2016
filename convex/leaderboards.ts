@@ -69,7 +69,8 @@ export const getLeaderboard = query({
     // Create entries
     const entries = filteredPlayers.slice(0, limit).map((p, index) => ({
       playerId: p._id,
-      displayName: p.displayName || "Anonymous",
+      displayName: p.displayName || p.name || "Anonymous",
+      skin: p.skin || "🧙",
       normalizedScore: p.normalizedScore || 0,
       rawScore: p.totalRawScore || 0,
       accuracy: 0, // Would need to calculate from daily stats
@@ -244,7 +245,8 @@ export const updateLeaderboards = internalMutation({
     const createEntries = (players: typeof competitivePlayers) =>
       players.slice(0, 100).map((p, index) => ({
         playerId: p._id,
-        displayName: p.displayName || "Anonymous",
+        displayName: p.displayName || p.name || "Anonymous",
+        skin: p.skin || "🧙",
         normalizedScore: p.normalizedScore || 0,
         rawScore: p.totalRawScore || 0,
         accuracy: 0,
@@ -444,7 +446,8 @@ export const getAgeLeagueLeaderboard = query({
 
     const entries = filteredPlayers.slice(0, limit).map((p, index) => ({
       playerId: p._id,
-      displayName: p.displayName || "Anonymous",
+      displayName: p.displayName || p.name || "Anonymous",
+      skin: p.skin || "🧙",
       normalizedScore: p.normalizedScore || 0,
       rawScore: p.totalRawScore || 0,
       accuracy: 0,
