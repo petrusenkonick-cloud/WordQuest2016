@@ -2,6 +2,58 @@ import { mutation, query, action, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 import { api } from "./_generated/api";
 
+// ========== CHAMPION TIER SYSTEM ==========
+// Tiered rewards based on consecutive weeks as champion
+
+const CHAMPION_TIERS = [
+  { tier: 1, name: "Champion", minStreak: 1, multiplier: 1.0, color: "#8b5cf6" },
+  { tier: 2, name: "Super Champion", minStreak: 2, multiplier: 1.25, color: "#06b6d4" },
+  { tier: 3, name: "Ultra Champion", minStreak: 3, multiplier: 1.5, color: "#22c55e" },
+  { tier: 4, name: "Master Champion", minStreak: 5, multiplier: 2.0, color: "#fbbf24" },
+  { tier: 5, name: "Legendary Champion", minStreak: 10, multiplier: 3.0, color: "#ef4444" },
+];
+
+const MYSTERY_CHEST_REWARDS = [
+  { type: "diamonds_small", weight: 30, diamonds: 50, emeralds: 0, gold: 0 },
+  { type: "diamonds_medium", weight: 20, diamonds: 100, emeralds: 25, gold: 0 },
+  { type: "diamonds_jackpot", weight: 5, diamonds: 300, emeralds: 100, gold: 50 },
+  { type: "emeralds_boost", weight: 25, diamonds: 25, emeralds: 75, gold: 0 },
+  { type: "gold_find", weight: 10, diamonds: 0, emeralds: 50, gold: 100 },
+  { type: "streak_freeze", weight: 8, diamonds: 50, streakFreezes: 2 },
+  { type: "xp_boost", weight: 2, diamonds: 25, xpBoostPercent: 50, xpBoostHours: 24 },
+];
+
+function getChampionTier(streak: number): typeof CHAMPION_TIERS[0] {
+  for (let i = CHAMPION_TIERS.length - 1; i >= 0; i--) {
+    if (streak >= CHAMPION_TIERS[i].minStreak) {
+      return CHAMPION_TIERS[i];
+    }
+  }
+  return CHAMPION_TIERS[0];
+}
+
+function generateMysteryChestReward() {
+  const totalWeight = MYSTERY_CHEST_REWARDS.reduce((sum, r) => sum + r.weight, 0);
+  let random = Math.random() * totalWeight;
+
+  for (const reward of MYSTERY_CHEST_REWARDS) {
+    random -= reward.weight;
+    if (random <= 0) {
+      return {
+        type: reward.type,
+        diamonds: reward.diamonds || 0,
+        emeralds: reward.emeralds || 0,
+        gold: reward.gold || 0,
+        streakFreezes: reward.streakFreezes,
+        xpBoostPercent: reward.xpBoostPercent,
+        xpBoostHours: reward.xpBoostHours,
+      };
+    }
+  }
+
+  return MYSTERY_CHEST_REWARDS[0]; // Fallback
+}
+
 // Get current week's practice quests for a player
 export const getWeeklyQuests = query({
   args: {
@@ -135,7 +187,7 @@ export const generateWeeklyQuests = mutation({
       questsCreated.push(questId);
     }
 
-    // Create or update weekly champion tracker
+    // Create or update weekly champion tracker with streak calculation
     const existingChampion = await ctx.db
       .query("weeklyChampion")
       .withIndex("by_player_week", (q) =>
@@ -144,17 +196,55 @@ export const generateWeeklyQuests = mutation({
       .first();
 
     if (!existingChampion) {
+      // Calculate champion streak from previous weeks
+      const previousWeekStart = new Date(weekStart);
+      previousWeekStart.setDate(previousWeekStart.getDate() - 7);
+      const previousWeekString = previousWeekStart.toISOString().split("T")[0];
+
+      const previousChampion = await ctx.db
+        .query("weeklyChampion")
+        .withIndex("by_player_week", (q) =>
+          q.eq("playerId", args.playerId).eq("weekStart", previousWeekString)
+        )
+        .first();
+
+      // Check if previous week was a champion week (all quests completed)
+      let championStreak = 1;
+      if (previousChampion &&
+          previousChampion.bonusClaimed &&
+          previousChampion.totalQuestsCompleted >= previousChampion.totalQuestsAvailable) {
+        championStreak = (previousChampion.championStreak || 0) + 1;
+      }
+
+      // Get tiered rewards based on streak
+      const tier = getChampionTier(championStreak);
+      const baseReward = {
+        diamonds: 100 + questsCreated.length * 20,
+        emeralds: 50 + questsCreated.length * 10,
+        xp: 200 + questsCreated.length * 50,
+      };
+
+      // Apply tier multiplier
+      const tieredReward = {
+        diamonds: Math.floor(baseReward.diamonds * tier.multiplier),
+        emeralds: Math.floor(baseReward.emeralds * tier.multiplier),
+        xp: Math.floor(baseReward.xp * tier.multiplier),
+      };
+
+      // Mystery chest is earned at tier 2+ or every 3rd week
+      const earnsMysteryChest = tier.tier >= 2 || championStreak % 3 === 0;
+
       await ctx.db.insert("weeklyChampion", {
         playerId: args.playerId,
         weekStart,
         totalQuestsCompleted: 0,
         totalQuestsAvailable: questsCreated.length,
         bonusClaimed: false,
-        bonusReward: {
-          diamonds: 100 + questsCreated.length * 20,
-          emeralds: 50 + questsCreated.length * 10,
-          xp: 200 + questsCreated.length * 50,
-        },
+        bonusReward: tieredReward,
+        championStreak,
+        bonusTier: tier.tier,
+        mysteryChestEarned: earnsMysteryChest,
+        mysteryChestOpened: false,
       });
     }
 
@@ -247,6 +337,14 @@ export const answerPracticeQuestion = mutation({
   },
 });
 
+// Get champion tier info (for UI display)
+export const getChampionTierInfo = query({
+  args: {},
+  handler: async () => {
+    return CHAMPION_TIERS;
+  },
+});
+
 // Claim weekly champion bonus
 export const claimWeeklyBonus = mutation({
   args: {
@@ -289,13 +387,105 @@ export const claimWeeklyBonus = mutation({
       });
     }
 
+    // Generate mystery chest reward if earned
+    let mysteryChestReward = undefined;
+    if (champion.mysteryChestEarned && !champion.mysteryChestOpened) {
+      mysteryChestReward = generateMysteryChestReward();
+    }
+
     await ctx.db.patch(champion._id, {
       bonusClaimed: true,
+      mysteryChestReward,
     });
 
     return {
       success: true,
       reward: champion.bonusReward,
+      championStreak: champion.championStreak || 1,
+      bonusTier: champion.bonusTier || 1,
+      mysteryChestEarned: champion.mysteryChestEarned,
+      tierInfo: getChampionTier(champion.championStreak || 1),
+    };
+  },
+});
+
+// Open mystery chest
+export const openMysteryChest = mutation({
+  args: {
+    playerId: v.id("players"),
+  },
+  handler: async (ctx, args) => {
+    const weekStart = getWeekStartString(new Date());
+
+    const champion = await ctx.db
+      .query("weeklyChampion")
+      .withIndex("by_player_week", (q) =>
+        q.eq("playerId", args.playerId).eq("weekStart", weekStart)
+      )
+      .first();
+
+    if (!champion) {
+      return { success: false, reason: "No champion data" };
+    }
+
+    if (!champion.mysteryChestEarned) {
+      return { success: false, reason: "No mystery chest earned" };
+    }
+
+    if (champion.mysteryChestOpened) {
+      return { success: false, reason: "Already opened" };
+    }
+
+    if (!champion.bonusClaimed) {
+      return { success: false, reason: "Claim bonus first" };
+    }
+
+    const reward = champion.mysteryChestReward || generateMysteryChestReward();
+
+    // Award mystery chest rewards
+    const player = await ctx.db.get(args.playerId);
+    if (player) {
+      const updates: Record<string, number> = {};
+
+      if (reward.diamonds) {
+        updates.diamonds = player.diamonds + reward.diamonds;
+      }
+      if (reward.emeralds) {
+        updates.emeralds = player.emeralds + reward.emeralds;
+      }
+      if (reward.gold) {
+        updates.gold = player.gold + reward.gold;
+      }
+
+      if (Object.keys(updates).length > 0) {
+        await ctx.db.patch(args.playerId, updates);
+      }
+
+      // Handle streak freezes (add to gamification streak table)
+      if (reward.streakFreezes) {
+        const streak = await ctx.db
+          .query("playerStreaks")
+          .withIndex("by_player", (q) => q.eq("playerId", args.playerId))
+          .first();
+
+        if (streak) {
+          await ctx.db.patch(streak._id, {
+            streakFreezes: streak.streakFreezes + reward.streakFreezes,
+          });
+        }
+      }
+
+      // TODO: Handle XP boost (could add to activeBoosts table)
+    }
+
+    await ctx.db.patch(champion._id, {
+      mysteryChestOpened: true,
+      mysteryChestReward: reward,
+    });
+
+    return {
+      success: true,
+      reward,
     };
   },
 });

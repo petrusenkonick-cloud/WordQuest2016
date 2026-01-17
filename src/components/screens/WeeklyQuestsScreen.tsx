@@ -1102,18 +1102,42 @@ function RewardBadge({
   );
 }
 
-// Weekly Champion Progress Component - Redesigned with trophy animation
+// Champion tier display names and colors
+const CHAMPION_TIERS: Record<number, { name: string; color: string; icon: string }> = {
+  1: { name: "Champion", color: "#8b5cf6", icon: "🏆" },
+  2: { name: "Super Champion", color: "#06b6d4", icon: "⚡" },
+  3: { name: "Ultra Champion", color: "#22c55e", icon: "💫" },
+  4: { name: "Master Champion", color: "#fbbf24", icon: "👑" },
+  5: { name: "Legendary Champion", color: "#ef4444", icon: "🔥" },
+};
+
+// Weekly Champion Progress Component - Enhanced with tiers and mystery chest
 function WeeklyChampionCard({
   champion,
   onClaim,
+  onOpenChest,
 }: {
   champion: {
     totalQuestsCompleted: number;
     totalQuestsAvailable: number;
     bonusClaimed: boolean;
     bonusReward: { diamonds: number; emeralds: number; xp: number };
+    championStreak?: number;
+    bonusTier?: number;
+    mysteryChestEarned?: boolean;
+    mysteryChestOpened?: boolean;
+    mysteryChestReward?: {
+      type: string;
+      diamonds?: number;
+      emeralds?: number;
+      gold?: number;
+      streakFreezes?: number;
+      xpBoostPercent?: number;
+      xpBoostHours?: number;
+    };
   } | null;
   onClaim: () => void;
+  onOpenChest: () => void;
 }) {
   if (!champion) return null;
 
@@ -1122,6 +1146,10 @@ function WeeklyChampionCard({
     : 0;
   const canClaim = champion.totalQuestsCompleted >= champion.totalQuestsAvailable &&
     champion.totalQuestsAvailable > 0 && !champion.bonusClaimed;
+
+  const tier = CHAMPION_TIERS[champion.bonusTier || 1] || CHAMPION_TIERS[1];
+  const streak = champion.championStreak || 1;
+  const showMysteryChest = champion.mysteryChestEarned && champion.bonusClaimed && !champion.mysteryChestOpened;
 
   return (
     <motion.div
@@ -1135,12 +1163,14 @@ function WeeklyChampionCard({
         style={{
           background: canClaim
             ? "linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)"
+            : showMysteryChest
+            ? "linear-gradient(135deg, #ec4899 0%, #db2777 100%)"
             : champion.bonusClaimed
-            ? "linear-gradient(135deg, #22c55e 0%, #16a34a 100%)"
+            ? `linear-gradient(135deg, ${tier.color} 0%, ${tier.color}cc 100%)`
             : "linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)",
-          opacity: canClaim ? 0.4 : 0.2,
+          opacity: canClaim || showMysteryChest ? 0.4 : 0.2,
         }}
-        animate={canClaim ? {
+        animate={(canClaim || showMysteryChest) ? {
           opacity: [0.3, 0.5, 0.3],
           scale: [1, 1.02, 1],
         } : {}}
@@ -1152,59 +1182,96 @@ function WeeklyChampionCard({
         style={{
           background: canClaim
             ? "linear-gradient(145deg, rgba(120, 53, 15, 0.95) 0%, rgba(66, 32, 6, 0.98) 100%)"
+            : showMysteryChest
+            ? "linear-gradient(145deg, rgba(157, 23, 77, 0.95) 0%, rgba(131, 24, 67, 0.98) 100%)"
             : champion.bonusClaimed
             ? "linear-gradient(145deg, rgba(22, 101, 52, 0.95) 0%, rgba(20, 83, 45, 0.98) 100%)"
             : "linear-gradient(145deg, rgba(55, 48, 163, 0.95) 0%, rgba(30, 27, 75, 0.98) 100%)",
           border: canClaim
             ? "3px solid rgba(251, 191, 36, 0.6)"
+            : showMysteryChest
+            ? "3px solid rgba(236, 72, 153, 0.6)"
             : champion.bonusClaimed
-            ? "3px solid rgba(74, 222, 128, 0.6)"
+            ? `3px solid ${tier.color}99`
             : "3px solid rgba(139, 92, 246, 0.4)",
         }}
       >
+        {/* Champion Streak Badge */}
+        {streak > 1 && (
+          <motion.div
+            initial={{ scale: 0, rotate: -20 }}
+            animate={{ scale: 1, rotate: 0 }}
+            className="absolute -top-2 -right-2 px-3 py-1.5 rounded-full text-xs font-bold z-20"
+            style={{
+              background: `linear-gradient(135deg, ${tier.color} 0%, ${tier.color}dd 100%)`,
+              color: "#fff",
+              boxShadow: `0 4px 16px ${tier.color}80`,
+              border: "2px solid rgba(255,255,255,0.3)",
+            }}
+          >
+            {tier.icon} {streak} weeks!
+          </motion.div>
+        )}
+
         <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6 p-4 sm:p-6">
-          {/* Trophy with Progress Ring */}
+          {/* Trophy/Chest with Progress Ring */}
           <ProgressRing
             progress={progress}
             size={80}
             strokeWidth={7}
-            color={canClaim ? "#fbbf24" : champion.bonusClaimed ? "#4ade80" : "#a78bfa"}
+            color={showMysteryChest ? "#ec4899" : canClaim ? "#fbbf24" : champion.bonusClaimed ? tier.color : "#a78bfa"}
           >
             <motion.div
               className="text-5xl"
-              animate={canClaim ? {
+              animate={showMysteryChest ? {
+                scale: [1, 1.2, 1],
+                rotate: [0, -10, 10, 0],
+              } : canClaim ? {
                 rotate: [-10, 10, -10],
                 scale: [1, 1.15, 1],
               } : champion.bonusClaimed ? {} : {
                 scale: [1, 1.05, 1],
               }}
-              transition={{ duration: 1, repeat: Infinity }}
+              transition={{ duration: showMysteryChest ? 0.8 : 1, repeat: Infinity }}
             >
-              {champion.bonusClaimed ? "🎖️" : "🏆"}
+              {showMysteryChest ? "🎁" : champion.bonusClaimed ? "🎖️" : "🏆"}
             </motion.div>
           </ProgressRing>
 
           {/* Info */}
           <div className="flex-1 text-center sm:text-left">
-            <h3
-              className="font-bold mb-2"
-              style={{
-                fontSize: "clamp(1.1rem, 3vw, 1.4rem)",
-                color: canClaim ? "#fef3c7" : champion.bonusClaimed ? "#bbf7d0" : "#e0e7ff",
-                textShadow: "0 2px 8px rgba(0,0,0,0.3)",
-              }}
-            >
-              {champion.bonusClaimed ? "Champion Achieved!" : "Weekly Champion"}
-            </h3>
+            {/* Tier Title */}
+            <div className="flex items-center justify-center sm:justify-start gap-2 mb-1">
+              <h3
+                className="font-bold"
+                style={{
+                  fontSize: "clamp(1.1rem, 3vw, 1.4rem)",
+                  color: showMysteryChest ? "#fbcfe8" : canClaim ? "#fef3c7" : champion.bonusClaimed ? "#bbf7d0" : "#e0e7ff",
+                  textShadow: "0 2px 8px rgba(0,0,0,0.3)",
+                }}
+              >
+                {showMysteryChest ? "Mystery Chest!" : champion.bonusClaimed ? tier.name : "Weekly Champion"}
+              </h3>
+              {champion.bonusClaimed && !showMysteryChest && (
+                <span
+                  className="px-2 py-0.5 rounded-full text-xs font-bold"
+                  style={{ background: `${tier.color}33`, color: tier.color }}
+                >
+                  Tier {champion.bonusTier || 1}
+                </span>
+              )}
+            </div>
             <p
               className="mb-4"
               style={{
                 fontSize: "clamp(0.85rem, 2.5vw, 1rem)",
-                color: canClaim ? "#fde68a" : champion.bonusClaimed ? "#86efac" : "#a5b4fc"
+                color: showMysteryChest ? "#f9a8d4" : canClaim ? "#fde68a" : champion.bonusClaimed ? "#86efac" : "#a5b4fc"
               }}
             >
-              {champion.bonusClaimed
-                ? "Amazing work! See you next week!"
+              {showMysteryChest
+                ? "Open your mystery chest for bonus rewards!"
+                : champion.bonusClaimed
+                ? `${tier.icon} ${streak} week streak! Keep going!`
                 : `Complete all ${champion.totalQuestsAvailable} quests to unlock bonus!`}
             </p>
 
@@ -1222,11 +1289,51 @@ function WeeklyChampionCard({
                 <span className="text-lg">⚡</span>
                 <span className="font-bold text-base text-purple-400">{champion.bonusReward.xp} XP</span>
               </div>
+              {champion.mysteryChestEarned && !showMysteryChest && (
+                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl" style={{ background: "rgba(236, 72, 153, 0.2)" }}>
+                  <span className="text-lg">🎁</span>
+                  <span className="font-bold text-base text-pink-400">+Chest</span>
+                </div>
+              )}
             </div>
           </div>
 
-          {/* Claim Button or Status */}
-          {canClaim ? (
+          {/* Claim/Open Button or Status */}
+          {showMysteryChest ? (
+            <motion.button
+              onClick={onOpenChest}
+              className="px-7 py-5 rounded-xl font-bold text-lg relative overflow-hidden"
+              style={{
+                background: "linear-gradient(135deg, #ec4899 0%, #db2777 100%)",
+                color: "#fff",
+                boxShadow: "0 8px 24px rgba(236, 72, 153, 0.5)",
+                border: "3px solid #fbcfe8",
+              }}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              animate={{ scale: [1, 1.05, 1] }}
+              transition={{ duration: 1, repeat: Infinity }}
+            >
+              <motion.div
+                className="absolute inset-0"
+                style={{
+                  background: "linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.4) 45%, transparent 50%)",
+                }}
+                animate={{ x: ["-100%", "200%"] }}
+                transition={{ duration: 1.5, repeat: Infinity, repeatDelay: 0.5 }}
+              />
+              <span className="relative flex items-center gap-2">
+                <motion.span
+                  className="text-2xl"
+                  animate={{ rotate: [-15, 15, -15] }}
+                  transition={{ duration: 0.5, repeat: Infinity }}
+                >
+                  🎁
+                </motion.span>
+                OPEN!
+              </span>
+            </motion.button>
+          ) : canClaim ? (
             <motion.button
               onClick={onClaim}
               className="px-7 py-5 rounded-xl font-bold text-lg relative overflow-hidden"
@@ -1241,7 +1348,6 @@ function WeeklyChampionCard({
               animate={{ scale: [1, 1.03, 1] }}
               transition={{ duration: 1.5, repeat: Infinity }}
             >
-              {/* Shine effect */}
               <motion.div
                 className="absolute inset-0"
                 style={{
@@ -1251,7 +1357,7 @@ function WeeklyChampionCard({
                 transition={{ duration: 2, repeat: Infinity, repeatDelay: 1 }}
               />
               <span className="relative flex items-center gap-2">
-                <span className="text-2xl">🎁</span>
+                <span className="text-2xl">🏆</span>
                 CLAIM!
               </span>
             </motion.button>
@@ -1401,6 +1507,7 @@ export function WeeklyQuestsScreen({
   // Mutations
   const generateQuests = useMutation(api.weeklyQuests.generateWeeklyQuests);
   const claimBonus = useMutation(api.weeklyQuests.claimWeeklyBonus);
+  const openMysteryChest = useMutation(api.weeklyQuests.openMysteryChest);
   const createDailyChallenge = useMutation(api.learning.createDailyChallenge);
 
   // Generate quests if none exist
@@ -1415,6 +1522,17 @@ export function WeeklyQuestsScreen({
 
     const result = await claimBonus({ playerId });
     if (result.success) {
+      setShowCelebration(true);
+      setTimeout(() => setShowCelebration(false), 4000);
+    }
+  };
+
+  const handleOpenMysteryChest = async () => {
+    if (!playerId) return;
+
+    const result = await openMysteryChest({ playerId });
+    if (result.success) {
+      // Show celebration with mystery chest reveal
       setShowCelebration(true);
       setTimeout(() => setShowCelebration(false), 4000);
     }
@@ -1672,7 +1790,11 @@ export function WeeklyQuestsScreen({
 
       {/* Weekly Champion Progress */}
       <div className="relative z-10" style={{ marginBottom: "20px" }}>
-        <WeeklyChampionCard champion={champion} onClaim={handleClaimBonus} />
+        <WeeklyChampionCard
+          champion={champion}
+          onClaim={handleClaimBonus}
+          onOpenChest={handleOpenMysteryChest}
+        />
       </div>
 
       {/* Week Info Badge - Compact */}

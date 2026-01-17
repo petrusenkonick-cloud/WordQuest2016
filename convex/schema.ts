@@ -598,6 +598,20 @@ export default defineSchema({
       emeralds: v.number(),
       xp: v.number(),
     }),
+    // Enhanced champion features
+    championStreak: v.optional(v.number()), // Consecutive weeks as champion
+    bonusTier: v.optional(v.number()), // 1-5 bonus tier based on streak
+    mysteryChestEarned: v.optional(v.boolean()), // Earned mystery chest this week
+    mysteryChestOpened: v.optional(v.boolean()), // Opened the chest
+    mysteryChestReward: v.optional(v.object({
+      type: v.string(), // "rare_gems", "streak_freeze", "xp_boost", "diamonds_jackpot"
+      diamonds: v.optional(v.number()),
+      emeralds: v.optional(v.number()),
+      gold: v.optional(v.number()),
+      streakFreezes: v.optional(v.number()),
+      xpBoostPercent: v.optional(v.number()),
+      xpBoostHours: v.optional(v.number()),
+    })),
   })
     .index("by_player", ["playerId"])
     .index("by_player_week", ["playerId", "weekStart"]),
