@@ -368,6 +368,9 @@ export default function Home() {
   // Generate weekly quests on demand
   const generateWeeklyQuests = useMutation(api.weeklyQuests.generateWeeklyQuests);
 
+  // Streak tracking - record activity when player practices
+  const recordActivity = useMutation(api.gamification.recordActivity);
+
   // Weekly quests query - for practice quest gameplay
   const weeklyQuestsData = useQuery(
     api.weeklyQuests.getWeeklyQuests,
@@ -1237,6 +1240,15 @@ export default function Home() {
         // Complete level via Convex and check for achievements
         const newAchievements = await completeLevelSync("ai-game", stars, newProgress.correct, rewards, sessionStats);
 
+        // Record activity for streak tracking
+        if (playerId) {
+          try {
+            await recordActivity({ playerId });
+          } catch (err) {
+            console.error("Failed to record activity for streak:", err);
+          }
+        }
+
         // Mark homework session as completed and save answers
         if (currentHomeworkSessionId) {
           try {
@@ -1321,7 +1333,7 @@ export default function Home() {
         spawnParticles(["💎", "🟢", "⭐"]);
       }
     },
-    [aiGameData, aiGameProgress, completeLevelSync, addWordsLearned, spawnParticles, currentHomeworkSessionId, completeHomeworkSession, homeworkAnswers, sendParentNotification, player.name, currentReviewSession, updateSpacedRepetition, playerId]
+    [aiGameData, aiGameProgress, completeLevelSync, addWordsLearned, spawnParticles, currentHomeworkSessionId, completeHomeworkSession, homeworkAnswers, sendParentNotification, player.name, currentReviewSession, updateSpacedRepetition, playerId, recordActivity]
   );
 
   // Handle continue from explanation screen - now returns to question for retry

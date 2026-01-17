@@ -12,6 +12,7 @@ import type * as achievements from "../achievements.js";
 import type * as crons from "../crons.js";
 import type * as dashboard from "../dashboard.js";
 import type * as errors from "../errors.js";
+import type * as gamification from "../gamification.js";
 import type * as gems from "../gems.js";
 import type * as homework from "../homework.js";
 import type * as insights from "../insights.js";
@@ -39,6 +40,7 @@ declare const fullApi: ApiFromModules<{
   crons: typeof crons;
   dashboard: typeof dashboard;
   errors: typeof errors;
+  gamification: typeof gamification;
   gems: typeof gems;
   homework: typeof homework;
   insights: typeof insights;
