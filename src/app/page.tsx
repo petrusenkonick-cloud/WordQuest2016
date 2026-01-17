@@ -42,6 +42,22 @@ import { ErrorModal } from "@/components/modals/ErrorModal";
 
 // Game Components
 import { MiningOverlay } from "@/components/game/MiningOverlay";
+import {
+  SuffixGame,
+  ImperativeGame,
+  InterrogativeGame,
+  VocabularyGame,
+  StoryGame,
+  CrosswordGame,
+  FactFinderGame,
+  EmotionDecoderGame,
+  ResponseCraftGame,
+  AIHelperGame,
+  CoinQuestGame,
+  FakeNewsGame,
+  PromptCraftGame,
+  BudgetBuilderGame,
+} from "@/components/game";
 
 // Hooks
 import { useGemDrop } from "@/hooks/useGemDrop";
@@ -506,6 +522,9 @@ export default function Home() {
   const [miningDepth, setMiningDepth] = useState(0);
   const { checkGemDrop } = useGemDrop({ playerId, enabled: true });
 
+  // Active mini-game state
+  const [activeGame, setActiveGame] = useState<string | null>(null);
+
   // Error modal state
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -601,9 +620,9 @@ export default function Home() {
 
   const handleStartLevel = useCallback(
     (levelId: string) => {
-      setScreen("game");
+      setActiveGame(levelId);
     },
-    [setScreen]
+    []
   );
 
   // CAMERA & AI FLOW
@@ -1536,6 +1555,124 @@ export default function Home() {
     [equipItemSync]
   );
 
+  // Handle mini-game completion (games pass correct count and mistakes count)
+  const handleGameComplete = useCallback(
+    async (correct: number, mistakes: number) => {
+      const totalQuestions = correct + mistakes;
+      const stars = mistakes === 0 ? 3 : mistakes <= 2 ? 2 : 1;
+      const rewards = {
+        diamonds: 50 + correct * 10,
+        emeralds: 20 + stars * 5,
+        xp: 100 + correct * 20,
+      };
+
+      // Complete level and check for achievements
+      if (activeGame) {
+        const newAchievements = await completeLevelSync(activeGame, stars, correct, rewards);
+
+        // Record activity for streak
+        if (playerId) {
+          try {
+            await recordActivity({ playerId });
+          } catch (err) {
+            console.error("Failed to record activity:", err);
+          }
+        }
+
+        // Show achievement if unlocked
+        if (newAchievements && newAchievements.length > 0) {
+          const achievement = newAchievements[0] as {
+            id: string;
+            name: string;
+            desc: string;
+            icon: string;
+            reward: { diamonds?: number; emeralds?: number; gold?: number };
+          };
+          setAchievementData(achievement);
+          setTimeout(() => setShowAchievement(true), 500);
+        }
+
+        // Show level complete modal
+        setLevelCompleteData({
+          levelId: activeGame,
+          stars,
+          rewards,
+        });
+        setShowLevelComplete(true);
+      }
+
+      // Add words learned
+      await addWordsLearned(correct);
+      spawnParticles(["💎", "🟢", "⭐"]);
+
+      // Exit game
+      setActiveGame(null);
+    },
+    [activeGame, completeLevelSync, addWordsLearned, spawnParticles, playerId, recordActivity]
+  );
+
+  // Handle correct answer in mini-game
+  const handleGameCorrectAnswer = useCallback(() => {
+    // Award small bonus for correct answer
+    awardCurrency("diamonds", 5);
+    spawnParticles(["💎", "✨"]);
+  }, [awardCurrency, spawnParticles]);
+
+  // Handle wrong answer in mini-game
+  const handleGameWrongAnswer = useCallback(() => {
+    // Could track errors here if needed
+  }, []);
+
+  // Handle mini-game exit
+  const handleGameExit = useCallback(() => {
+    setActiveGame(null);
+  }, []);
+
+  // Render mini-game based on activeGame state
+  const renderMiniGame = () => {
+    if (!activeGame) return null;
+
+    const gameProps = {
+      onComplete: handleGameComplete,
+      onExit: handleGameExit,
+      onCorrectAnswer: handleGameCorrectAnswer,
+      onWrongAnswer: handleGameWrongAnswer,
+    };
+
+    switch (activeGame) {
+      case "suffix":
+        return <SuffixGame {...gameProps} />;
+      case "imperative":
+        return <ImperativeGame {...gameProps} />;
+      case "interrogative":
+        return <InterrogativeGame {...gameProps} />;
+      case "vocabulary":
+        return <VocabularyGame {...gameProps} />;
+      case "story":
+        return <StoryGame {...gameProps} />;
+      case "crossword":
+        return <CrosswordGame {...gameProps} />;
+      case "factfinder":
+        return <FactFinderGame {...gameProps} />;
+      case "emotiondecoder":
+        return <EmotionDecoderGame {...gameProps} />;
+      case "responsecraft":
+        return <ResponseCraftGame {...gameProps} />;
+      case "aihelper":
+        return <AIHelperGame {...gameProps} />;
+      case "coinquest":
+        return <CoinQuestGame {...gameProps} />;
+      case "fakenews":
+        return <FakeNewsGame {...gameProps} />;
+      case "promptcraft":
+        return <PromptCraftGame {...gameProps} />;
+      case "budgetbuilder":
+        return <BudgetBuilderGame {...gameProps} />;
+      default:
+        return null;
+    }
+  };
+
   // Render AI Game
   const renderAIGame = () => {
     if (!aiGameData) return null;
@@ -1967,6 +2104,11 @@ export default function Home() {
 
   // Render current screen
   const renderScreen = () => {
+    // Mini-games take priority
+    if (activeGame) {
+      return renderMiniGame();
+    }
+
     if (isPlayingAIGame) {
       return renderAIGame();
     }

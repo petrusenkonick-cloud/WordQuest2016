@@ -4,54 +4,33 @@ import { useAppStore } from "@/lib/store";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { Id } from "../../../convex/_generated/dataModel";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { LeaderboardPodium } from "../ui/LeaderboardPodium";
+import { LEVELS as GAME_LEVELS, GameUnlock } from "@/lib/gameData";
 
-// Level data
-const LEVELS = [
-  {
-    id: "suffix",
-    name: "SUFFIX MINE",
-    icon: "🪨",
-    desc: 'Learn "-less" words',
-    rewards: { diamonds: 50, emeralds: 20, xp: 100 },
-  },
-  {
-    id: "imperative",
-    name: "COMMAND SCROLL",
-    icon: "📜",
-    desc: "Command or Request?",
-    rewards: { diamonds: 50, emeralds: 25, xp: 120 },
-  },
-  {
-    id: "interrogative",
-    name: "QUESTION FORGE",
-    icon: "❓",
-    desc: "Create questions",
-    rewards: { diamonds: 60, emeralds: 30, xp: 150 },
-  },
-  {
-    id: "crossword",
-    name: "WORD MAP",
-    icon: "🗺️",
-    desc: "Vocabulary puzzle",
-    rewards: { diamonds: 80, emeralds: 40, xp: 200 },
-  },
-  {
-    id: "vocabulary",
-    name: "CRAFTING TABLE",
-    icon: "⚒️",
-    desc: "Build sentences",
-    rewards: { diamonds: 70, emeralds: 35, xp: 180 },
-  },
-  {
-    id: "story",
-    name: "STORY QUEST",
-    icon: "📖",
-    desc: "Be a detective!",
-    rewards: { diamonds: 100, emeralds: 50, xp: 250 },
-  },
-];
+// Map icons for each level
+const LEVEL_ICONS: Record<string, string> = {
+  suffix: "🪨",
+  imperative: "📜",
+  interrogative: "❓",
+  crossword: "🗺️",
+  vocabulary: "⚒️",
+  story: "📖",
+  factfinder: "🔍",
+  emotiondecoder: "💭",
+  responsecraft: "🤝",
+  aihelper: "🤖",
+  coinquest: "💰",
+  fakenews: "🕵️",
+  promptcraft: "✨",
+  budgetbuilder: "📊",
+};
+
+// Build LEVELS from gameData with icons
+const LEVELS = GAME_LEVELS.map((level) => ({
+  ...level,
+  icon: LEVEL_ICONS[level.id] || "⭐",
+}));
 
 interface HomeworkSession {
   _id: Id<"homeworkSessions">;
@@ -70,6 +49,12 @@ interface HomeworkSession {
     pageRef?: number;
   }[];
   createdAt: string;
+}
+
+// Game unlock state
+interface GameUnlockState {
+  homeworkCompletedToday: boolean;
+  purchasedGames: string[];
 }
 
 interface HomeScreenProps {
@@ -116,6 +101,86 @@ export function HomeScreen({
 }: HomeScreenProps) {
   const player = useAppStore((state) => state.player);
   const showDailyReward = useAppStore((state) => state.showDailyRewardModal);
+
+  // Unlock modal state
+  const [unlockModal, setUnlockModal] = useState<{
+    show: boolean;
+    levelId: string;
+    levelName: string;
+    cost: number;
+    unlock: GameUnlock;
+  } | null>(null);
+
+  // Game unlock state query
+  const gameUnlockState = useQuery(
+    api.gameUnlocks.getGameUnlockState,
+    playerId ? { playerId } : "skip"
+  );
+
+  // Purchase game mutation
+  const purchaseGame = useMutation(api.gameUnlocks.purchaseGame);
+
+  // Check if a game is unlocked
+  const isGameUnlocked = (levelId: string, unlock?: GameUnlock): boolean => {
+    if (!unlock) return true; // No unlock info = free
+    if (unlock.type === "free") return true;
+    if (unlock.type === "homework") {
+      // Unlocked if homework done today OR purchased
+      const purchasedGames = gameUnlockState?.purchasedGames || [];
+      const homeworkDoneToday = gameUnlockState?.homeworkCompletedToday || false;
+      return homeworkDoneToday || purchasedGames.includes(levelId);
+    }
+    if (unlock.type === "streak") {
+      return (player.streak || 0) >= (unlock.requirement || 0);
+    }
+    if (unlock.type === "purchase") {
+      const purchasedGames = gameUnlockState?.purchasedGames || [];
+      return purchasedGames.includes(levelId);
+    }
+    return false;
+  };
+
+  // Handle game click
+  const handleGameClick = (level: typeof LEVELS[number]) => {
+    const unlock = level.unlock as GameUnlock | undefined;
+    if (isGameUnlocked(level.id, unlock)) {
+      onStartLevel(level.id);
+    } else {
+      // Show unlock modal
+      setUnlockModal({
+        show: true,
+        levelId: level.id,
+        levelName: level.name,
+        cost: unlock?.requirement || 150,
+        unlock: unlock || { type: "free" },
+      });
+    }
+  };
+
+  // Handle purchase
+  const handlePurchase = async () => {
+    if (!unlockModal || !playerId) return;
+
+    const cost = unlockModal.cost;
+    if (player.diamonds < cost) {
+      // Not enough diamonds
+      alert(`Not enough diamonds! You need ${cost} 💎`);
+      return;
+    }
+
+    try {
+      await purchaseGame({
+        playerId,
+        gameId: unlockModal.levelId,
+        cost,
+      });
+      setUnlockModal(null);
+      // Start the game after purchase
+      onStartLevel(unlockModal.levelId);
+    } catch (error) {
+      console.error("Failed to purchase game:", error);
+    }
+  };
 
   // Active homework sessions
   const homeworkSessions = useQuery(
@@ -548,18 +613,73 @@ export function HomeScreen({
 
       {/* Level Grid */}
       <div className="level-grid">
-        {LEVELS.map((level, index) => {
+        {LEVELS.map((level) => {
           const progress = completedLevels[level.id] || { stars: 0, done: false };
-          const prevLevel = index > 0 ? LEVELS[index - 1] : null;
-          const locked = prevLevel ? !completedLevels[prevLevel.id]?.done : false;
+          const unlock = level.unlock as GameUnlock | undefined;
+          const unlocked = isGameUnlocked(level.id, unlock);
+          const isHomeworkLocked = unlock?.type === "homework" && !unlocked;
+          const isPurchasable = isHomeworkLocked && unlock?.requirement;
 
           return (
             <div
               key={level.id}
-              className={`level-card ${locked ? "locked" : ""} ${progress.done ? "completed" : ""}`}
-              onClick={() => !locked && onStartLevel(level.id)}
+              className={`level-card ${!unlocked ? "locked" : ""} ${progress.done ? "completed" : ""}`}
+              onClick={() => handleGameClick(level)}
+              style={!unlocked ? {
+                opacity: 0.7,
+                filter: "grayscale(30%)",
+                position: "relative",
+              } : undefined}
             >
-              {locked && <div className="lock-overlay">🔒</div>}
+              {!unlocked && (
+                <div
+                  className="lock-overlay"
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    background: "rgba(0,0,0,0.5)",
+                    borderRadius: "inherit",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    zIndex: 10,
+                    gap: "8px",
+                  }}
+                >
+                  <span style={{ fontSize: "2em" }}>🔒</span>
+                  {isHomeworkLocked && (
+                    <div style={{
+                      textAlign: "center",
+                      padding: "0 10px",
+                    }}>
+                      <div style={{
+                        fontSize: "0.75em",
+                        color: "#fbbf24",
+                        fontWeight: "bold",
+                        marginBottom: "4px",
+                      }}>
+                        📸 Do homework to unlock!
+                      </div>
+                      {isPurchasable && (
+                        <div style={{
+                          fontSize: "0.7em",
+                          color: "#a78bfa",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: "4px",
+                        }}>
+                          or buy for 💎 {unlock?.requirement}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
               <div className="level-header">
                 <div className="level-icon">{level.icon}</div>
                 <div className="level-rewards">
@@ -586,6 +706,144 @@ export function HomeScreen({
           );
         })}
       </div>
+
+      {/* Unlock Modal */}
+      {unlockModal && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: "rgba(0,0,0,0.8)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000,
+            padding: "20px",
+          }}
+          onClick={() => setUnlockModal(null)}
+        >
+          <div
+            style={{
+              background: "linear-gradient(180deg, #1e1b4b 0%, #0f172a 100%)",
+              borderRadius: "20px",
+              padding: "30px",
+              maxWidth: "350px",
+              width: "100%",
+              border: "3px solid #8b5cf6",
+              boxShadow: "0 0 40px rgba(139, 92, 246, 0.5)",
+              textAlign: "center",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ fontSize: "3em", marginBottom: "15px" }}>🔒</div>
+            <h2 style={{
+              fontSize: "1.3em",
+              color: "#f1f5f9",
+              marginBottom: "10px",
+            }}>
+              {unlockModal.levelName}
+            </h2>
+            <p style={{
+              color: "#94a3b8",
+              marginBottom: "25px",
+              lineHeight: "1.5",
+            }}>
+              This game is locked! Complete your homework today to unlock it for free.
+            </p>
+
+            {/* Scan Homework Button */}
+            <button
+              onClick={() => {
+                setUnlockModal(null);
+                onScanHomework?.();
+              }}
+              style={{
+                width: "100%",
+                padding: "15px",
+                background: "linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)",
+                border: "none",
+                borderRadius: "12px",
+                color: "#000",
+                fontWeight: "bold",
+                fontSize: "1em",
+                cursor: "pointer",
+                marginBottom: "15px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "8px",
+              }}
+            >
+              <span>📸</span> Scan Homework
+            </button>
+
+            {/* Divider */}
+            <div style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "10px",
+              marginBottom: "15px",
+            }}>
+              <div style={{ flex: 1, height: "1px", background: "#334155" }} />
+              <span style={{ color: "#64748b", fontSize: "0.85em" }}>OR</span>
+              <div style={{ flex: 1, height: "1px", background: "#334155" }} />
+            </div>
+
+            {/* Purchase Button */}
+            <button
+              onClick={handlePurchase}
+              disabled={player.diamonds < unlockModal.cost}
+              style={{
+                width: "100%",
+                padding: "15px",
+                background: player.diamonds >= unlockModal.cost
+                  ? "linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)"
+                  : "rgba(100,100,100,0.3)",
+                border: "none",
+                borderRadius: "12px",
+                color: player.diamonds >= unlockModal.cost ? "#fff" : "#666",
+                fontWeight: "bold",
+                fontSize: "1em",
+                cursor: player.diamonds >= unlockModal.cost ? "pointer" : "not-allowed",
+                marginBottom: "10px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "8px",
+              }}
+            >
+              <span>💎</span> Buy Forever for {unlockModal.cost}
+            </button>
+
+            <div style={{
+              color: "#64748b",
+              fontSize: "0.8em",
+            }}>
+              You have: 💎 {player.diamonds}
+            </div>
+
+            {/* Cancel Button */}
+            <button
+              onClick={() => setUnlockModal(null)}
+              style={{
+                marginTop: "15px",
+                background: "transparent",
+                border: "1px solid #475569",
+                borderRadius: "8px",
+                padding: "10px 20px",
+                color: "#94a3b8",
+                cursor: "pointer",
+                fontSize: "0.9em",
+              }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

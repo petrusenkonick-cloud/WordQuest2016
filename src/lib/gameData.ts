@@ -1,6 +1,18 @@
 // Game Data - All levels, shop items, and achievements
 // This file contains the static game data that can be used without Convex
 
+// Game unlock types:
+// - "free": Always available
+// - "homework": Unlocked after completing homework today
+// - "streak": Unlocked by reaching streak milestones
+// - "purchase": Can be bought with gems permanently
+
+export interface GameUnlock {
+  type: "free" | "homework" | "streak" | "purchase";
+  requirement?: number; // streak days or gem cost
+  dailyFreeAfterHomework?: boolean; // if true, available for free today after homework
+}
+
 export const LEVELS = [
   {
     id: "suffix",
@@ -8,6 +20,7 @@ export const LEVELS = [
     icon: "stone",
     desc: 'Learn "-less" words',
     rewards: { diamonds: 50, emeralds: 20, xp: 100 },
+    unlock: { type: "free" } as GameUnlock,
     questions: [
       { s: "Without any end, the road seemed", a: "endless", h: "Goes on forever!" },
       { s: "She felt no hope, she was", a: "hopeless", h: "No hope = hope+less" },
@@ -31,6 +44,7 @@ export const LEVELS = [
     icon: "scroll",
     desc: "Command or Request?",
     rewards: { diamonds: 50, emeralds: 25, xp: 120 },
+    unlock: { type: "free" } as GameUnlock,
     questions: [
       { s: "Please clear your desks.", a: "request", h: "'Please' = polite!" },
       { s: "Turn to page 45.", a: "command", h: "Direct order!" },
@@ -50,6 +64,7 @@ export const LEVELS = [
     icon: "question",
     desc: "Create questions",
     rewards: { diamonds: 60, emeralds: 30, xp: 150 },
+    unlock: { type: "free" } as GameUnlock,
     questions: [
       { a: "I have two cats.", h: "How many...", ex: "How many cats do you have?" },
       { a: "My favorite colour is blue.", h: "What is your...", ex: "What is your favorite colour?" },
@@ -66,6 +81,7 @@ export const LEVELS = [
     icon: "map",
     desc: "Vocabulary puzzle",
     rewards: { diamonds: 80, emeralds: 40, xp: 200 },
+    unlock: { type: "free" } as GameUnlock,
     wordBank: [
       "MIRROR", "REQUIRE", "FURNISH", "STAINLESS", "PURE",
       "WHIRL", "CURRENT", "NURTURE", "IRRITATE", "MIRACLE"
@@ -77,6 +93,7 @@ export const LEVELS = [
     icon: "crafting",
     desc: "Build sentences",
     rewards: { diamonds: 70, emeralds: 35, xp: 180 },
+    unlock: { type: "free" } as GameUnlock,
     wordPairs: [
       ["Helpless", "Speechless"],
       ["Merciless", "Fruitless"],
@@ -96,6 +113,7 @@ export const LEVELS = [
     icon: "book",
     desc: "Be a detective!",
     rewards: { diamonds: 100, emeralds: 50, xp: 250 },
+    unlock: { type: "free" } as GameUnlock,
     story:
       "Lucy wandered around the park, searching for her lost puppy, Max. Everywhere she looked, there was no sign of him. As the sun began to set, she heard a whimper near the lake. Racing over, Lucy found Max, tangled in some bushes. Tears of joy filled her eyes as she hugged him tightly, promising never to let him out of her sight again.",
     questions: [
@@ -105,6 +123,86 @@ export const LEVELS = [
       { q: "How did Lucy feel when she found Max?", a: "joyful", options: ["joyful", "angry", "scared", "confused"] },
       { q: "What did Lucy promise?", a: "never let Max out of sight", options: ["never let Max out of sight", "buy Max a collar", "give Max treats", "take Max to the vet"] },
     ],
+  },
+  {
+    id: "factfinder",
+    name: "FACT FINDER",
+    icon: "search",
+    desc: "Fact or Opinion?",
+    rewards: { diamonds: 60, emeralds: 30, xp: 150 },
+    unlock: { type: "homework", dailyFreeAfterHomework: true, requirement: 150 } as GameUnlock,
+    category: "critical_thinking",
+    difficulties: ["easy", "medium", "hard"],
+  },
+  {
+    id: "emotiondecoder",
+    name: "EMOTION DECODER",
+    icon: "heart",
+    desc: "Feel the emotion!",
+    rewards: { diamonds: 60, emeralds: 30, xp: 150 },
+    unlock: { type: "homework", dailyFreeAfterHomework: true, requirement: 150 } as GameUnlock,
+    category: "emotional_intelligence",
+    difficulties: ["easy", "medium", "hard"],
+  },
+  {
+    id: "responsecraft",
+    name: "RESPONSE CRAFT",
+    icon: "handshake",
+    desc: "Be a good friend!",
+    rewards: { diamonds: 70, emeralds: 35, xp: 180 },
+    unlock: { type: "homework", dailyFreeAfterHomework: true, requirement: 180 } as GameUnlock,
+    category: "emotional_intelligence",
+    difficulties: ["easy", "medium", "hard"],
+  },
+  {
+    id: "aihelper",
+    name: "AI HELPER",
+    icon: "robot",
+    desc: "When to use AI?",
+    rewards: { diamonds: 50, emeralds: 25, xp: 120 },
+    unlock: { type: "homework", dailyFreeAfterHomework: true, requirement: 120 } as GameUnlock,
+    category: "ai_literacy",
+    difficulties: ["easy", "medium", "hard"],
+  },
+  {
+    id: "coinquest",
+    name: "COIN QUEST",
+    icon: "coins",
+    desc: "Master money skills!",
+    rewards: { diamonds: 70, emeralds: 35, xp: 180 },
+    unlock: { type: "homework", dailyFreeAfterHomework: true, requirement: 180 } as GameUnlock,
+    category: "financial_literacy",
+    difficulties: ["easy", "medium", "hard"],
+  },
+  {
+    id: "fakenews",
+    name: "FAKE NEWS DETECTOR",
+    icon: "newspaper",
+    desc: "Find the red flags!",
+    rewards: { diamonds: 80, emeralds: 40, xp: 200 },
+    unlock: { type: "homework", dailyFreeAfterHomework: true, requirement: 200 } as GameUnlock,
+    category: "critical_thinking",
+    difficulties: ["easy", "medium", "hard"],
+  },
+  {
+    id: "promptcraft",
+    name: "PROMPT CRAFT",
+    icon: "wand",
+    desc: "Write better prompts!",
+    rewards: { diamonds: 70, emeralds: 35, xp: 180 },
+    unlock: { type: "homework", dailyFreeAfterHomework: true, requirement: 180 } as GameUnlock,
+    category: "ai_literacy",
+    difficulties: ["easy", "medium", "hard"],
+  },
+  {
+    id: "budgetbuilder",
+    name: "BUDGET BUILDER",
+    icon: "chart",
+    desc: "Master budget planning!",
+    rewards: { diamonds: 80, emeralds: 40, xp: 200 },
+    unlock: { type: "homework", dailyFreeAfterHomework: true, requirement: 200 } as GameUnlock,
+    category: "financial_literacy",
+    difficulties: ["easy", "medium", "hard"],
   },
 ];
 

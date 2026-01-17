@@ -188,9 +188,9 @@ export function GameContainer({
       <FloatingParticles />
 
       {/* Content wrapper */}
-      <div className="relative z-10">
+      <div className="relative z-10 p-2">
         {/* Header */}
-        <div className="flex justify-between items-center mb-5 pb-4 border-b-4 border-black/30 flex-wrap gap-3">
+        <div className="flex justify-between items-center mb-5 pb-4 border-b-4 border-black/30 flex-wrap gap-3 pt-1">
           <motion.h2
             initial={{ x: -20, opacity: 0 }}
             animate={{ x: 0, opacity: 1 }}

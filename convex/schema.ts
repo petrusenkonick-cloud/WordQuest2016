@@ -732,6 +732,18 @@ export default defineSchema({
     totalActiveDays: v.number(), // All-time active days
   }).index("by_player", ["playerId"]),
 
+  // ========== GAME UNLOCKS ==========
+
+  // Purchased games (permanent unlocks)
+  purchasedGames: defineTable({
+    playerId: v.id("players"),
+    gameId: v.string(), // e.g., "factfinder", "emotiondecoder"
+    purchasedAt: v.string(),
+    cost: v.number(), // How much was paid
+  })
+    .index("by_player", ["playerId"])
+    .index("by_player_game", ["playerId", "gameId"]),
+
   // ========== PERSONALIZED LEARNING PATHS ==========
 
   // Learning path progress
