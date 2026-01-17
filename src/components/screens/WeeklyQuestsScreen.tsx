@@ -17,13 +17,26 @@ interface DueReviewItem {
 }
 
 interface DailyChallenge {
-  _id: Id<"dailyQuests">;
-  questName: string;
+  _id: Id<"dailyQuests"> | Id<"dailyChallenges">;
+  questName?: string;
+  title?: string;
   description: string;
-  targetCount: number;
-  currentCount: number;
+  targetCount?: number;
+  targetValue?: number;
+  currentCount?: number;
+  currentValue?: number;
   isCompleted: boolean;
   reward: { diamonds?: number; emeralds?: number; xp?: number };
+  challengeType?: string;
+}
+
+interface PlayerStreak {
+  _id: Id<"playerStreaks">;
+  currentStreak: number;
+  longestStreak: number;
+  lastActivityDate: string;
+  streakFreezes: number;
+  totalActiveDays: number;
 }
 
 interface HomeworkSession {
@@ -115,6 +128,109 @@ function FloatingParticles() {
   );
 }
 
+// Streak Banner - Shows current streak with fire animation
+function StreakBanner({ streak }: { streak: PlayerStreak | null | undefined }) {
+  if (!streak || streak.currentStreak === 0) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="rounded-xl p-3 mb-4"
+        style={{
+          background: "linear-gradient(135deg, rgba(100, 116, 139, 0.2) 0%, rgba(71, 85, 105, 0.15) 100%)",
+          border: "1px solid rgba(148, 163, 184, 0.3)",
+        }}
+      >
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-2xl opacity-50">🔥</span>
+            <div>
+              <p className="text-sm font-medium" style={{ color: "#94a3b8" }}>No streak yet</p>
+              <p className="text-xs" style={{ color: "#64748b" }}>Practice today to start!</p>
+            </div>
+          </div>
+        </div>
+      </motion.div>
+    );
+  }
+
+  const isOnFire = streak.currentStreak >= 7;
+  const streakColor = streak.currentStreak >= 30 ? "#fbbf24" : streak.currentStreak >= 7 ? "#f97316" : "#ef4444";
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.9 }}
+      animate={{ opacity: 1, scale: 1 }}
+      className="relative rounded-xl p-3 mb-4 overflow-hidden"
+      style={{
+        background: `linear-gradient(135deg, ${streakColor}22 0%, ${streakColor}11 100%)`,
+        border: `2px solid ${streakColor}66`,
+      }}
+    >
+      {/* Fire particles for hot streaks */}
+      {isOnFire && (
+        <div className="absolute inset-0 pointer-events-none overflow-hidden">
+          {[...Array(5)].map((_, i) => (
+            <motion.span
+              key={i}
+              className="absolute text-lg"
+              style={{ left: `${15 + i * 18}%`, bottom: "0" }}
+              animate={{
+                y: [-20, -40, -20],
+                opacity: [0.3, 0.7, 0.3],
+                scale: [0.8, 1.2, 0.8],
+              }}
+              transition={{
+                duration: 1.5,
+                repeat: Infinity,
+                delay: i * 0.2,
+              }}
+            >
+              🔥
+            </motion.span>
+          ))}
+        </div>
+      )}
+
+      <div className="flex items-center justify-between relative z-10">
+        <div className="flex items-center gap-3">
+          <motion.span
+            className="text-3xl"
+            animate={isOnFire ? {
+              scale: [1, 1.2, 1],
+              rotate: [-5, 5, -5],
+            } : {}}
+            transition={{ duration: 0.5, repeat: Infinity }}
+          >
+            🔥
+          </motion.span>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-2xl font-black" style={{ color: streakColor }}>
+                {streak.currentStreak}
+              </span>
+              <span className="text-sm font-bold" style={{ color: streakColor }}>
+                day{streak.currentStreak !== 1 ? "s" : ""} streak!
+              </span>
+            </div>
+            <p className="text-xs" style={{ color: "#94a3b8" }}>
+              Best: {streak.longestStreak} days • Total: {streak.totalActiveDays} days
+            </p>
+          </div>
+        </div>
+
+        {/* Streak freezes */}
+        {streak.streakFreezes > 0 && (
+          <div className="flex items-center gap-1 px-2 py-1 rounded-lg" style={{ background: "rgba(96, 165, 250, 0.2)" }}>
+            <span className="text-sm">🛡️</span>
+            <span className="text-xs font-bold" style={{ color: "#60a5fa" }}>{streak.streakFreezes}</span>
+          </div>
+        )}
+      </div>
+    </motion.div>
+  );
+}
+
 // Daily Challenge Card - Compact but eye-catching
 function DailyChallengeCard({
   challenge,
@@ -197,7 +313,11 @@ function DailyChallengeCard({
     );
   }
 
-  const progress = (challenge.currentCount / challenge.targetCount) * 100;
+  // Handle both old (questName/targetCount) and new (title/targetValue) interfaces
+  const title = challenge.title || challenge.questName || "Daily Challenge";
+  const currentProgress = challenge.currentValue ?? challenge.currentCount ?? 0;
+  const targetProgress = challenge.targetValue ?? challenge.targetCount ?? 1;
+  const progress = (currentProgress / targetProgress) * 100;
 
   return (
     <motion.div
@@ -308,7 +428,7 @@ function DailyChallengeCard({
                   color: challenge.isCompleted ? "#bbf7d0" : "#fef3c7",
                 }}
               >
-                {challenge.questName}
+                {title}
               </h3>
               {challenge.isCompleted && (
                 <span className="px-2 py-0.5 rounded-full text-xs font-bold" style={{ background: "#4ade80", color: "#052e16" }}>
@@ -345,7 +465,7 @@ function DailyChallengeCard({
                 className="font-bold text-sm"
                 style={{ color: challenge.isCompleted ? "#4ade80" : "#fbbf24" }}
               >
-                {challenge.currentCount}/{challenge.targetCount}
+                {currentProgress}/{targetProgress}
               </span>
             </div>
           </div>
@@ -1260,6 +1380,12 @@ export function WeeklyQuestsScreen({
     playerId ? { playerId } : "skip"
   );
 
+  // Fetch player streak
+  const playerStreak = useQuery(
+    api.gamification.getPlayerStreak,
+    playerId ? { playerId } : "skip"
+  );
+
   // Fetch due reviews (Spaced Repetition)
   const dueReviews = useQuery(
     api.learning.getDueReviews,
@@ -1506,6 +1632,11 @@ export function WeeklyQuestsScreen({
             Master your weak spots & earn rewards!
           </p>
         </div>
+      </div>
+
+      {/* Streak Banner - Shows current streak */}
+      <div className="relative z-10">
+        <StreakBanner streak={playerStreak as PlayerStreak | null | undefined} />
       </div>
 
       {/* Daily Challenge - Top Priority */}

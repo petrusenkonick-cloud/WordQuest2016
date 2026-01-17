@@ -685,6 +685,39 @@ export default defineSchema({
     .index("by_player", ["playerId"])
     .index("by_player_date", ["playerId", "startTime"]),
 
+  // ========== DAILY CHALLENGES & STREAKS ==========
+
+  // Daily challenges (one per day, gamified goals)
+  dailyChallenges: defineTable({
+    playerId: v.id("players"),
+    date: v.string(), // YYYY-MM-DD
+    challengeType: v.string(), // "streak", "speed", "accuracy", "review", "explore", "perfect"
+    title: v.string(), // "Streak Master"
+    description: v.string(), // "Answer 5 questions in a row correctly"
+    targetValue: v.number(), // Target to reach (5, 10, 90, etc.)
+    currentValue: v.number(), // Current progress
+    isCompleted: v.boolean(),
+    reward: v.object({
+      diamonds: v.number(),
+      emeralds: v.number(),
+      xp: v.number(),
+    }),
+    completedAt: v.optional(v.string()),
+  })
+    .index("by_player", ["playerId"])
+    .index("by_player_date", ["playerId", "date"]),
+
+  // Player streaks (detailed tracking)
+  playerStreaks: defineTable({
+    playerId: v.id("players"),
+    currentStreak: v.number(), // Days in a row
+    longestStreak: v.number(), // Best ever
+    lastActivityDate: v.string(), // YYYY-MM-DD
+    streakFreezes: v.number(), // Can skip 1 day without losing streak
+    weeklyActivity: v.array(v.boolean()), // Last 7 days activity [Mon...Sun]
+    totalActiveDays: v.number(), // All-time active days
+  }).index("by_player", ["playerId"]),
+
   // ========== PERSONALIZED LEARNING PATHS ==========
 
   // Learning path progress
