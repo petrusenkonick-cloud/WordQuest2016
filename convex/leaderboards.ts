@@ -16,35 +16,7 @@ export const getLeaderboard = query({
   handler: async (ctx, args) => {
     const limit = args.limit || 50;
 
-    // Try to get cached leaderboard
-    let leaderboard;
-    if (args.ageGroup) {
-      leaderboard = await ctx.db
-        .query("leaderboards")
-        .withIndex("by_type_age", (q) =>
-          q.eq("type", args.type).eq("ageGroup", args.ageGroup)
-        )
-        .first();
-    } else {
-      const leaderboards = await ctx.db
-        .query("leaderboards")
-        .withIndex("by_type", (q) => q.eq("type", args.type))
-        .collect();
-      leaderboard = leaderboards.find((l) => !l.ageGroup);
-    }
-
-    if (leaderboard) {
-      return {
-        type: leaderboard.type,
-        ageGroup: leaderboard.ageGroup,
-        entries: leaderboard.entries.slice(0, limit),
-        periodStart: leaderboard.periodStart,
-        periodEnd: leaderboard.periodEnd,
-        lastUpdated: leaderboard.lastUpdated,
-      };
-    }
-
-    // Calculate on the fly if no cache exists
+    // Always calculate fresh data (skip cache for now to ensure skin field is included)
     let playersQuery = ctx.db.query("players");
 
     const players = await playersQuery.collect();
