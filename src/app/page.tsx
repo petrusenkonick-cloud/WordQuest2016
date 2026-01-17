@@ -443,6 +443,7 @@ export default function Home() {
     isSuspiciouslySlow: boolean; // > 2 minutes
   }>>([]);
   const [tabSwitchCount, setTabSwitchCount] = useState(0);
+  const [showTabSwitchWarning, setShowTabSwitchWarning] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
 
   // Similar questions system (instead of showing answer)
@@ -541,12 +542,20 @@ export default function Home() {
           console.warn(`⚠️ Tab switch detected during game! Total: ${newCount}`);
           return newCount;
         });
+        // Show warning when player returns to the tab
+      } else if (!document.hidden && isPlayingAIGame) {
+        // Player returned to tab - show warning if they switched away
+        if (tabSwitchCount > 0) {
+          setShowTabSwitchWarning(true);
+          // Auto-hide after 4 seconds
+          setTimeout(() => setShowTabSwitchWarning(false), 4000);
+        }
       }
     };
 
     document.addEventListener("visibilitychange", handleVisibilityChange);
     return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
-  }, [isPlayingAIGame]);
+  }, [isPlayingAIGame, tabSwitchCount]);
 
   // Handlers
   const handleLoadingComplete = useCallback(() => {
@@ -1392,6 +1401,11 @@ export default function Home() {
     setCurrentHint(null);
     setMustAnswerCorrectly(false);
     setHomeworkAnswers([]);
+    // Reset anti-cheat tracking
+    setTabSwitchCount(0);
+    setShowTabSwitchWarning(false);
+    setResponseTimeData([]);
+    setQuestionStartTime(null);
     setScreen("home");
   }, [setScreen]);
 
@@ -1448,6 +1462,44 @@ export default function Home() {
               ← EXIT
             </button>
           </div>
+
+          {/* Tab switch warning banner */}
+          {showTabSwitchWarning && (
+            <div style={{
+              background: "linear-gradient(135deg, rgba(239, 68, 68, 0.95) 0%, rgba(185, 28, 28, 0.95) 100%)",
+              border: "2px solid #fca5a5",
+              borderRadius: "12px",
+              padding: "12px 16px",
+              marginBottom: "12px",
+              display: "flex",
+              alignItems: "center",
+              gap: "12px",
+              animation: "pulse 1s ease-in-out infinite",
+              boxShadow: "0 4px 15px rgba(239, 68, 68, 0.4)",
+            }}>
+              <span style={{ fontSize: "1.8em" }}>👀</span>
+              <div>
+                <p style={{
+                  margin: 0,
+                  color: "#fff",
+                  fontWeight: "bold",
+                  fontSize: "1em",
+                }}>
+                  Мы видим, что ты переключал вкладки!
+                </p>
+                <p style={{
+                  margin: "4px 0 0 0",
+                  color: "#fecaca",
+                  fontSize: "0.85em",
+                }}>
+                  Попробуй решить сам — так ты научишься лучше! 💪
+                </p>
+              </div>
+              <span style={{ fontSize: "1.2em", marginLeft: "auto" }}>
+                {tabSwitchCount}x
+              </span>
+            </div>
+          )}
 
         <div className="xp-progress">
           <div
