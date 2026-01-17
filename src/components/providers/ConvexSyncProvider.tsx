@@ -112,6 +112,7 @@ export function ConvexSyncProvider({ children }: { children: ReactNode }) {
   const equipItemMutation = useMutation(api.shop.equipItem);
   const checkAchievementsMutation = useMutation(api.achievements.checkAchievements);
   const updateNormalizedScoreMutation = useMutation(api.profile.updateNormalizedScore);
+  const cleanupDuplicatesMutation = useMutation(api.homework.cleanupDuplicateSessions);
 
   // Additional queries
   const levelProgressQuery = useQuery(
@@ -151,8 +152,13 @@ export function ConvexSyncProvider({ children }: { children: ReactNode }) {
 
       // Check daily login
       checkDailyLoginMutation({ playerId: convexPlayer._id });
+
+      // Cleanup duplicate homework sessions (one-time on login)
+      cleanupDuplicatesMutation({ playerId: convexPlayer._id }).catch(() => {
+        // Silently ignore errors - cleanup is optional
+      });
     }
-  }, [convexPlayer, isInitialized, setPlayer, checkDailyLoginMutation]);
+  }, [convexPlayer, isInitialized, setPlayer, checkDailyLoginMutation, cleanupDuplicatesMutation]);
 
   // Create player
   const initializePlayer = async (
