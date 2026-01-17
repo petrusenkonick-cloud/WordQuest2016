@@ -4,6 +4,7 @@ import { useAppStore } from "@/lib/store";
 import { useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { Id } from "../../../convex/_generated/dataModel";
+import { AudioControls } from "./AudioControls";
 
 interface HUDProps {
   playerId?: Id<"players"> | null;
@@ -78,6 +79,8 @@ export function HUD({ playerId, onProfileSettings }: HUDProps = {}) {
               </span>
             </div>
           )}
+          {/* Audio Controls */}
+          <AudioControls compact />
         </div>
       </div>
     </div>

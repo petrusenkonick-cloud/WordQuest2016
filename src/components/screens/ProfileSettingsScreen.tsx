@@ -6,6 +6,7 @@ import { useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { Id } from "../../../convex/_generated/dataModel";
 import { useAppStore } from "@/lib/store";
+import { UserButton, useAuth } from "@clerk/nextjs";
 
 // Available skins - can be expanded with shop purchases
 const AVAILABLE_SKINS = [
@@ -39,11 +40,13 @@ const AGE_GROUPS = [
 interface ProfileSettingsScreenProps {
   playerId: Id<"players"> | null;
   onBack: () => void;
+  onLogout?: () => void;
 }
 
-export function ProfileSettingsScreen({ playerId, onBack }: ProfileSettingsScreenProps) {
+export function ProfileSettingsScreen({ playerId, onBack, onLogout }: ProfileSettingsScreenProps) {
   const player = useAppStore((state) => state.player);
   const setPlayer = useAppStore((state) => state.setPlayer);
+  const { isSignedIn } = useAuth();
 
   const [selectedSkin, setSelectedSkin] = useState(player.skin || "🧙");
   const [name, setName] = useState(player.name || "");
@@ -469,6 +472,88 @@ export function ProfileSettingsScreen({ playerId, onBack }: ProfileSettingsScree
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Account Section */}
+      <div style={{
+        marginTop: "20px",
+        background: "rgba(0,0,0,0.3)",
+        borderRadius: "16px",
+        padding: "20px",
+        border: "2px solid #333",
+      }}>
+        <h3 style={{
+          color: "#888",
+          marginBottom: "15px",
+          fontSize: "1em",
+          display: "flex",
+          alignItems: "center",
+          gap: "8px",
+        }}>
+          👤 Account
+        </h3>
+
+        {isSignedIn ? (
+          <div style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            padding: "10px 15px",
+            background: "rgba(34, 197, 94, 0.1)",
+            borderRadius: "12px",
+            border: "1px solid rgba(34, 197, 94, 0.3)",
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+              <span style={{ color: "#22c55e" }}>✓ Signed in</span>
+              <span style={{ color: "#888", fontSize: "0.85em" }}>Progress saved</span>
+            </div>
+            <UserButton
+              afterSignOutUrl="/"
+              appearance={{
+                elements: {
+                  avatarBox: {
+                    width: "36px",
+                    height: "36px",
+                  },
+                },
+              }}
+            />
+          </div>
+        ) : (
+          <div style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: "10px",
+          }}>
+            <div style={{
+              padding: "10px 15px",
+              background: "rgba(234, 179, 8, 0.1)",
+              borderRadius: "12px",
+              border: "1px solid rgba(234, 179, 8, 0.3)",
+              color: "#fde047",
+              fontSize: "0.9em",
+              textAlign: "center",
+            }}>
+              ⚠️ Guest mode - progress not saved
+            </div>
+            {onLogout && (
+              <button
+                onClick={onLogout}
+                style={{
+                  padding: "12px",
+                  background: "rgba(239, 68, 68, 0.2)",
+                  borderRadius: "12px",
+                  border: "1px solid rgba(239, 68, 68, 0.4)",
+                  color: "#fca5a5",
+                  cursor: "pointer",
+                  fontSize: "1em",
+                }}
+              >
+                🚪 Exit Guest Mode
+              </button>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

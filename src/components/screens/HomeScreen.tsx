@@ -1,12 +1,10 @@
 "use client";
 
 import { useAppStore } from "@/lib/store";
-import { UserButton, useAuth } from "@clerk/nextjs";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { Id } from "../../../convex/_generated/dataModel";
 import { useEffect } from "react";
-import { AudioControls } from "../ui/AudioControls";
 import { LeaderboardPodium } from "../ui/LeaderboardPodium";
 
 // Level data
@@ -118,7 +116,6 @@ export function HomeScreen({
 }: HomeScreenProps) {
   const player = useAppStore((state) => state.player);
   const showDailyReward = useAppStore((state) => state.showDailyRewardModal);
-  const { isSignedIn } = useAuth();
 
   // Active homework sessions
   const homeworkSessions = useQuery(
@@ -176,52 +173,6 @@ export function HomeScreen({
 
   return (
     <div className="screen active">
-      {/* Auth Controls - Right side only */}
-      <div style={{
-        display: "flex",
-        justifyContent: "flex-end",
-        alignItems: "center",
-        padding: "5px 0",
-        marginBottom: "10px",
-      }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          <AudioControls compact />
-          {isSignedIn && (
-            <UserButton
-              afterSignOutUrl="/"
-              appearance={{
-                elements: {
-                  avatarBox: {
-                    width: "40px",
-                    height: "40px",
-                  },
-                },
-              }}
-            />
-          )}
-          {!isSignedIn && (
-            <div
-              onClick={onLogout}
-              style={{
-                padding: "8px 12px",
-                background: "rgba(239, 68, 68, 0.2)",
-                borderRadius: "8px",
-                fontSize: "0.85em",
-                color: "#fca5a5",
-                cursor: "pointer",
-                border: "1px solid #ef444440",
-                display: "flex",
-                alignItems: "center",
-                gap: "6px",
-              }}
-            >
-              <span>Guest</span>
-              <span style={{ fontSize: "0.9em" }}>↪</span>
-            </div>
-          )}
-        </div>
-      </div>
-
       {/* Top Wizards Leaderboard */}
       <LeaderboardPodium playerId={playerId} onViewFull={onLeaderboard} />
 

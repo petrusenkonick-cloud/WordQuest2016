@@ -1355,6 +1355,7 @@ export default function Home() {
           <ProfileSettingsScreen
             playerId={playerId}
             onBack={() => setScreen("home")}
+            onLogout={handleLogout}
           />
         );
       case "dashboard":
