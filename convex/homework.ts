@@ -60,20 +60,36 @@ export const createHomeworkSession = mutation({
             .collect()
         : [];
 
-    // Check if questions are similar (compare first question text)
+    // Generate content hash from questions for better deduplication
+    const generateContentHash = (questions: { text: string }[]) => {
+      // Use first 5 questions + count for hash
+      const texts = questions.slice(0, 5).map(q => q.text.toLowerCase().trim());
+      return `${questions.length}:${texts.join('|')}`;
+    };
+
+    const newContentHash = generateContentHash(args.questions);
+
+    // Check if questions are similar (compare content hash)
     const isDuplicate = existingSessions.some((session) => {
       if (session.questions.length === 0 || args.questions.length === 0)
         return false;
-      return session.questions[0].text === args.questions[0].text;
+
+      // Must have same question count
+      if (session.questions.length !== args.questions.length)
+        return false;
+
+      // Compare content hash (first 5 questions)
+      const existingHash = generateContentHash(session.questions);
+      return existingHash === newContentHash;
     });
 
     if (isDuplicate) {
       // Return existing session ID instead of creating duplicate
-      const existing = existingSessions.find(
-        (s) =>
-          s.questions.length > 0 &&
-          s.questions[0].text === args.questions[0].text
-      );
+      const existing = existingSessions.find((s) => {
+        if (s.questions.length !== args.questions.length) return false;
+        const existingHash = generateContentHash(s.questions);
+        return existingHash === newContentHash;
+      });
       return existing?._id;
     }
 
@@ -99,7 +115,7 @@ export const createHomeworkSession = mutation({
   },
 });
 
-// Get active homework sessions for a player
+// Get active homework sessions for a player (with duplicate filtering)
 export const getActiveHomeworkSessions = query({
   args: {
     playerId: v.optional(v.id("players")),
@@ -124,7 +140,23 @@ export const getActiveHomeworkSessions = query({
           .order("desc")
           .collect();
 
-    return sessions;
+    // Filter out duplicates (keep first occurrence - most recent)
+    const generateContentHash = (questions: { text: string }[]) => {
+      const texts = questions.slice(0, 5).map(q => q.text.toLowerCase().trim());
+      return `${questions.length}:${texts.join('|')}`;
+    };
+
+    const seen = new Set<string>();
+    const uniqueSessions = sessions.filter((session) => {
+      const hash = generateContentHash(session.questions);
+      if (seen.has(hash)) {
+        return false; // Skip duplicate
+      }
+      seen.add(hash);
+      return true;
+    });
+
+    return uniqueSessions;
   },
 });
 
@@ -185,6 +217,61 @@ export const deleteHomeworkSession = mutation({
 
     await ctx.db.delete(args.sessionId);
     return { success: true };
+  },
+});
+
+// Clean up duplicate homework sessions (keeps the oldest one)
+export const cleanupDuplicateSessions = mutation({
+  args: {
+    playerId: v.id("players"),
+  },
+  handler: async (ctx, args) => {
+    // Get all active sessions for player
+    const sessions = await ctx.db
+      .query("homeworkSessions")
+      .withIndex("by_player", (q) => q.eq("playerId", args.playerId))
+      .filter((q) => q.eq(q.field("status"), "active"))
+      .collect();
+
+    if (sessions.length <= 1) {
+      return { removed: 0 };
+    }
+
+    // Generate content hash for deduplication
+    const generateContentHash = (questions: { text: string }[]) => {
+      const texts = questions.slice(0, 5).map(q => q.text.toLowerCase().trim());
+      return `${questions.length}:${texts.join('|')}`;
+    };
+
+    // Group by content hash
+    const groups: Record<string, typeof sessions> = {};
+    for (const session of sessions) {
+      const hash = generateContentHash(session.questions);
+      if (!groups[hash]) {
+        groups[hash] = [];
+      }
+      groups[hash].push(session);
+    }
+
+    // For each group with duplicates, keep oldest (first created), delete rest
+    let removedCount = 0;
+    for (const hash in groups) {
+      const group = groups[hash];
+      if (group.length > 1) {
+        // Sort by createdAt ascending (oldest first)
+        group.sort((a, b) =>
+          new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime()
+        );
+
+        // Delete all except the first (oldest)
+        for (let i = 1; i < group.length; i++) {
+          await ctx.db.delete(group[i]._id);
+          removedCount++;
+        }
+      }
+    }
+
+    return { removed: removedCount };
   },
 });
 
