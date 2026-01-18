@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { calculateNormalizedScore, AgeGroup } from "./scoring";
 
 // Level definitions - stored here for easy access
 export const LEVELS = [
@@ -203,7 +204,30 @@ export const completeLevel = mutation({
         newXpNext = Math.floor(newXpNext * 1.5);
       }
 
-      // Update player with all rewards
+      // Calculate score for leaderboard (rawScore based on stars and level completion)
+      const rawScoreToAdd = args.score * 100 + args.stars * 50;
+      const ageGroup = (player.ageGroup || "12+") as AgeGroup;
+      const sessionScore = calculateNormalizedScore(
+        rawScoreToAdd,
+        ageGroup,
+        100, // Assume good accuracy for level completion
+        10   // Approximate questions answered
+      );
+
+      // Update all-time score
+      const newRawScore = (player.totalRawScore || 0) + rawScoreToAdd;
+      const normalizedScore = calculateNormalizedScore(
+        newRawScore,
+        ageGroup,
+        100,
+        player.questsCompleted + 1
+      );
+
+      // Update weekly and monthly scores
+      const newWeeklyScore = (player.weeklyScore || 0) + sessionScore;
+      const newMonthlyScore = (player.monthlyScore || 0) + sessionScore;
+
+      // Update player with all rewards AND leaderboard scores
       await ctx.db.patch(args.playerId, {
         diamonds: player.diamonds + rewards.diamonds,
         emeralds: player.emeralds + rewards.emeralds,
@@ -213,6 +237,11 @@ export const completeLevel = mutation({
         totalStars: player.totalStars + args.stars,
         questsCompleted: player.questsCompleted + 1,
         perfectLevels: args.stars === 3 ? player.perfectLevels + 1 : player.perfectLevels,
+        // Leaderboard scores
+        totalRawScore: newRawScore,
+        normalizedScore,
+        weeklyScore: newWeeklyScore,
+        monthlyScore: newMonthlyScore,
       });
 
       return {

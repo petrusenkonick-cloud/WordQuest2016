@@ -39,7 +39,6 @@ export function useConvexSync() {
   const updateQuestsCompleted = useMutation(api.players.updateQuestsCompleted);
   const updateWordsLearned = useMutation(api.players.updateWordsLearned);
   const updateTotalStars = useMutation(api.players.updateTotalStars);
-  const updateNormalizedScore = useMutation(api.profile.updateNormalizedScore);
 
   // Level mutations
   const completeLevel = useMutation(api.levels.completeLevel);
@@ -226,21 +225,8 @@ export function useConvexSync() {
         }
       }
 
-      // Update normalized score for leaderboard (if session stats provided)
-      if (sessionStats && sessionStats.questionsAnswered > 0) {
-        try {
-          // Raw score calculation: correct answers * 100 + bonus for stars
-          const rawScoreToAdd = score * 100 + stars * 50;
-          await updateNormalizedScore({
-            playerId: playerIdRef.current,
-            rawScoreToAdd,
-            accuracy: sessionStats.accuracy,
-            questionsAnswered: sessionStats.questionsAnswered,
-          });
-        } catch (err) {
-          console.error("Failed to update normalized score:", err);
-        }
-      }
+      // Note: Leaderboard scores (weeklyScore, monthlyScore, normalizedScore)
+      // are now updated by completeLevel on backend - no need to call updateNormalizedScore here
 
       // Check achievements
       const newAchievements = await checkAchievements({ playerId: playerIdRef.current });
@@ -250,7 +236,6 @@ export function useConvexSync() {
       player,
       setPlayer,
       completeLevel,
-      updateNormalizedScore,
       checkAchievements,
     ]
   );
