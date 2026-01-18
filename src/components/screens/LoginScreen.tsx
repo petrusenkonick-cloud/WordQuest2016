@@ -130,24 +130,6 @@ export function LoginScreen({ onStart, defaultName = "" }: LoginScreenProps) {
                 ✨ CREATE ACCOUNT
               </button>
             </SignUpButton>
-
-            <div style={{ margin: "20px 0", color: "#666", fontSize: "0.9em" }}>
-              ─── or ───
-            </div>
-
-            <button
-              className="btn"
-              onClick={() => setMode("age-select")}
-              style={{
-                width: "100%",
-                justifyContent: "center",
-                background: "rgba(0,0,0,0.3)",
-                border: "2px solid #555",
-                color: "#AAA",
-              }}
-            >
-              👤 PLAY AS GUEST
-            </button>
           </>
         )}
 

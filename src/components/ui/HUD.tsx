@@ -57,14 +57,15 @@ export function HUD({ playerId, onProfileSettings }: HUDProps = {}) {
               <span className="score-badge" style={{
                 background: "linear-gradient(135deg, #fbbf24, #f59e0b)",
                 color: "#000",
-                padding: "2px 8px",
-                borderRadius: "8px",
-                fontSize: "0.75em",
+                padding: "4px 10px",
+                borderRadius: "10px",
+                fontSize: "0.85em",
                 fontWeight: "bold",
-                marginLeft: "6px",
+                marginLeft: "8px",
                 display: "inline-flex",
                 alignItems: "center",
-                gap: "3px",
+                gap: "4px",
+                boxShadow: "0 2px 6px rgba(251, 191, 36, 0.4)",
               }}>
                 ⭐ {displayScore.toLocaleString()}
               </span>
