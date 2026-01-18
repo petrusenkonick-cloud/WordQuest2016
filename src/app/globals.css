@@ -167,7 +167,7 @@ body {
   padding-top: calc(12px + var(--safe-area-top));
   padding-left: calc(12px + var(--safe-area-left));
   padding-right: calc(12px + var(--safe-area-right));
-  background: linear-gradient(180deg, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.6) 70%, transparent 100%);
+  background: linear-gradient(180deg, rgba(0,0,0,0.3) 0%, transparent 100%);
 }
 .hud-top { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 12px; }
 .player-info { display: flex; align-items: center; gap: 12px; }
