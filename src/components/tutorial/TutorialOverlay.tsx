@@ -7,34 +7,71 @@ import { CoachMark } from "./CoachMark";
 export function TutorialOverlay() {
   const { isActive, currentStep, currentStepData, nextStep, prevStep, skipTutorial, getElement } = useTutorial();
   const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
+  const [isTransitioning, setIsTransitioning] = useState(false);
   const overlayRef = useRef<HTMLDivElement>(null);
 
-  // Update target element position
+  // Update target element position and scroll into view
   useEffect(() => {
     if (!isActive || !currentStepData?.targetElement) {
       setTargetRect(null);
       return;
     }
 
+    setIsTransitioning(true);
+
     const updatePosition = () => {
       const element = getElement(currentStepData.targetElement!);
       if (element) {
+        // Scroll element into view with some padding
         const rect = element.getBoundingClientRect();
-        setTargetRect(rect);
+        const viewportHeight = window.innerHeight;
+
+        // Check if element is outside viewport
+        if (rect.top < 100 || rect.bottom > viewportHeight - 100) {
+          element.scrollIntoView({
+            behavior: "smooth",
+            block: "center",
+          });
+
+          // Wait for scroll to complete before getting final rect
+          setTimeout(() => {
+            const newRect = element.getBoundingClientRect();
+            setTargetRect(newRect);
+            setIsTransitioning(false);
+          }, 300);
+        } else {
+          setTargetRect(rect);
+          setIsTransitioning(false);
+        }
+      } else {
+        // Element not found - fallback to centered display
+        setTargetRect(null);
+        setIsTransitioning(false);
       }
     };
 
-    updatePosition();
+    // Small delay to let DOM settle
+    const initialTimeout = setTimeout(updatePosition, 100);
 
     // Update on scroll/resize
-    window.addEventListener("scroll", updatePosition, true);
-    window.addEventListener("resize", updatePosition);
+    const handleUpdate = () => {
+      if (!isTransitioning) {
+        const element = getElement(currentStepData.targetElement!);
+        if (element) {
+          setTargetRect(element.getBoundingClientRect());
+        }
+      }
+    };
+
+    window.addEventListener("scroll", handleUpdate, true);
+    window.addEventListener("resize", handleUpdate);
 
     return () => {
-      window.removeEventListener("scroll", updatePosition, true);
-      window.removeEventListener("resize", updatePosition);
+      clearTimeout(initialTimeout);
+      window.removeEventListener("scroll", handleUpdate, true);
+      window.removeEventListener("resize", handleUpdate);
     };
-  }, [isActive, currentStepData, getElement]);
+  }, [isActive, currentStepData, getElement, currentStep]);
 
   if (!isActive || !currentStepData) {
     return null;
@@ -42,6 +79,9 @@ export function TutorialOverlay() {
 
   const isFullScreen = currentStepData.position === "center";
   const padding = currentStepData.highlightPadding || 8;
+
+  // Don't render spotlight during transition or if element not found for non-center steps
+  const showSpotlight = !isFullScreen && targetRect && !isTransitioning;
 
   return (
     <div
@@ -57,7 +97,7 @@ export function TutorialOverlay() {
       }}
     >
       {/* Darkened overlay with cutout */}
-      {!isFullScreen && targetRect && (
+      {showSpotlight && (
         <svg
           style={{
             position: "absolute",
@@ -90,8 +130,8 @@ export function TutorialOverlay() {
         </svg>
       )}
 
-      {/* Full screen overlay for center positioned steps */}
-      {isFullScreen && (
+      {/* Full screen overlay for center positioned steps or when element not found */}
+      {(isFullScreen || (!targetRect && !isTransitioning)) && (
         <div
           style={{
             position: "absolute",
@@ -104,8 +144,32 @@ export function TutorialOverlay() {
         />
       )}
 
+      {/* Loading overlay during transition */}
+      {isTransitioning && (
+        <div
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: "rgba(0, 0, 0, 0.9)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <div style={{
+            fontSize: "3em",
+            animation: "spin 1s linear infinite",
+          }}>
+            ✨
+          </div>
+        </div>
+      )}
+
       {/* Highlight border around target */}
-      {!isFullScreen && targetRect && (
+      {showSpotlight && (
         <div
           style={{
             position: "absolute",
@@ -122,21 +186,27 @@ export function TutorialOverlay() {
         />
       )}
 
-      {/* Coach mark tooltip */}
-      <CoachMark
-        step={currentStepData}
-        targetRect={targetRect}
-        currentIndex={currentStep}
-        totalSteps={TUTORIAL_STEPS.length}
-        onNext={nextStep}
-        onPrev={prevStep}
-        onSkip={skipTutorial}
-      />
+      {/* Coach mark tooltip - always show unless transitioning */}
+      {!isTransitioning && (
+        <CoachMark
+          step={currentStepData}
+          targetRect={targetRect}
+          currentIndex={currentStep}
+          totalSteps={TUTORIAL_STEPS.length}
+          onNext={nextStep}
+          onPrev={prevStep}
+          onSkip={skipTutorial}
+        />
+      )}
 
       <style>{`
         @keyframes pulse-glow {
           0%, 100% { box-shadow: 0 0 20px rgba(139, 92, 246, 0.5), inset 0 0 20px rgba(139, 92, 246, 0.1); }
           50% { box-shadow: 0 0 30px rgba(139, 92, 246, 0.8), inset 0 0 30px rgba(139, 92, 246, 0.2); }
+        }
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
         }
       `}</style>
     </div>
