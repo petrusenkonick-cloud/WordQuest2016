@@ -405,6 +405,11 @@ export const checkAchievements = mutation({
 
     const newlyUnlocked: typeof ACHIEVEMENTS = [];
 
+    // BUG FIX #5: Accumulate all rewards first, then apply atomically
+    let totalDiamondsReward = 0;
+    let totalEmeraldsReward = 0;
+    let totalGoldReward = 0;
+
     for (const achievement of ACHIEVEMENTS) {
       if (unlockedIds.has(achievement.id)) continue;
 
@@ -457,22 +462,28 @@ export const checkAchievements = mutation({
           unlockedAt: new Date().toISOString(),
         });
 
-        // Give rewards
-        const updates: Partial<typeof player> = {};
+        // BUG FIX #5: Accumulate rewards instead of applying immediately
         if (achievement.reward.diamonds) {
-          updates.diamonds = player.diamonds + achievement.reward.diamonds;
+          totalDiamondsReward += achievement.reward.diamonds;
         }
         if (achievement.reward.emeralds) {
-          updates.emeralds = player.emeralds + (achievement.reward.emeralds || 0);
+          totalEmeraldsReward += achievement.reward.emeralds;
         }
         if (achievement.reward.gold) {
-          updates.gold = player.gold + (achievement.reward.gold || 0);
+          totalGoldReward += achievement.reward.gold;
         }
-
-        await ctx.db.patch(args.playerId, updates);
 
         newlyUnlocked.push(achievement);
       }
+    }
+
+    // BUG FIX #5: Apply all rewards in a single atomic update
+    if (newlyUnlocked.length > 0) {
+      await ctx.db.patch(args.playerId, {
+        diamonds: player.diamonds + totalDiamondsReward,
+        emeralds: player.emeralds + totalEmeraldsReward,
+        gold: player.gold + totalGoldReward,
+      });
     }
 
     return newlyUnlocked;

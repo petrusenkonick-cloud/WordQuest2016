@@ -730,6 +730,7 @@ export default defineSchema({
       xp: v.number(),
     }),
     completedAt: v.optional(v.string()),
+    rewardClaimedAt: v.optional(v.string()), // BUG FIX #2: Idempotency check for rewards
   })
     .index("by_player", ["playerId"])
     .index("by_player_date", ["playerId", "date"]),

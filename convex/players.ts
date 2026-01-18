@@ -199,7 +199,7 @@ export const addXP = mutation({
   },
 });
 
-// Add currency
+// Add currency (with validation)
 export const addCurrency = mutation({
   args: {
     playerId: v.id("players"),
@@ -211,13 +211,21 @@ export const addCurrency = mutation({
     amount: v.number(),
   },
   handler: async (ctx, args) => {
+    // BUG FIX #1: Validate amount is positive
+    if (args.amount <= 0) {
+      console.warn(`Invalid currency amount: ${args.amount}`);
+      return { success: false, reason: "Amount must be positive" };
+    }
+
     const player = await ctx.db.get(args.playerId);
-    if (!player) return;
+    if (!player) return { success: false, reason: "Player not found" };
 
     const currentAmount = player[args.currency];
     await ctx.db.patch(args.playerId, {
       [args.currency]: currentAmount + args.amount,
     });
+
+    return { success: true, newAmount: currentAmount + args.amount };
   },
 });
 

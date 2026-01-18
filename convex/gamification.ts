@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { internal } from "./_generated/api";
 
 // ========== DAILY CHALLENGE TYPES ==========
 
@@ -159,20 +160,40 @@ export const updateChallengeProgress = mutation({
 
     const isNowCompleted = newValue >= challenge.targetValue;
 
+    // BUG FIX #2: Use rewardClaimedAt for idempotency check
+    const rewardClaimedAt = isNowCompleted && !challenge.isCompleted
+      ? new Date().toISOString()
+      : challenge.rewardClaimedAt;
+
     await ctx.db.patch(challenge._id, {
       currentValue: Math.min(newValue, challenge.targetValue),
       isCompleted: isNowCompleted,
       completedAt: isNowCompleted ? new Date().toISOString() : undefined,
+      rewardClaimedAt,
     });
 
-    // If completed, award the reward
-    if (isNowCompleted && !challenge.isCompleted) {
+    // BUG FIX #2 & #6: Only give reward if not already claimed, and use proper XP level-up logic
+    if (isNowCompleted && !challenge.isCompleted && !challenge.rewardClaimedAt) {
       const player = await ctx.db.get(args.playerId);
       if (player) {
+        // BUG FIX #6: Apply XP with level-up logic (same as addXP mutation)
+        let newXP = player.xp + challenge.reward.xp;
+        let newLevel = player.level;
+        let newXpNext = player.xpNext;
+
+        // Level up logic
+        while (newXP >= newXpNext) {
+          newXP -= newXpNext;
+          newLevel += 1;
+          newXpNext = Math.floor(newXpNext * 1.5);
+        }
+
         await ctx.db.patch(args.playerId, {
           diamonds: player.diamonds + challenge.reward.diamonds,
           emeralds: player.emeralds + challenge.reward.emeralds,
-          xp: player.xp + challenge.reward.xp,
+          xp: newXP,
+          level: newLevel,
+          xpNext: newXpNext,
         });
       }
     }

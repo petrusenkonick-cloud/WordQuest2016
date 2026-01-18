@@ -187,6 +187,8 @@ export function useConvexSync() {
   }, [player, setPlayer, claimDailyRewardMutation]);
 
   // Complete level with Convex sync
+  // BUG FIX #4: Removed optimistic updates and duplicate reward calls
+  // Backend (completeLevel) is now the single source of truth for rewards
   const completeLevelSync = useCallback(
     async (
       levelId: string,
@@ -197,34 +199,32 @@ export function useConvexSync() {
     ) => {
       if (!playerIdRef.current) return;
 
-      // Optimistic update
-      setPlayer({
-        diamonds: player.diamonds + rewards.diamonds,
-        emeralds: player.emeralds + rewards.emeralds,
-        xp: player.xp + rewards.xp,
-        totalStars: player.totalStars + stars,
-        questsCompleted: player.questsCompleted + 1,
-        perfectLevels: stars === 3 ? player.perfectLevels + 1 : player.perfectLevels,
-      });
-
-      // Sync to Convex
-      await completeLevel({
+      // BUG FIX #4: Backend handles all rewards now - completeLevel gives diamonds, emeralds, xp, stars, questsCompleted
+      const result = await completeLevel({
         playerId: playerIdRef.current,
         levelId,
         stars,
         score,
       });
 
-      // Add XP
-      await addXP({ playerId: playerIdRef.current, amount: rewards.xp });
+      // Only update local state if rewards were given (new completion)
+      if (result?.isNewCompletion && result?.rewards) {
+        // Sync local state from backend response
+        setPlayer({
+          diamonds: player.diamonds + result.rewards.diamonds,
+          emeralds: player.emeralds + result.rewards.emeralds,
+          totalStars: player.totalStars + stars,
+          questsCompleted: player.questsCompleted + 1,
+          perfectLevels: stars === 3 ? player.perfectLevels + 1 : player.perfectLevels,
+        });
 
-      // Add currencies
-      await addCurrency({ playerId: playerIdRef.current, currency: "diamonds", amount: rewards.diamonds });
-      await addCurrency({ playerId: playerIdRef.current, currency: "emeralds", amount: rewards.emeralds });
-
-      // Update stats
-      await updateQuestsCompleted({ playerId: playerIdRef.current });
-      await updateTotalStars({ playerId: playerIdRef.current, stars });
+        // Handle level up if it happened
+        if (result.leveledUp && result.newLevel) {
+          setPlayer({
+            level: result.newLevel,
+          });
+        }
+      }
 
       // Update normalized score for leaderboard (if session stats provided)
       if (sessionStats && sessionStats.questionsAnswered > 0) {
@@ -250,10 +250,6 @@ export function useConvexSync() {
       player,
       setPlayer,
       completeLevel,
-      addXP,
-      addCurrency,
-      updateQuestsCompleted,
-      updateTotalStars,
       updateNormalizedScore,
       checkAchievements,
     ]

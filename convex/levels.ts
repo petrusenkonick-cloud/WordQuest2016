@@ -171,7 +171,8 @@ export const completeLevel = mutation({
           bestScore: Math.max(existing.bestScore, args.score),
         });
       }
-      return { isNewCompletion: false };
+      // BUG FIX #3: No rewards for replaying levels
+      return { isNewCompletion: false, rewards: null };
     }
 
     // New completion
@@ -183,6 +184,45 @@ export const completeLevel = mutation({
       completedAt: new Date().toISOString(),
     });
 
-    return { isNewCompletion: true };
+    // BUG FIX #3: Give rewards on the backend (single source of truth)
+    const level = LEVELS.find((l) => l.id === args.levelId);
+    const player = await ctx.db.get(args.playerId);
+
+    if (level && player && level.rewards) {
+      const rewards = level.rewards;
+
+      // Apply XP with level-up logic
+      let newXP = player.xp + rewards.xp;
+      let newLevel = player.level;
+      let newXpNext = player.xpNext;
+
+      // Level up logic
+      while (newXP >= newXpNext) {
+        newXP -= newXpNext;
+        newLevel += 1;
+        newXpNext = Math.floor(newXpNext * 1.5);
+      }
+
+      // Update player with all rewards
+      await ctx.db.patch(args.playerId, {
+        diamonds: player.diamonds + rewards.diamonds,
+        emeralds: player.emeralds + rewards.emeralds,
+        xp: newXP,
+        level: newLevel,
+        xpNext: newXpNext,
+        totalStars: player.totalStars + args.stars,
+        questsCompleted: player.questsCompleted + 1,
+        perfectLevels: args.stars === 3 ? player.perfectLevels + 1 : player.perfectLevels,
+      });
+
+      return {
+        isNewCompletion: true,
+        rewards,
+        leveledUp: newLevel > player.level,
+        newLevel
+      };
+    }
+
+    return { isNewCompletion: true, rewards: null };
   },
 });
