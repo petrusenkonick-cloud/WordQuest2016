@@ -77,6 +77,8 @@ interface HomeScreenProps {
   onAchievements?: () => void;
   onGemHub?: () => void;
   onProfileSettings?: () => void;
+  onHomework?: () => void;
+  onAllGames?: () => void;
 }
 
 export function HomeScreen({
@@ -98,6 +100,8 @@ export function HomeScreen({
   onAchievements,
   onGemHub,
   onProfileSettings,
+  onHomework,
+  onAllGames,
 }: HomeScreenProps) {
   const player = useAppStore((state) => state.player);
   const showDailyReward = useAppStore((state) => state.showDailyRewardModal);
@@ -529,91 +533,50 @@ export function HomeScreen({
       {/* Section Title */}
       <h2 className="section-title">📜 WEEKLY QUESTS - Week 12</h2>
 
-      {/* Active Homework Sessions */}
-      {homeworkSessions && homeworkSessions.length > 0 && (
-        <div style={{ marginBottom: "15px" }}>
-          <div style={{
-            color: "#c4b5fd",
-            fontSize: "0.85em",
-            marginBottom: "10px",
-            display: "flex",
-            alignItems: "center",
-            gap: "6px",
-          }}>
-            <span>📚</span>
-            <span>YOUR HOMEWORK</span>
-            <span style={{
-              background: "#8b5cf6",
-              color: "white",
-              borderRadius: "10px",
-              padding: "2px 8px",
-              fontSize: "0.85em",
-            }}>
-              {homeworkSessions.length}
-            </span>
-          </div>
-          <div style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: "10px",
-          }}>
-            {homeworkSessions.map((hw) => (
-              <div
-                key={hw._id}
-                onClick={() => onPlayHomework?.(hw as HomeworkSession)}
-                style={{
-                  background: "linear-gradient(135deg, rgba(168, 85, 247, 0.3) 0%, rgba(30, 27, 75, 0.4) 100%)",
-                  borderRadius: "12px",
-                  padding: "15px",
-                  cursor: "pointer",
-                  border: "2px solid #a855f7",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "15px",
-                  transition: "transform 0.2s ease, box-shadow 0.2s ease",
-                }}
-              >
-                <div style={{
-                  width: "50px",
-                  height: "50px",
-                  borderRadius: "12px",
-                  background: "rgba(168, 85, 247, 0.3)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: "1.8em",
-                }}>
-                  {hw.gameIcon}
-                </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: "bold", fontSize: "1em", marginBottom: "4px" }}>
-                    {hw.gameName}
-                  </div>
-                  <div style={{ color: "#c4b5fd", fontSize: "0.85em", marginBottom: "4px" }}>
-                    {hw.subject} • {hw.grade}
-                  </div>
-                  <div style={{ color: "#8b5cf6", fontSize: "0.8em" }}>
-                    {hw.questions.length} questions
-                  </div>
-                </div>
-                <div style={{
-                  background: "linear-gradient(135deg, #8b5cf6 0%, #a855f7 100%)",
-                  borderRadius: "8px",
-                  padding: "8px 16px",
-                  fontSize: "0.85em",
-                  fontWeight: "bold",
-                }}>
-                  PLAY
-                </div>
-              </div>
-            ))}
+      {/* Homework Link Card */}
+      <div
+        onClick={onHomework}
+        style={{
+          background: "linear-gradient(135deg, rgba(168, 85, 247, 0.3) 0%, rgba(30, 27, 75, 0.4) 100%)",
+          borderRadius: "12px",
+          padding: "15px",
+          cursor: "pointer",
+          border: "2px solid #a855f7",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          marginBottom: "15px",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          <span style={{ fontSize: "2em" }}>📚</span>
+          <div>
+            <div style={{ fontWeight: "bold", color: "white" }}>My Homework</div>
+            <div style={{ color: "#c4b5fd", fontSize: "0.85em" }}>
+              {homeworkSessions && homeworkSessions.length > 0
+                ? `${homeworkSessions.length} active`
+                : "Scan to create games"}
+            </div>
           </div>
         </div>
-      )}
+        {homeworkSessions && homeworkSessions.length > 0 && (
+          <span style={{
+            background: "#8b5cf6",
+            color: "white",
+            borderRadius: "10px",
+            padding: "4px 10px",
+            fontSize: "0.9em",
+            fontWeight: "bold",
+          }}>
+            {homeworkSessions.length}
+          </span>
+        )}
+        <span style={{ color: "#a855f7", fontSize: "1.2em" }}>→</span>
+      </div>
 
-      {/* Level Grid */}
+      {/* Level Grid - Show only first 6 games */}
       <div className="level-grid">
-        {LEVELS.map((level) => {
+        {LEVELS.slice(0, 6).map((level) => {
           const progress = completedLevels[level.id] || { stars: 0, done: false };
           const unlock = level.unlock as GameUnlock | undefined;
           const unlocked = isGameUnlocked(level.id, unlock);
@@ -706,6 +669,30 @@ export function HomeScreen({
           );
         })}
       </div>
+
+      {/* See All Games Button */}
+      {LEVELS.length > 6 && (
+        <div
+          onClick={onAllGames}
+          style={{
+            background: "linear-gradient(135deg, rgba(252, 219, 5, 0.2) 0%, rgba(255, 165, 0, 0.2) 100%)",
+            borderRadius: "12px",
+            padding: "15px",
+            cursor: "pointer",
+            border: "2px solid #FCDB05",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "10px",
+            marginTop: "15px",
+          }}
+        >
+          <span style={{ color: "#FCDB05", fontWeight: "bold" }}>
+            See All {LEVELS.length} Games
+          </span>
+          <span style={{ color: "#FCDB05" }}>→</span>
+        </div>
+      )}
 
       {/* Unlock Modal */}
       {unlockModal && (

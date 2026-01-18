@@ -47,7 +47,9 @@ export type ScreenType =
   | "profile-settings"
   | "dashboard"
   | "leaderboard"
-  | "gem-hub";
+  | "gem-hub"
+  | "homework"
+  | "games";
 
 export interface UIState {
   currentScreen: ScreenType;
@@ -83,6 +85,7 @@ export interface AudioState {
   sfxEnabled: boolean;
   musicVolume: number; // 0-1
   sfxVolume: number; // 0-1
+  effectsEnabled: boolean; // Visual effects (snow, stars, particles)
 }
 
 // Gem state for UI
@@ -207,6 +210,7 @@ const initialAudioState: AudioState = {
   sfxEnabled: true,
   musicVolume: 0.5,
   sfxVolume: 0.7,
+  effectsEnabled: true,
 };
 
 const initialGemState: GemState = {

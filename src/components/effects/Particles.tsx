@@ -2,10 +2,12 @@
 
 import { useEffect, useState, useMemo } from "react";
 import { motion } from "framer-motion";
+import { useAppStore } from "@/lib/store";
 
 // Global ambient particles for the game world
 export function AmbientParticles() {
   const [mounted, setMounted] = useState(false);
+  const effectsEnabled = useAppStore((state) => state.audio.effectsEnabled);
 
   useEffect(() => {
     setMounted(true);
@@ -14,7 +16,8 @@ export function AmbientParticles() {
   const particles = useMemo(() => {
     if (!mounted) return [];
 
-    return Array.from({ length: 20 }, (_, i) => ({
+    // Reduced particle count for better performance
+    return Array.from({ length: 10 }, (_, i) => ({
       id: i,
       x: Math.random() * 100,
       size: 2 + Math.random() * 4,
@@ -28,7 +31,7 @@ export function AmbientParticles() {
     }));
   }, [mounted]);
 
-  if (!mounted) return null;
+  if (!mounted || !effectsEnabled) return null;
 
   const colors = {
     gold: { bg: "#FCDB05", glow: "rgba(252, 219, 5, 0.6)" },

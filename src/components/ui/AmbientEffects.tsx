@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo } from "react";
 import { motion } from "framer-motion";
+import { useAppStore } from "@/lib/store";
 
 // Snowflake component
 const Snowflake = ({ delay, duration, left, size }: {
@@ -131,21 +132,24 @@ interface AmbientEffectsProps {
 export function AmbientEffects({
   enableSnow = true,
   enableDayNight = true,
-  snowIntensity = "medium",
+  snowIntensity = "light",
 }: AmbientEffectsProps) {
   const [timePeriod, setTimePeriod] = useState<TimePeriod>("night");
   const [mounted, setMounted] = useState(false);
 
-  // Snow count based on intensity
+  // Read effects setting from store
+  const effectsEnabled = useAppStore((state) => state.audio.effectsEnabled);
+
+  // Snow count based on intensity (reduced for performance)
   const snowCount = {
-    light: 15,
-    medium: 30,
-    heavy: 50,
+    light: 10,
+    medium: 20,
+    heavy: 35,
   }[snowIntensity];
 
-  // Generate snowflakes and stars once
+  // Generate snowflakes and stars once (reduced counts)
   const snowflakes = useMemo(() => generateSnowflakes(snowCount), [snowCount]);
-  const stars = useMemo(() => generateStars(40), []);
+  const stars = useMemo(() => generateStars(15), []);
 
   // Update time period based on real time
   useEffect(() => {
@@ -163,6 +167,9 @@ export function AmbientEffects({
   }, []);
 
   if (!mounted) return null;
+
+  // If effects are disabled in settings, don't render anything
+  if (!effectsEnabled) return null;
 
   const isNight = timePeriod === "night" || timePeriod === "dusk" || timePeriod === "dawn";
 

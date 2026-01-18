@@ -218,15 +218,15 @@ function LevelCard({
           </div>
         </div>
 
-        {/* Title */}
-        <h3 className="font-pixel text-[0.65em] text-white text-shadow-lg mb-2 leading-relaxed tracking-wide">
-          {name}
-        </h3>
-
-        {/* Description */}
-        <p className="text-[#E0D0C0] text-[0.95em] text-shadow-dark leading-snug">
-          {desc}
-        </p>
+        {/* Title and Description with dark background for readability */}
+        <div className="bg-black/70 rounded px-2 py-1.5 backdrop-blur-sm">
+          <h3 className="font-pixel text-[0.65em] text-white mb-1 leading-relaxed tracking-wide drop-shadow-[0_2px_4px_rgba(0,0,0,1)]">
+            {name}
+          </h3>
+          <p className="text-[#F0E0D0] text-[0.9em] leading-snug drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
+            {desc}
+          </p>
+        </div>
 
         {/* Progress bar */}
         <div className="mt-3 flex items-center gap-3">

@@ -37,6 +37,64 @@ const AGE_GROUPS = [
   { id: "13+", label: "13+ years", sublabel: "Grade 8+", emoji: "🐺", color: "#96CEB4" },
 ];
 
+// Effects toggle component
+function EffectsToggle() {
+  const effectsEnabled = useAppStore((state) => state.audio.effectsEnabled);
+  const setAudioSettings = useAppStore((state) => state.setAudioSettings);
+
+  return (
+    <div style={{
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      padding: "12px 15px",
+      background: "rgba(0,0,0,0.3)",
+      borderRadius: "12px",
+      border: "1px solid #444",
+    }}>
+      <div>
+        <div style={{ color: "white", fontWeight: "500" }}>
+          Visual Effects
+        </div>
+        <div style={{ color: "#888", fontSize: "0.85em" }}>
+          Snow, stars, particles
+        </div>
+      </div>
+      <motion.button
+        whileTap={{ scale: 0.95 }}
+        onClick={() => setAudioSettings({ effectsEnabled: !effectsEnabled })}
+        style={{
+          width: "56px",
+          height: "32px",
+          borderRadius: "16px",
+          border: "none",
+          background: effectsEnabled
+            ? "linear-gradient(135deg, #22c55e 0%, #16a34a 100%)"
+            : "rgba(100,100,100,0.4)",
+          cursor: "pointer",
+          position: "relative",
+          transition: "background 0.2s ease",
+        }}
+      >
+        <motion.div
+          animate={{ x: effectsEnabled ? 24 : 0 }}
+          transition={{ type: "spring", stiffness: 500, damping: 30 }}
+          style={{
+            width: "28px",
+            height: "28px",
+            borderRadius: "50%",
+            background: "white",
+            position: "absolute",
+            top: "2px",
+            left: "2px",
+            boxShadow: "0 2px 4px rgba(0,0,0,0.3)",
+          }}
+        />
+      </motion.button>
+    </div>
+  );
+}
+
 interface ProfileSettingsScreenProps {
   playerId: Id<"players"> | null;
   onBack: () => void;
@@ -472,6 +530,28 @@ export function ProfileSettingsScreen({ playerId, onBack, onLogout }: ProfileSet
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Visual Settings Section */}
+      <div style={{
+        marginTop: "20px",
+        background: "rgba(0,0,0,0.3)",
+        borderRadius: "16px",
+        padding: "20px",
+        border: "2px solid #333",
+      }}>
+        <h3 style={{
+          color: "#4AEDD9",
+          marginBottom: "15px",
+          fontSize: "1em",
+          display: "flex",
+          alignItems: "center",
+          gap: "8px",
+        }}>
+          ✨ Visual Settings
+        </h3>
+
+        <EffectsToggle />
+      </div>
 
       {/* Account Section */}
       <div style={{

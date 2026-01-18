@@ -30,6 +30,8 @@ import { LeaderboardScreen } from "@/components/screens/LeaderboardScreen";
 import { GemHubScreen } from "@/components/screens/GemHubScreen";
 import { WeeklyQuestsScreen } from "@/components/screens/WeeklyQuestsScreen";
 import { HomeworkAnswersScreen } from "@/components/screens/HomeworkAnswersScreen";
+import { HomeworkScreen } from "@/components/screens/HomeworkScreen";
+import { GamesScreen } from "@/components/screens/GamesScreen";
 
 // UI Components
 import { GameWorld } from "@/components/ui/GameWorld";
@@ -2159,6 +2161,8 @@ export default function Home() {
             onAchievements={handleOpenAchievements}
             onGemHub={handleOpenGemHub}
             onProfileSettings={handleOpenProfileSettings}
+            onHomework={() => setScreen("homework")}
+            onAllGames={() => setScreen("games")}
           />
         );
       case "shop":
@@ -2254,6 +2258,23 @@ export default function Home() {
             onBack={() => setScreen("home")}
           />
         ) : null;
+      case "homework":
+        return (
+          <HomeworkScreen
+            playerId={playerId}
+            onBack={() => setScreen("home")}
+            onPlayHomework={handlePlayHomework}
+            onScanHomework={handleScanHomework}
+          />
+        );
+      case "games":
+        return (
+          <GamesScreen
+            completedLevels={completedLevels}
+            onStartLevel={handleStartLevel}
+            onBack={() => setScreen("home")}
+          />
+        );
       default:
         return null;
     }
