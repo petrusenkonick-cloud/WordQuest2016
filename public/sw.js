@@ -1,4 +1,4 @@
-const CACHE_NAME = 'wordquest-v16';
+const CACHE_NAME = 'wordquest-v17';
 const urlsToCache = [
   '/',
   '/manifest.json',
