@@ -33,14 +33,25 @@ export const getLeaderboard = query({
       );
     }
 
-    // Calculate score: use normalizedScore if available (includes difficulty & age bonuses)
-    // Otherwise fallback to simple formula for players who haven't done homework yet
+    // Get the appropriate score based on leaderboard type
     const getScore = (p: typeof players[0]) => {
-      if (p.normalizedScore !== undefined && p.normalizedScore > 0) {
-        return p.normalizedScore;
+      switch (args.type) {
+        case "weekly":
+          // Use weekly score if available
+          return p.weeklyScore || 0;
+        case "monthly":
+          // Use monthly score if available
+          return p.monthlyScore || 0;
+        case "daily":
+        case "all_time":
+        default:
+          // Use all-time normalized score
+          if (p.normalizedScore !== undefined && p.normalizedScore > 0) {
+            return p.normalizedScore;
+          }
+          // Fallback for players without normalized score
+          return (p.totalStars || 0) * 100 + (p.xp || 0);
       }
-      // Fallback for players without normalized score
-      return (p.totalStars || 0) * 100 + (p.xp || 0);
     };
 
     // Sort by calculated score
@@ -355,6 +366,60 @@ export const distributeRewards = internalMutation({
     }
 
     return { success: true, rewardsCreated: rewardsCreated.length };
+  },
+});
+
+// ========== SCORE RESET FUNCTIONS ==========
+
+/**
+ * Reset weekly scores for all players (called by cron every Monday)
+ */
+export const resetWeeklyScores = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const now = new Date().toISOString();
+    const players = await ctx.db.query("players").collect();
+
+    let resetCount = 0;
+    for (const player of players) {
+      // Only reset if player has a weekly score
+      if (player.weeklyScore && player.weeklyScore > 0) {
+        await ctx.db.patch(player._id, {
+          weeklyScore: 0,
+          weeklyScoreResetAt: now,
+        });
+        resetCount++;
+      }
+    }
+
+    console.log(`Weekly scores reset for ${resetCount} players`);
+    return { success: true, playersReset: resetCount, resetAt: now };
+  },
+});
+
+/**
+ * Reset monthly scores for all players (called by cron on 1st of month)
+ */
+export const resetMonthlyScores = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const now = new Date().toISOString();
+    const players = await ctx.db.query("players").collect();
+
+    let resetCount = 0;
+    for (const player of players) {
+      // Only reset if player has a monthly score
+      if (player.monthlyScore && player.monthlyScore > 0) {
+        await ctx.db.patch(player._id, {
+          monthlyScore: 0,
+          monthlyScoreResetAt: now,
+        });
+        resetCount++;
+      }
+    }
+
+    console.log(`Monthly scores reset for ${resetCount} players`);
+    return { success: true, playersReset: resetCount, resetAt: now };
   },
 });
 

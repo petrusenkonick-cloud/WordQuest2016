@@ -45,6 +45,7 @@ import { DailyRewardModal } from "@/components/modals/DailyRewardModal";
 import { LevelCompleteModal } from "@/components/modals/LevelCompleteModal";
 import { AchievementModal } from "@/components/modals/AchievementModal";
 import { ErrorModal } from "@/components/modals/ErrorModal";
+import { DuplicateHomeworkDialog } from "@/components/ui/DuplicateHomeworkDialog";
 
 // Ambient Effects
 import { AmbientEffects } from "@/components/ui/AmbientEffects";
@@ -460,6 +461,20 @@ export default function Home() {
   const [aiGameData, setAiGameData] = useState<AIAnalysisResult | null>(null);
   const [currentHomeworkSessionId, setCurrentHomeworkSessionId] = useState<Id<"homeworkSessions"> | null>(null);
   const [currentPracticeQuestId, setCurrentPracticeQuestId] = useState<Id<"weeklyPracticeQuests"> | null>(null);
+  // Practice mode for duplicate homework (25% rewards)
+  const [isPracticeMode, setIsPracticeMode] = useState(false);
+  const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
+  const [pendingHomeworkData, setPendingHomeworkData] = useState<AIAnalysisResult | null>(null);
+  const [duplicateSessionInfo, setDuplicateSessionInfo] = useState<{
+    _id: string;
+    gameName: string;
+    gameIcon: string;
+    subject: string;
+    score?: number;
+    stars?: number;
+    completedAt?: string;
+    questionsCount: number;
+  } | null>(null);
   // Spaced Repetition Review tracking
   const [currentReviewSession, setCurrentReviewSession] = useState<{
     topic: string;
@@ -802,6 +817,61 @@ export default function Home() {
     setTabSwitchCount(0); // Reset tab switch count
   }, []);
 
+  // View answers for a completed homework session (from history)
+  const handleViewHomeworkAnswers = useCallback((homework: {
+    _id: Id<"homeworkSessions">;
+    subject: string;
+    grade: string;
+    topics: string[];
+    gameName: string;
+    gameIcon: string;
+    questions: {
+      text: string;
+      type: string;
+      options?: string[];
+      correct: string;
+      explanation?: string;
+      hint?: string;
+      pageRef?: number;
+    }[];
+    userAnswers?: {
+      questionIndex: number;
+      userAnswer: string;
+      isCorrect: boolean;
+    }[];
+  }) => {
+    // Must have userAnswers to view
+    if (!homework.userAnswers || homework.userAnswers.length === 0) {
+      console.error("Homework has no user answers:", homework);
+      alert("No answers found for this homework session.");
+      return;
+    }
+
+    // Convert to the format expected by HomeworkAnswersScreen
+    const gameData: AIAnalysisResult = {
+      subject: homework.subject,
+      grade: homework.grade,
+      topics: homework.topics,
+      totalPages: 1,
+      gameName: homework.gameName,
+      gameIcon: homework.gameIcon,
+      questions: homework.questions.map(q => ({
+        text: q.text,
+        type: (q.type as "multiple_choice" | "fill_blank" | "true_false") || "multiple_choice",
+        options: q.options,
+        correct: q.correct,
+        explanation: q.explanation,
+        hint: q.hint,
+        pageRef: q.pageRef,
+      })),
+    };
+
+    // Set up the answers screen data
+    setCompletedHomeworkData(gameData);
+    setHomeworkAnswers(homework.userAnswers);
+    setShowHomeworkAnswers(true);
+  }, []);
+
   const handleStartQuest = useCallback((questId: string, chapterId: number) => {
     // TODO: Start the quest game with the questId
     console.log("Starting quest:", questId, "in chapter:", chapterId);
@@ -1059,9 +1129,9 @@ export default function Home() {
       questions: shuffledQuestions,
     };
 
-    // Save homework session to database
+    // Check for duplicates and save homework session
     try {
-      const sessionId = await createHomeworkSession({
+      const response = await createHomeworkSession({
         playerId: playerId || undefined,
         guestId: playerId ? undefined : `guest_${Date.now()}`,
         imageUrls: capturedImages,
@@ -1080,7 +1150,6 @@ export default function Home() {
           hint: q.hint,
           pageRef: q.pageRef,
         })),
-        // Pass AI-analyzed difficulty for fair scoring
         difficulty: result.difficulty ? {
           gradeLevel: result.difficulty.gradeLevel,
           multiplier: result.difficulty.multiplier,
@@ -1088,25 +1157,118 @@ export default function Home() {
           analyzedByAI: true,
         } : undefined,
       });
-      setCurrentHomeworkSessionId(sessionId || null);
+
+      // Handle duplicate detection response
+      if (response && typeof response === 'object' && 'isDuplicate' in response) {
+        if (response.isDuplicate && response.originalSession) {
+          // Show duplicate dialog - user needs to choose
+          setPendingHomeworkData(processedResult);
+          setDuplicateSessionInfo(response.originalSession as typeof duplicateSessionInfo);
+          setShowAIProcessing(false);
+          setShowDuplicateDialog(true);
+          return; // Don't start game yet
+        }
+        // Not a duplicate or already handled - set session ID
+        setCurrentHomeworkSessionId(response.sessionId || null);
+      } else {
+        // Legacy response format (just session ID)
+        setCurrentHomeworkSessionId(response as Id<"homeworkSessions"> | null);
+      }
     } catch (error) {
       console.error("Failed to save homework session:", error);
     }
 
+    // Start the game
     setAiGameData(processedResult);
     setShowAIProcessing(false);
     setIsPlayingAIGame(true);
+    setIsPracticeMode(false);
     setAiGameProgress({ current: 0, correct: 0, mistakes: 0 });
     setSelectedAnswer(null);
     setShowFeedback(false);
-    setQuestionStartTime(Date.now()); // Anti-cheat: Start timer
-    setResponseTimeData([]); // Reset response time data
-    setTabSwitchCount(0); // Reset tab switch count
-  }, [createHomeworkSession, playerId, capturedImages]);
+    setQuestionStartTime(Date.now());
+    setResponseTimeData([]);
+    setTabSwitchCount(0);
+  }, [createHomeworkSession, playerId, capturedImages, duplicateSessionInfo]);
 
   const handleAIError = useCallback((error: string) => {
     setErrorMessage(error);
     setShowAIProcessing(false);
+    setCapturedImages([]);
+  }, []);
+
+  // Handle practice mode selection from duplicate dialog
+  const handlePracticeModeSelect = useCallback(async () => {
+    if (!pendingHomeworkData || !duplicateSessionInfo) return;
+
+    setShowDuplicateDialog(false);
+
+    // Create session in practice mode
+    try {
+      const response = await createHomeworkSession({
+        playerId: playerId || undefined,
+        guestId: playerId ? undefined : `guest_${Date.now()}`,
+        imageUrls: capturedImages,
+        totalPages: capturedImages.length,
+        subject: pendingHomeworkData.subject,
+        grade: pendingHomeworkData.grade,
+        topics: pendingHomeworkData.topics,
+        gameName: pendingHomeworkData.gameName,
+        gameIcon: pendingHomeworkData.gameIcon,
+        questions: pendingHomeworkData.questions.map(q => ({
+          text: q.text,
+          type: q.type,
+          options: q.options,
+          correct: q.correct,
+          explanation: q.explanation,
+          hint: q.hint,
+          pageRef: q.pageRef,
+        })),
+        difficulty: pendingHomeworkData.difficulty ? {
+          gradeLevel: pendingHomeworkData.difficulty.gradeLevel,
+          multiplier: pendingHomeworkData.difficulty.multiplier,
+          topics: pendingHomeworkData.difficulty.topics,
+          analyzedByAI: true,
+        } : undefined,
+        isPracticeMode: true,
+        originalSessionId: duplicateSessionInfo._id as Id<"homeworkSessions">,
+      });
+
+      if (response && typeof response === 'object' && 'sessionId' in response) {
+        setCurrentHomeworkSessionId(response.sessionId || null);
+      }
+    } catch (error) {
+      console.error("Failed to create practice session:", error);
+    }
+
+    // Start game in practice mode
+    setAiGameData(pendingHomeworkData);
+    setIsPlayingAIGame(true);
+    setIsPracticeMode(true); // 25% rewards
+    setAiGameProgress({ current: 0, correct: 0, mistakes: 0 });
+    setSelectedAnswer(null);
+    setShowFeedback(false);
+    setQuestionStartTime(Date.now());
+    setResponseTimeData([]);
+    setTabSwitchCount(0);
+    setPendingHomeworkData(null);
+    setDuplicateSessionInfo(null);
+  }, [pendingHomeworkData, duplicateSessionInfo, createHomeworkSession, playerId, capturedImages]);
+
+  // Handle "scan new homework" from duplicate dialog
+  const handleScanNewFromDialog = useCallback(() => {
+    setShowDuplicateDialog(false);
+    setPendingHomeworkData(null);
+    setDuplicateSessionInfo(null);
+    setCapturedImages([]);
+    setShowCamera(true); // Go back to camera
+  }, []);
+
+  // Close duplicate dialog
+  const handleCloseDuplicateDialog = useCallback(() => {
+    setShowDuplicateDialog(false);
+    setPendingHomeworkData(null);
+    setDuplicateSessionInfo(null);
     setCapturedImages([]);
   }, []);
 
@@ -1420,10 +1582,13 @@ export default function Home() {
       // Check if game is complete
       if (newProgress.current >= aiGameData.questions.length) {
         const stars = newProgress.mistakes === 0 ? 3 : newProgress.mistakes <= 2 ? 2 : 1;
+
+        // Practice mode: 25% rewards, no leaderboard points
+        const rewardMultiplier = isPracticeMode ? 0.25 : 1.0;
         const rewards = {
-          diamonds: 50 + newProgress.correct * 10,
-          emeralds: 20 + stars * 5,
-          xp: 100 + newProgress.correct * 20,
+          diamonds: isPracticeMode ? 0 : 50 + newProgress.correct * 10, // No diamonds in practice
+          emeralds: isPracticeMode ? 0 : 20 + stars * 5, // No emeralds in practice
+          xp: Math.round((100 + newProgress.correct * 20) * rewardMultiplier), // 25% XP in practice
         };
 
         // Calculate session stats for normalized scoring
@@ -1435,6 +1600,7 @@ export default function Home() {
           accuracy,
           questionsAnswered: totalQuestions,
           difficultyMultiplier,
+          isPracticeMode, // Pass to scoring to skip weekly/monthly updates
         };
 
         // Complete level via Convex and check for achievements
@@ -2433,6 +2599,7 @@ export default function Home() {
             onBack={() => setScreen("home")}
             onPlayHomework={handlePlayHomework}
             onScanHomework={handleScanHomework}
+            onViewAnswers={handleViewHomeworkAnswers}
           />
         );
       case "games":
@@ -2590,6 +2757,17 @@ export default function Home() {
             setAchievementData(null);
           }}
           achievement={achievementData}
+        />
+      )}
+
+      {/* Duplicate Homework Dialog - shows when scanning homework that was already completed */}
+      {showDuplicateDialog && duplicateSessionInfo && (
+        <DuplicateHomeworkDialog
+          isOpen={showDuplicateDialog}
+          originalSession={duplicateSessionInfo}
+          onPracticeMode={handlePracticeModeSelect}
+          onScanNew={handleScanNewFromDialog}
+          onClose={handleCloseDuplicateDialog}
         />
       )}
 

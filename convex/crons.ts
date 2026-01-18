@@ -55,6 +55,24 @@ crons.weekly(
   { type: "weekly" }
 );
 
+// ========== SCORE RESETS ==========
+
+// Reset weekly scores every Monday at 0:00 UTC
+// Clears weeklyScore for all players so weekly leaderboard starts fresh
+crons.weekly(
+  "reset-weekly-scores",
+  { dayOfWeek: "monday", hourUTC: 0, minuteUTC: 0 },
+  internal.leaderboards.resetWeeklyScores
+);
+
+// Reset monthly scores on the 1st of each month at 0:00 UTC
+// Clears monthlyScore for all players so monthly leaderboard starts fresh
+crons.monthly(
+  "reset-monthly-scores",
+  { day: 1, hourUTC: 0, minuteUTC: 0 },
+  internal.leaderboards.resetMonthlyScores
+);
+
 // ========== WEEKLY PRACTICE QUESTS ==========
 
 // Generate weekly practice quests every Monday at 6:00 UTC

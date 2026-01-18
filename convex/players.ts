@@ -404,3 +404,21 @@ export const updateTotalStars = mutation({
     });
   },
 });
+
+// ========== ADMIN FUNCTIONS ==========
+
+// Delete all players (DANGER: for testing only)
+export const deleteAllPlayers = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const players = await ctx.db.query("players").collect();
+
+    let deletedCount = 0;
+    for (const player of players) {
+      await ctx.db.delete(player._id);
+      deletedCount++;
+    }
+
+    return { success: true, deletedCount };
+  },
+});

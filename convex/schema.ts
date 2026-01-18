@@ -31,8 +31,13 @@ export default defineSchema({
     competitionOptIn: v.optional(v.boolean()), // Opted into competitions
     profileCompleted: v.optional(v.boolean()), // Profile setup completed
     // Normalized score for fair competition
-    normalizedScore: v.optional(v.number()), // Fair score across ages
+    normalizedScore: v.optional(v.number()), // Fair score across ages (ALL-TIME)
     totalRawScore: v.optional(v.number()), // Raw cumulative score
+    // Periodic scores (reset weekly/monthly)
+    weeklyScore: v.optional(v.number()), // Resets every Monday
+    monthlyScore: v.optional(v.number()), // Resets 1st of each month
+    weeklyScoreResetAt: v.optional(v.string()), // Last weekly reset timestamp
+    monthlyScoreResetAt: v.optional(v.string()), // Last monthly reset timestamp
     // Tutorial state
     tutorialCompleted: v.optional(v.boolean()), // Has completed onboarding tutorial
     tutorialStep: v.optional(v.number()), // Current tutorial step (for resuming)
@@ -41,7 +46,9 @@ export default defineSchema({
     .index("by_name", ["name"])
     .index("by_grade", ["gradeLevel"])
     .index("by_age_group", ["ageGroup"])
-    .index("by_normalized_score", ["normalizedScore"]),
+    .index("by_normalized_score", ["normalizedScore"])
+    .index("by_weekly_score", ["weeklyScore"])
+    .index("by_monthly_score", ["monthlyScore"]),
 
   // Player inventory
   inventory: defineTable({
@@ -124,6 +131,9 @@ export default defineSchema({
         })
       )
     ),
+    // Practice mode: reduced rewards for repeated homework
+    isPracticeMode: v.optional(v.boolean()), // true if this is a repeat of completed homework
+    originalSessionId: v.optional(v.id("homeworkSessions")), // reference to original completed session
     createdAt: v.string(),
     completedAt: v.optional(v.string()),
   })

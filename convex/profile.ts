@@ -184,6 +184,8 @@ export const isProfileComplete = query({
 
 /**
  * Update player's normalized score (called after game completion)
+ * Updates all-time, weekly, and monthly scores
+ * Practice mode: only updates all-time score at 25% rate, skips weekly/monthly
  */
 export const updateNormalizedScore = mutation({
   args: {
@@ -191,6 +193,7 @@ export const updateNormalizedScore = mutation({
     rawScoreToAdd: v.number(),
     accuracy: v.number(),
     questionsAnswered: v.number(),
+    isPracticeMode: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const player = await ctx.db.get(args.playerId);
@@ -198,10 +201,16 @@ export const updateNormalizedScore = mutation({
       throw new Error("Player not found");
     }
 
-    // Calculate new raw score
-    const newRawScore = (player.totalRawScore || 0) + args.rawScoreToAdd;
+    const isPractice = args.isPracticeMode === true;
 
-    // Calculate new normalized score
+    // Practice mode gives 25% score, normal gives 100%
+    const scoreMultiplier = isPractice ? 0.25 : 1.0;
+    const adjustedRawScore = Math.round(args.rawScoreToAdd * scoreMultiplier);
+
+    // Calculate new raw score (all-time) - always updated
+    const newRawScore = (player.totalRawScore || 0) + adjustedRawScore;
+
+    // Calculate new normalized score (all-time)
     const ageGroup = (player.ageGroup || "12+") as AgeGroup;
     const normalizedScore = calculateNormalizedScore(
       newRawScore,
@@ -210,13 +219,52 @@ export const updateNormalizedScore = mutation({
       args.questionsAnswered
     );
 
-    // Update player
+    // Practice mode: skip weekly/monthly score updates (no leaderboard points)
+    if (isPractice) {
+      await ctx.db.patch(args.playerId, {
+        totalRawScore: newRawScore,
+        normalizedScore,
+        // Don't update weeklyScore or monthlyScore
+      });
+
+      return {
+        normalizedScore,
+        rawScore: newRawScore,
+        weeklyScore: player.weeklyScore || 0,
+        monthlyScore: player.monthlyScore || 0,
+        isPracticeMode: true,
+      };
+    }
+
+    // Normal mode: update all scores including weekly/monthly
+    const sessionScore = calculateNormalizedScore(
+      args.rawScoreToAdd,
+      ageGroup,
+      args.accuracy,
+      args.questionsAnswered
+    );
+
+    // Update weekly score (add to existing)
+    const newWeeklyScore = (player.weeklyScore || 0) + sessionScore;
+
+    // Update monthly score (add to existing)
+    const newMonthlyScore = (player.monthlyScore || 0) + sessionScore;
+
+    // Update player with all scores
     await ctx.db.patch(args.playerId, {
       totalRawScore: newRawScore,
       normalizedScore,
+      weeklyScore: newWeeklyScore,
+      monthlyScore: newMonthlyScore,
     });
 
-    return { normalizedScore, rawScore: newRawScore };
+    return {
+      normalizedScore,
+      rawScore: newRawScore,
+      weeklyScore: newWeeklyScore,
+      monthlyScore: newMonthlyScore,
+      isPracticeMode: false,
+    };
   },
 });
 

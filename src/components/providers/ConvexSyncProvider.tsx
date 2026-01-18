@@ -246,7 +246,7 @@ export function ConvexSyncProvider({ children }: { children: ReactNode }) {
     stars: number,
     score: number,
     rewards: { diamonds: number; emeralds: number; xp: number },
-    sessionStats?: { accuracy: number; questionsAnswered: number; difficultyMultiplier?: number }
+    sessionStats?: { accuracy: number; questionsAnswered: number; difficultyMultiplier?: number; isPracticeMode?: boolean }
   ) => {
     if (!playerId) return;
 
@@ -280,6 +280,7 @@ export function ConvexSyncProvider({ children }: { children: ReactNode }) {
           rawScoreToAdd,
           accuracy: sessionStats.accuracy,
           questionsAnswered: sessionStats.questionsAnswered,
+          isPracticeMode: sessionStats.isPracticeMode,
         });
       } catch (err) {
         console.error("Failed to update normalized score:", err);

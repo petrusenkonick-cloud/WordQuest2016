@@ -26,6 +26,11 @@ interface HomeworkSession {
   status?: string;
   score?: number;
   stars?: number;
+  userAnswers?: {
+    questionIndex: number;
+    userAnswer: string;
+    isCorrect: boolean;
+  }[];
 }
 
 interface HomeworkScreenProps {
@@ -33,6 +38,7 @@ interface HomeworkScreenProps {
   onBack: () => void;
   onPlayHomework: (homework: HomeworkSession) => void;
   onScanHomework: () => void;
+  onViewAnswers?: (homework: HomeworkSession) => void;
 }
 
 export function HomeworkScreen({
@@ -40,6 +46,7 @@ export function HomeworkScreen({
   onBack,
   onPlayHomework,
   onScanHomework,
+  onViewAnswers,
 }: HomeworkScreenProps) {
   // Get active homework sessions
   const homeworkSessions = useQuery(
@@ -273,53 +280,114 @@ export function HomeworkScreen({
                   borderRadius: "10px",
                   padding: "12px",
                   border: "1px solid rgba(34, 197, 94, 0.3)",
+                }}
+              >
+                {/* Top Row: Icon, Title, Score */}
+                <div style={{
                   display: "flex",
                   alignItems: "center",
                   gap: "12px",
-                }}
-              >
-                <div style={{
-                  width: "40px",
-                  height: "40px",
-                  borderRadius: "10px",
-                  background: "rgba(34, 197, 94, 0.2)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: "1.4em",
+                  marginBottom: "10px",
                 }}>
-                  {hw.gameIcon}
-                </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: "bold", fontSize: "0.95em", color: "white" }}>
-                    {hw.gameName}
+                  <div style={{
+                    width: "40px",
+                    height: "40px",
+                    borderRadius: "10px",
+                    background: "rgba(34, 197, 94, 0.2)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: "1.4em",
+                    flexShrink: 0,
+                  }}>
+                    {hw.gameIcon}
                   </div>
-                  <div style={{ color: "#888", fontSize: "0.8em" }}>
-                    {hw.subject} • {hw.questions.length} questions
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: "bold", fontSize: "0.95em", color: "white" }}>
+                      {hw.gameName}
+                    </div>
+                    <div style={{ color: "#888", fontSize: "0.8em" }}>
+                      {hw.subject} • {hw.questions.length} questions
+                    </div>
+                  </div>
+                  <div style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    flexShrink: 0,
+                  }}>
+                    {hw.stars !== undefined && (
+                      <div style={{ color: "#FCDB05", fontSize: "0.9em" }}>
+                        {"⭐".repeat(hw.stars)}
+                      </div>
+                    )}
+                    {hw.score !== undefined && (
+                      <div style={{
+                        background: "rgba(34, 197, 94, 0.2)",
+                        padding: "4px 8px",
+                        borderRadius: "6px",
+                        color: "#22c55e",
+                        fontSize: "0.85em",
+                        fontWeight: "bold",
+                      }}>
+                        {hw.score}%
+                      </div>
+                    )}
                   </div>
                 </div>
+
+                {/* Bottom Row: Action Buttons */}
                 <div style={{
                   display: "flex",
-                  alignItems: "center",
                   gap: "8px",
                 }}>
-                  {hw.stars !== undefined && (
-                    <div style={{ color: "#FCDB05", fontSize: "0.9em" }}>
-                      {"⭐".repeat(hw.stars)}
-                    </div>
+                  {/* View Answers Button */}
+                  {onViewAnswers && hw.userAnswers && hw.userAnswers.length > 0 && (
+                    <button
+                      onClick={() => onViewAnswers(hw)}
+                      style={{
+                        flex: 1,
+                        padding: "8px 12px",
+                        borderRadius: "8px",
+                        border: "2px solid #22c55e",
+                        background: "rgba(34, 197, 94, 0.15)",
+                        color: "#22c55e",
+                        fontSize: "0.8em",
+                        fontWeight: "bold",
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: "6px",
+                        transition: "all 0.2s ease",
+                      }}
+                    >
+                      📝 View Answers
+                    </button>
                   )}
-                  {hw.score !== undefined && (
-                    <div style={{
-                      background: "rgba(34, 197, 94, 0.2)",
-                      padding: "4px 8px",
-                      borderRadius: "6px",
-                      color: "#22c55e",
-                      fontSize: "0.85em",
+
+                  {/* Retry Button */}
+                  <button
+                    onClick={() => onPlayHomework(hw)}
+                    style={{
+                      flex: 1,
+                      padding: "8px 12px",
+                      borderRadius: "8px",
+                      border: "2px solid #8b5cf6",
+                      background: "rgba(139, 92, 246, 0.15)",
+                      color: "#a78bfa",
+                      fontSize: "0.8em",
                       fontWeight: "bold",
-                    }}>
-                      {hw.score}%
-                    </div>
-                  )}
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: "6px",
+                      transition: "all 0.2s ease",
+                    }}
+                  >
+                    🔄 Play Again
+                  </button>
                 </div>
               </motion.div>
             ))}

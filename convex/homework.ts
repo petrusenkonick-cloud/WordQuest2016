@@ -1,6 +1,74 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 
+// Generate content hash from questions for deduplication
+const generateContentHash = (questions: { text: string }[]) => {
+  // Use first 5 questions + count for hash
+  const texts = questions.slice(0, 5).map(q => q.text.toLowerCase().trim());
+  return `${questions.length}:${texts.join('|')}`;
+};
+
+// Check if homework already exists (active or completed)
+export const checkForDuplicateHomework = query({
+  args: {
+    playerId: v.optional(v.id("players")),
+    guestId: v.optional(v.string()),
+    questions: v.array(v.object({
+      text: v.string(),
+      type: v.string(),
+      options: v.optional(v.array(v.string())),
+      correct: v.string(),
+      explanation: v.optional(v.string()),
+      hint: v.optional(v.string()),
+      pageRef: v.optional(v.number()),
+    })),
+  },
+  handler: async (ctx, args) => {
+    if (!args.playerId && !args.guestId) {
+      return { isDuplicate: false, duplicateType: null, originalSession: null };
+    }
+
+    const newContentHash = generateContentHash(args.questions);
+
+    // Get all sessions (active and completed)
+    const allSessions = args.playerId
+      ? await ctx.db
+          .query("homeworkSessions")
+          .withIndex("by_player", (q) => q.eq("playerId", args.playerId))
+          .collect()
+      : await ctx.db
+          .query("homeworkSessions")
+          .withIndex("by_guest", (q) => q.eq("guestId", args.guestId))
+          .collect();
+
+    // Find matching session
+    const matchingSession = allSessions.find((session) => {
+      if (session.questions.length !== args.questions.length) return false;
+      const existingHash = generateContentHash(session.questions);
+      return existingHash === newContentHash;
+    });
+
+    if (!matchingSession) {
+      return { isDuplicate: false, duplicateType: null, originalSession: null };
+    }
+
+    return {
+      isDuplicate: true,
+      duplicateType: matchingSession.status as "active" | "completed",
+      originalSession: {
+        _id: matchingSession._id,
+        gameName: matchingSession.gameName,
+        gameIcon: matchingSession.gameIcon,
+        subject: matchingSession.subject,
+        score: matchingSession.score,
+        stars: matchingSession.stars,
+        completedAt: matchingSession.completedAt,
+        questionsCount: matchingSession.questions.length,
+      },
+    };
+  },
+});
+
 // Create a new homework session after AI processing
 export const createHomeworkSession = mutation({
   args: {
@@ -31,69 +99,57 @@ export const createHomeworkSession = mutation({
       topics: v.array(v.string()),
       analyzedByAI: v.boolean(),
     })),
+    // Practice mode flag for repeated homework
+    isPracticeMode: v.optional(v.boolean()),
+    originalSessionId: v.optional(v.id("homeworkSessions")),
   },
   handler: async (ctx, args) => {
-    // Check for existing active session with same content (deduplication)
-    const existingSessions = args.playerId
+    const newContentHash = generateContentHash(args.questions);
+
+    // Get ALL sessions (active and completed) for duplicate checking
+    const allSessions = args.playerId
       ? await ctx.db
           .query("homeworkSessions")
           .withIndex("by_player", (q) => q.eq("playerId", args.playerId))
-          .filter((q) =>
-            q.and(
-              q.eq(q.field("status"), "active"),
-              q.eq(q.field("subject"), args.subject),
-              q.eq(q.field("gameName"), args.gameName)
-            )
-          )
           .collect()
       : args.guestId
         ? await ctx.db
             .query("homeworkSessions")
             .withIndex("by_guest", (q) => q.eq("guestId", args.guestId))
-            .filter((q) =>
-              q.and(
-                q.eq(q.field("status"), "active"),
-                q.eq(q.field("subject"), args.subject),
-                q.eq(q.field("gameName"), args.gameName)
-              )
-            )
             .collect()
         : [];
 
-    // Generate content hash from questions for better deduplication
-    const generateContentHash = (questions: { text: string }[]) => {
-      // Use first 5 questions + count for hash
-      const texts = questions.slice(0, 5).map(q => q.text.toLowerCase().trim());
-      return `${questions.length}:${texts.join('|')}`;
-    };
-
-    const newContentHash = generateContentHash(args.questions);
-
-    // Check if questions are similar (compare content hash)
-    const isDuplicate = existingSessions.some((session) => {
-      if (session.questions.length === 0 || args.questions.length === 0)
-        return false;
-
-      // Must have same question count
-      if (session.questions.length !== args.questions.length)
-        return false;
-
-      // Compare content hash (first 5 questions)
+    // Find matching session (active or completed)
+    const matchingSession = allSessions.find((session) => {
+      if (session.questions.length !== args.questions.length) return false;
       const existingHash = generateContentHash(session.questions);
       return existingHash === newContentHash;
     });
 
-    if (isDuplicate) {
-      // Return existing session ID instead of creating duplicate
-      const existing = existingSessions.find((s) => {
-        if (s.questions.length !== args.questions.length) return false;
-        const existingHash = generateContentHash(s.questions);
-        return existingHash === newContentHash;
-      });
-      return existing?._id;
+    // If there's an ACTIVE duplicate, return it (don't create new)
+    if (matchingSession && matchingSession.status === "active") {
+      return { sessionId: matchingSession._id, isDuplicate: false };
     }
 
-    // Create new homework session
+    // If there's a COMPLETED duplicate and NOT in practice mode, return duplicate info
+    if (matchingSession && matchingSession.status === "completed" && !args.isPracticeMode) {
+      return {
+        sessionId: null,
+        isDuplicate: true,
+        originalSession: {
+          _id: matchingSession._id,
+          gameName: matchingSession.gameName,
+          gameIcon: matchingSession.gameIcon,
+          subject: matchingSession.subject,
+          score: matchingSession.score,
+          stars: matchingSession.stars,
+          completedAt: matchingSession.completedAt,
+          questionsCount: matchingSession.questions.length,
+        },
+      };
+    }
+
+    // Create new homework session (could be practice mode if user confirmed)
     const sessionId = await ctx.db.insert("homeworkSessions", {
       playerId: args.playerId,
       guestId: args.guestId,
@@ -107,11 +163,12 @@ export const createHomeworkSession = mutation({
       questions: args.questions,
       status: "active",
       createdAt: new Date().toISOString(),
-      // Save AI-analyzed difficulty for scoring
       difficulty: args.difficulty,
+      isPracticeMode: args.isPracticeMode || false,
+      originalSessionId: args.originalSessionId || (matchingSession?._id),
     });
 
-    return sessionId;
+    return { sessionId, isDuplicate: false };
   },
 });
 
