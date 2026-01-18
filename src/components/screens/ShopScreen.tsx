@@ -182,6 +182,9 @@ type ShopCategory = keyof typeof SHOP_ITEMS;
 
 interface ShopScreenProps {
   ownedItems: string[];
+  diamonds: number;
+  emeralds: number;
+  gold: number;
   onPurchase: (
     itemId: string,
     itemType: string,
@@ -190,10 +193,24 @@ interface ShopScreenProps {
   ) => void;
 }
 
-export function ShopScreen({ ownedItems, onPurchase }: ShopScreenProps) {
+export function ShopScreen({ ownedItems, diamonds, emeralds, gold, onPurchase }: ShopScreenProps) {
   const [activeTab, setActiveTab] = useState<ShopCategory>("skins");
   const [selectedItem, setSelectedItem] = useState<ShopItem | null>(null);
   const [filterRarity, setFilterRarity] = useState<Rarity | "all">("all");
+  const [purchaseError, setPurchaseError] = useState<string | null>(null);
+
+  const getBalance = (currency: string): number => {
+    switch (currency) {
+      case "diamonds": return diamonds;
+      case "emeralds": return emeralds;
+      case "gold": return gold;
+      default: return 0;
+    }
+  };
+
+  const canAfford = (item: ShopItem): boolean => {
+    return getBalance(item.currency) >= item.price;
+  };
 
   const tabs: { id: ShopCategory; label: string; icon: string }[] = [
     { id: "skins", label: "SKINS", icon: "👤" },
@@ -537,30 +554,75 @@ export function ShopScreen({ ownedItems, onPurchase }: ShopScreenProps) {
                 }}>
                   ✓ YOU OWN THIS!
                 </div>
-              ) : (
-                <button
-                  onClick={() => {
-                    onPurchase(selectedItem.id, activeTab, selectedItem.price, selectedItem.currency);
-                    setSelectedItem(null);
-                  }}
-                  style={{
-                    width: "100%",
+              ) : !canAfford(selectedItem) ? (
+                <>
+                  <div style={{
+                    textAlign: "center",
                     padding: "15px",
+                    background: "linear-gradient(135deg, #991B1B, #7F1D1D)",
                     borderRadius: "12px",
-                    border: "none",
-                    cursor: "pointer",
                     fontWeight: "bold",
-                    fontSize: "1.1em",
-                    background: "linear-gradient(135deg, #FFD700, #FFA500)",
-                    color: "#000",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: "8px",
-                  }}
-                >
-                  BUY FOR {getCurrencyIcon(selectedItem.currency)} {selectedItem.price.toLocaleString()}
-                </button>
+                    fontSize: "1em",
+                    marginBottom: "10px",
+                  }}>
+                    ❌ NOT ENOUGH {selectedItem.currency.toUpperCase()}!
+                  </div>
+                  <div style={{
+                    textAlign: "center",
+                    padding: "10px",
+                    background: "rgba(0,0,0,0.3)",
+                    borderRadius: "8px",
+                    fontSize: "0.9em",
+                  }}>
+                    You have: {getCurrencyIcon(selectedItem.currency)} {getBalance(selectedItem.currency).toLocaleString()}
+                    <br />
+                    Need: {getCurrencyIcon(selectedItem.currency)} {selectedItem.price.toLocaleString()}
+                    <br />
+                    <span style={{ color: "#EF4444" }}>
+                      Missing: {getCurrencyIcon(selectedItem.currency)} {(selectedItem.price - getBalance(selectedItem.currency)).toLocaleString()}
+                    </span>
+                  </div>
+                </>
+              ) : (
+                <>
+                  {purchaseError && (
+                    <div style={{
+                      textAlign: "center",
+                      padding: "10px",
+                      background: "linear-gradient(135deg, #991B1B, #7F1D1D)",
+                      borderRadius: "8px",
+                      fontWeight: "bold",
+                      fontSize: "0.9em",
+                      marginBottom: "10px",
+                    }}>
+                      ❌ {purchaseError}
+                    </div>
+                  )}
+                  <button
+                    onClick={() => {
+                      setPurchaseError(null);
+                      onPurchase(selectedItem.id, activeTab, selectedItem.price, selectedItem.currency);
+                      setSelectedItem(null);
+                    }}
+                    style={{
+                      width: "100%",
+                      padding: "15px",
+                      borderRadius: "12px",
+                      border: "none",
+                      cursor: "pointer",
+                      fontWeight: "bold",
+                      fontSize: "1.1em",
+                      background: "linear-gradient(135deg, #FFD700, #FFA500)",
+                      color: "#000",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: "8px",
+                    }}
+                  >
+                    BUY FOR {getCurrencyIcon(selectedItem.currency)} {selectedItem.price.toLocaleString()}
+                  </button>
+                </>
               )}
 
               {/* Close hint */}

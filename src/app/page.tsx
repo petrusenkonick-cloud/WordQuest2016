@@ -2500,7 +2500,15 @@ export default function Home() {
           />
         );
       case "shop":
-        return <ShopScreen ownedItems={ownedItems} onPurchase={handlePurchase} />;
+        return (
+          <ShopScreen
+            ownedItems={ownedItems}
+            diamonds={player.diamonds}
+            emeralds={player.emeralds}
+            gold={player.gold}
+            onPurchase={handlePurchase}
+          />
+        );
       case "inventory":
         return <InventoryScreen inventory={inventory} onEquip={handleEquip} />;
       case "achievements":
