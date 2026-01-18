@@ -40,6 +40,9 @@ import { LevelCompleteModal } from "@/components/modals/LevelCompleteModal";
 import { AchievementModal } from "@/components/modals/AchievementModal";
 import { ErrorModal } from "@/components/modals/ErrorModal";
 
+// Ambient Effects
+import { AmbientEffects } from "@/components/ui/AmbientEffects";
+
 // Game Components
 import { MiningOverlay } from "@/components/game/MiningOverlay";
 import {
@@ -291,6 +294,16 @@ function levenshteinDistance(a: string, b: string): number {
   }
 
   return matrix[b.length][a.length];
+}
+
+// Fisher-Yates shuffle for randomizing question order
+function shuffleArray<T>(array: T[]): T[] {
+  const shuffled = [...array];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
 }
 
 // Helper function to generate options for questions that don't have them
@@ -723,6 +736,20 @@ export default function Home() {
     }
 
     // Convert homework session to AIAnalysisResult format
+    // Shuffle questions for variety each time player starts
+    const mappedQuestions = validQuestions.map(q => {
+      const options = generateOptionsForQuestion(q);
+      return {
+        text: q.text,
+        type: options.length >= 2 ? "multiple_choice" as const : q.type as "multiple_choice" | "fill_blank" | "true_false",
+        options: shuffleArray(options), // Shuffle multiple choice options
+        correct: q.correct,
+        explanation: q.explanation,
+        hint: q.hint,
+        pageRef: q.pageRef,
+      };
+    });
+
     const gameData: AIAnalysisResult = {
       subject: homework.subject,
       grade: homework.grade,
@@ -730,18 +757,7 @@ export default function Home() {
       totalPages: 1,
       gameName: homework.gameName,
       gameIcon: homework.gameIcon,
-      questions: validQuestions.map(q => {
-        const options = generateOptionsForQuestion(q);
-        return {
-          text: q.text,
-          type: options.length >= 2 ? "multiple_choice" as const : q.type as "multiple_choice" | "fill_blank" | "true_false",
-          options: options,
-          correct: q.correct,
-          explanation: q.explanation,
-          hint: q.hint,
-          pageRef: q.pageRef,
-        };
-      }),
+      questions: shuffleArray(mappedQuestions), // Shuffle question order
     };
 
     // Set the homework session ID for completion tracking
@@ -781,6 +797,15 @@ export default function Home() {
     }
 
     // Convert practice quest to AIAnalysisResult format
+    // Shuffle questions and options for variety
+    const mappedQuestions = quest.questions.map(q => ({
+      text: q.text,
+      type: q.type as "multiple_choice" | "fill_blank" | "true_false",
+      options: q.options ? shuffleArray(q.options) : undefined,
+      correct: q.correct,
+      explanation: q.explanation,
+    }));
+
     const gameData: AIAnalysisResult = {
       subject: quest.subject,
       grade: "Practice",
@@ -788,13 +813,7 @@ export default function Home() {
       totalPages: 1,
       gameName: quest.questName,
       gameIcon: quest.questIcon,
-      questions: quest.questions.map(q => ({
-        text: q.text,
-        type: q.type as "multiple_choice" | "fill_blank" | "true_false",
-        options: q.options,
-        correct: q.correct,
-        explanation: q.explanation,
-      })),
+      questions: shuffleArray(mappedQuestions),
     };
 
     // Set the practice quest ID for progress tracking
@@ -841,7 +860,16 @@ export default function Home() {
 
       const data = await response.json();
 
-      // Convert to AIAnalysisResult format
+      // Convert to AIAnalysisResult format with shuffled questions
+      const mappedQuestions = data.questions.map((q: { text: string; type: string; options?: string[]; correct: string; explanation: string; hint?: string }) => ({
+        text: q.text,
+        type: q.type as "multiple_choice" | "fill_blank" | "true_false",
+        options: q.options ? shuffleArray(q.options) : [],
+        correct: q.correct,
+        explanation: q.explanation,
+        hint: q.hint,
+      }));
+
       const gameData: AIAnalysisResult = {
         subject,
         grade: "Review",
@@ -849,14 +877,7 @@ export default function Home() {
         totalPages: 1,
         gameName: `Review: ${topic}`,
         gameIcon: "🔄",
-        questions: data.questions.map((q: { text: string; type: string; options?: string[]; correct: string; explanation: string; hint?: string }) => ({
-          text: q.text,
-          type: q.type as "multiple_choice" | "fill_blank" | "true_false",
-          options: q.options || [],
-          correct: q.correct,
-          explanation: q.explanation,
-          hint: q.hint,
-        })),
+        questions: shuffleArray(mappedQuestions),
       };
 
       // Clear other session types
@@ -894,18 +915,22 @@ export default function Home() {
 
   const handleAIComplete = useCallback(async (result: AIAnalysisResult) => {
     // Process questions to ensure they have proper options
+    // Shuffle both question order and option order for variety
     const processedQuestions = result.questions.map(q => {
       const options = generateOptionsForQuestion(q);
       return {
         ...q,
         type: options.length >= 2 ? "multiple_choice" as const : q.type,
-        options: options,
+        options: shuffleArray(options), // Shuffle options
       };
     });
 
+    // Shuffle question order
+    const shuffledQuestions = shuffleArray(processedQuestions);
+
     const processedResult: AIAnalysisResult = {
       ...result,
-      questions: processedQuestions,
+      questions: shuffledQuestions,
     };
 
     // Save homework session to database
@@ -2247,6 +2272,9 @@ export default function Home() {
   // Game phase
   return (
     <>
+      {/* Ambient Effects - Snow & Day/Night */}
+      <AmbientEffects enableSnow={true} enableDayNight={true} snowIntensity="medium" />
+
       <GameWorld playerId={playerId} onProfileSettings={handleOpenProfileSettings}>{renderScreen()}</GameWorld>
 
       {/* Camera Screen */}
