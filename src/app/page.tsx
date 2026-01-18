@@ -2154,17 +2154,35 @@ export default function Home() {
               {aiGameData.gameIcon} {aiGameData.gameName}
             </h2>
             <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-              {/* Timer display */}
-              <div style={{
-                background: "rgba(0,0,0,0.3)",
-                padding: "6px 12px",
-                borderRadius: "8px",
-                fontSize: "0.9em",
-                fontFamily: "monospace",
-                color: elapsedSeconds >= 600 ? "#fbbf24" : "#94a3b8",
-              }}>
-                ⏱️ {Math.floor(elapsedSeconds / 60)}:{(elapsedSeconds % 60).toString().padStart(2, '0')}
-              </div>
+              {/* Timer display - 90 seconds per question is expected */}
+              {(() => {
+                const expectedTimePerQuestion = 90; // 1.5 minutes per question
+                const totalQuestions = aiGameData.questions.length;
+                const expectedTotalSeconds = totalQuestions * expectedTimePerQuestion;
+                const isOverTime = elapsedSeconds > expectedTotalSeconds;
+                const isNearLimit = elapsedSeconds > expectedTotalSeconds * 0.8;
+
+                return (
+                  <div style={{
+                    background: isOverTime
+                      ? "rgba(239, 68, 68, 0.3)"
+                      : isNearLimit
+                        ? "rgba(251, 191, 36, 0.2)"
+                        : "rgba(0,0,0,0.3)",
+                    padding: "6px 12px",
+                    borderRadius: "8px",
+                    fontSize: "0.9em",
+                    fontFamily: "monospace",
+                    color: isOverTime ? "#fca5a5" : isNearLimit ? "#fbbf24" : "#94a3b8",
+                    border: isOverTime ? "1px solid #ef4444" : "none",
+                  }}>
+                    ⏱️ {Math.floor(elapsedSeconds / 60)}:{(elapsedSeconds % 60).toString().padStart(2, '0')}
+                    <span style={{ fontSize: "0.75em", marginLeft: "6px", opacity: 0.7 }}>
+                      / {Math.floor(expectedTotalSeconds / 60)}:{(expectedTotalSeconds % 60).toString().padStart(2, '0')}
+                    </span>
+                  </div>
+                );
+              })()}
               <button className="btn btn-secondary" onClick={handleExitAIGame}>
                 ← EXIT
               </button>
