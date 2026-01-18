@@ -49,6 +49,9 @@ import { ErrorModal } from "@/components/modals/ErrorModal";
 // Ambient Effects
 import { AmbientEffects } from "@/components/ui/AmbientEffects";
 
+// Tutorial System
+import { TutorialProvider, TutorialOverlay } from "@/components/tutorial";
+
 // Game Components
 import { MiningOverlay } from "@/components/game/MiningOverlay";
 import {
@@ -2506,11 +2509,14 @@ export default function Home() {
 
   // Game phase
   return (
-    <>
+    <TutorialProvider playerId={playerId}>
       {/* Ambient Effects - Snow & Day/Night */}
       <AmbientEffects enableSnow={true} enableDayNight={true} snowIntensity="medium" />
 
       <GameWorld playerId={playerId} onProfileSettings={handleOpenProfileSettings}>{renderScreen()}</GameWorld>
+
+      {/* Tutorial Overlay */}
+      <TutorialOverlay />
 
       {/* Camera Screen */}
       {showCamera && (
@@ -2627,6 +2633,6 @@ export default function Home() {
           }}
         />
       )}
-    </>
+    </TutorialProvider>
   );
 }

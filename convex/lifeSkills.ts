@@ -1,5 +1,11 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import {
+  calculateWizardLevel,
+  sumStars,
+  countCompleted,
+  now,
+} from "./shared/progressUtils";
 
 // Life Skills Islands Data
 const LIFE_SKILLS_ISLANDS = [
@@ -16,15 +22,6 @@ const CHAPTER_LESSONS: Record<string, number> = {
   "ai_ch1": 3, "ai_ch2": 2, "ai_ch3": 2,
   "fl_ch1": 3, "fl_ch2": 2, "fl_ch3": 2,
 };
-
-// Get wizard level based on completed chapters
-function getWizardLevel(completedChapters: number): string {
-  if (completedChapters >= 12) return "master";
-  if (completedChapters >= 9) return "senior";
-  if (completedChapters >= 6) return "wizard";
-  if (completedChapters >= 3) return "junior";
-  return "apprentice";
-}
 
 // Initialize life skills progress for a player
 export const initializeLifeSkills = mutation({
@@ -47,7 +44,7 @@ export const initializeLifeSkills = mutation({
       totalStars: 0,
       currentIsland: 1,
       currentChapter: "ct_ch1",
-      createdAt: new Date().toISOString(),
+      createdAt: now(),
     });
 
     // Initialize first island chapters (first chapter unlocked)
@@ -149,7 +146,7 @@ export const completeLesson = mutation({
           bestScore: score,
           attempts: existingLesson.attempts + 1,
           correctAnswers: Math.max(existingLesson.correctAnswers, correctAnswers),
-          completedAt: new Date().toISOString(),
+          completedAt: now(),
         });
       }
     } else {
@@ -164,7 +161,7 @@ export const completeLesson = mutation({
         attempts: 1,
         correctAnswers,
         totalQuestions,
-        completedAt: new Date().toISOString(),
+        completedAt: now(),
       });
     }
 
@@ -184,12 +181,12 @@ export const completeLesson = mutation({
       .first();
 
     if (chapter) {
-      const lessonsCompleted = chapterLessons.filter(l => l.isCompleted).length;
-      const totalStars = chapterLessons.reduce((sum, l) => sum + l.starsEarned, 0);
+      const lessonsCompleted = countCompleted(chapterLessons);
+      const totalChapterStars = sumStars(chapterLessons);
 
       await ctx.db.patch(chapter._id, {
         lessonsCompleted,
-        starsEarned: totalStars,
+        starsEarned: totalChapterStars,
       });
     }
 
@@ -220,7 +217,7 @@ export const completeBossBattle = mutation({
     await ctx.db.patch(chapter._id, {
       isCompleted: true,
       bossDefeated: true,
-      completedAt: new Date().toISOString(),
+      completedAt: now(),
     });
 
     // Unlock next chapter
@@ -252,7 +249,7 @@ export const completeBossBattle = mutation({
         if (nextChapter && !nextChapter.isUnlocked) {
           await ctx.db.patch(nextChapter._id, {
             isUnlocked: true,
-            unlockedAt: new Date().toISOString(),
+            unlockedAt: now(),
           });
         }
       }
@@ -264,10 +261,10 @@ export const completeBossBattle = mutation({
       .withIndex("by_player", (q) => q.eq("playerId", playerId))
       .collect();
 
-    const completedCount = allChapters.filter(c => c.isCompleted).length;
+    const completedCount = countCompleted(allChapters);
     const bossCount = allChapters.filter(c => c.bossDefeated).length;
-    const totalStars = allChapters.reduce((sum, c) => sum + c.starsEarned, 0);
-    const wizardLevel = getWizardLevel(completedCount);
+    const totalStars = sumStars(allChapters);
+    const wizardLevel = calculateWizardLevel(completedCount).level;
 
     const wizard = await ctx.db
       .query("lifeSkillsWizard")
@@ -287,7 +284,7 @@ export const completeBossBattle = mutation({
         totalStars,
         currentIsland,
         currentChapter,
-        lastPlayedAt: new Date().toISOString(),
+        lastPlayedAt: now(),
       });
     }
 
@@ -311,8 +308,8 @@ export const getIslandProgress = query({
       )
       .collect();
 
-    const completedCount = chapters.filter(c => c.isCompleted).length;
-    const totalStars = chapters.reduce((sum, c) => sum + c.starsEarned, 0);
+    const completedCount = countCompleted(chapters);
+    const totalStars = sumStars(chapters);
     const allBossesDefeated = chapters.every(c => c.bossDefeated || !CHAPTER_LESSONS[c.chapterId]);
 
     return {

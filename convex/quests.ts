@@ -1,5 +1,12 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import {
+  calculateWizardLevel,
+  getWizardTitleByCount,
+  sumStars,
+  countCompleted,
+  now
+} from "./shared/progressUtils";
 
 // Chapter definitions
 const CHAPTERS = [
@@ -17,13 +24,11 @@ const CHAPTERS = [
   { id: 12, name: "Master's Chamber", topic: "advanced", lessons: 10 },
 ];
 
-// Get wizard title based on level
+// Get wizard title based on level (legacy - uses shared utility)
 function getWizardTitle(level: number): string {
-  if (level <= 5) return "Apprentice";
-  if (level <= 10) return "Junior Wizard";
-  if (level <= 15) return "Wizard";
-  if (level <= 20) return "Senior Wizard";
-  return "Master Wizard";
+  // Map old level-based to chapter-based (roughly 1 chapter = 1.5 levels)
+  const estimatedChapters = Math.floor(level / 1.5);
+  return getWizardTitleByCount(estimatedChapters);
 }
 
 // Initialize wizard profile for new player
@@ -45,7 +50,7 @@ export const initializeWizardProfile = mutation({
       academyLevel: 1,
       currentChapter: 1,
       totalSpellsLearned: 0,
-      createdAt: new Date().toISOString(),
+      createdAt: now(),
     });
 
     // Initialize first chapter
@@ -59,7 +64,7 @@ export const initializeWizardProfile = mutation({
       lessonsCompleted: 0,
       totalLessons: CHAPTERS[0].lessons,
       bossDefeated: false,
-      unlockedAt: new Date().toISOString(),
+      unlockedAt: now(),
     });
 
     // Create initial quests for chapter 1
@@ -156,7 +161,7 @@ export const completeQuest = mutation({
       starsEarned: Math.max(quest.starsEarned, stars),
       bestScore: Math.max(quest.bestScore, score),
       attempts: quest.attempts + 1,
-      lastAttempt: new Date().toISOString(),
+      lastAttempt: now(),
     });
 
     // Unlock next quest in chapter
@@ -203,7 +208,7 @@ export const completeQuest = mutation({
           starsEarned: totalStars,
           lessonsCompleted: chapterQuests.length,
           bossDefeated: quest.questType === "boss",
-          completedAt: new Date().toISOString(),
+          completedAt: now(),
         });
       }
 
@@ -228,7 +233,7 @@ export const completeQuest = mutation({
             lessonsCompleted: 0,
             totalLessons: nextChapterDef.lessons,
             bossDefeated: false,
-            unlockedAt: new Date().toISOString(),
+            unlockedAt: now(),
           });
 
           // Create quests for new chapter
@@ -277,7 +282,7 @@ export const completeQuest = mutation({
 export const getDailyQuests = query({
   args: { playerId: v.id("players") },
   handler: async (ctx, { playerId }) => {
-    const today = new Date().toISOString().split("T")[0];
+    const today = now().split("T")[0];
 
     return await ctx.db
       .query("dailyQuests")
@@ -292,7 +297,7 @@ export const getDailyQuests = query({
 export const generateDailyQuests = mutation({
   args: { playerId: v.id("players") },
   handler: async (ctx, { playerId }) => {
-    const today = new Date().toISOString().split("T")[0];
+    const today = now().split("T")[0];
 
     // Check if already generated
     const existing = await ctx.db
@@ -362,7 +367,7 @@ export const updateDailyQuestProgress = mutation({
     increment: v.number(),
   },
   handler: async (ctx, { playerId, questType, increment }) => {
-    const today = new Date().toISOString().split("T")[0];
+    const today = now().split("T")[0];
 
     const quest = await ctx.db
       .query("dailyQuests")
@@ -380,7 +385,7 @@ export const updateDailyQuestProgress = mutation({
     await ctx.db.patch(quest._id, {
       currentCount: newCount,
       isCompleted: isNowComplete,
-      completedAt: isNowComplete ? new Date().toISOString() : undefined,
+      completedAt: isNowComplete ? now() : undefined,
     });
 
     return {
@@ -430,7 +435,7 @@ export const addToSpellBook = mutation({
       exampleSentence,
       spellPower: isRare ? spellPower + 1 : spellPower,
       isRare,
-      learnedAt: new Date().toISOString(),
+      learnedAt: now(),
       masteryLevel: 10,
       timesUsed: 1,
     });

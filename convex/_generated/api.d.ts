@@ -20,14 +20,17 @@ import type * as insights from "../insights.js";
 import type * as leaderboards from "../leaderboards.js";
 import type * as learning from "../learning.js";
 import type * as levels from "../levels.js";
+import type * as lifeSkills from "../lifeSkills.js";
 import type * as notifications from "../notifications.js";
 import type * as parents from "../parents.js";
 import type * as players from "../players.js";
 import type * as profile from "../profile.js";
 import type * as quests from "../quests.js";
 import type * as scoring from "../scoring.js";
+import type * as shared_progressUtils from "../shared/progressUtils.js";
 import type * as shop from "../shop.js";
 import type * as spacedRepetition from "../spacedRepetition.js";
+import type * as tutorial from "../tutorial.js";
 import type * as weeklyQuests from "../weeklyQuests.js";
 
 import type {
@@ -49,14 +52,17 @@ declare const fullApi: ApiFromModules<{
   leaderboards: typeof leaderboards;
   learning: typeof learning;
   levels: typeof levels;
+  lifeSkills: typeof lifeSkills;
   notifications: typeof notifications;
   parents: typeof parents;
   players: typeof players;
   profile: typeof profile;
   quests: typeof quests;
   scoring: typeof scoring;
+  "shared/progressUtils": typeof shared_progressUtils;
   shop: typeof shop;
   spacedRepetition: typeof spacedRepetition;
+  tutorial: typeof tutorial;
   weeklyQuests: typeof weeklyQuests;
 }>;
 

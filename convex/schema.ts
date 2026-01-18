@@ -33,6 +33,9 @@ export default defineSchema({
     // Normalized score for fair competition
     normalizedScore: v.optional(v.number()), // Fair score across ages
     totalRawScore: v.optional(v.number()), // Raw cumulative score
+    // Tutorial state
+    tutorialCompleted: v.optional(v.boolean()), // Has completed onboarding tutorial
+    tutorialStep: v.optional(v.number()), // Current tutorial step (for resuming)
   })
     .index("by_clerk_id", ["clerkId"])
     .index("by_name", ["name"])
