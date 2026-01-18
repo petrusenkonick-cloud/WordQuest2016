@@ -79,6 +79,7 @@ interface HomeScreenProps {
   onProfileSettings?: () => void;
   onHomework?: () => void;
   onAllGames?: () => void;
+  onLifeSkillsAcademy?: () => void;
 }
 
 export function HomeScreen({
@@ -102,6 +103,7 @@ export function HomeScreen({
   onProfileSettings,
   onHomework,
   onAllGames,
+  onLifeSkillsAcademy,
 }: HomeScreenProps) {
   const player = useAppStore((state) => state.player);
   const showDailyReward = useAppStore((state) => state.showDailyRewardModal);
@@ -340,6 +342,40 @@ export function HomeScreen({
               {spellBookStats?.totalSpells || 0} Words
             </div>
           </div>
+        </div>
+
+        {/* Life Skills Academy */}
+        <div
+          onClick={onLifeSkillsAcademy}
+          style={{
+            background: "linear-gradient(135deg, rgba(236, 72, 153, 0.3) 0%, rgba(30, 27, 75, 0.4) 100%)",
+            borderRadius: "12px",
+            padding: "15px",
+            cursor: "pointer",
+            border: "2px solid #ec4899",
+            display: "flex",
+            alignItems: "center",
+            gap: "12px",
+            gridColumn: "span 2",
+          }}
+        >
+          <span style={{ fontSize: "2em" }}>🏰</span>
+          <div>
+            <div style={{ fontWeight: "bold", fontSize: "0.95em" }}>LIFE SKILLS ACADEMY</div>
+            <div style={{ color: "#f9a8d4", fontSize: "0.8em" }}>
+              21st Century Skills Adventure
+            </div>
+          </div>
+          <span style={{
+            marginLeft: "auto",
+            background: "linear-gradient(135deg, #ec4899, #f472b6)",
+            padding: "4px 8px",
+            borderRadius: "8px",
+            fontSize: "0.7em",
+            fontWeight: "bold",
+          }}>
+            NEW
+          </span>
         </div>
       </div>
 

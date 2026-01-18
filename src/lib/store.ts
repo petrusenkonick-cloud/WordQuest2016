@@ -49,7 +49,10 @@ export type ScreenType =
   | "leaderboard"
   | "gem-hub"
   | "homework"
-  | "games";
+  | "games"
+  | "life-skills-map"
+  | "life-skills-lesson"
+  | "life-skills-boss";
 
 export interface UIState {
   currentScreen: ScreenType;

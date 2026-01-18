@@ -32,6 +32,10 @@ import { WeeklyQuestsScreen } from "@/components/screens/WeeklyQuestsScreen";
 import { HomeworkAnswersScreen } from "@/components/screens/HomeworkAnswersScreen";
 import { HomeworkScreen } from "@/components/screens/HomeworkScreen";
 import { GamesScreen } from "@/components/screens/GamesScreen";
+import { ChapterMapScreen } from "@/components/screens/ChapterMapScreen";
+import { QuestGameScreen } from "@/components/screens/QuestGameScreen";
+import { BossBattleScreen } from "@/components/screens/BossBattleScreen";
+import { LIFE_SKILLS_ISLANDS, Chapter, getChapterById } from "@/data/lifeSkillsQuestions";
 
 // UI Components
 import { GameWorld } from "@/components/ui/GameWorld";
@@ -387,6 +391,20 @@ export default function Home() {
   // Spell Book mutation - add words when correct answers given
   const addToSpellBook = useMutation(api.quests.addToSpellBook);
 
+  // Daily quest progress mutation
+  const updateDailyQuestProgress = useMutation(api.quests.updateDailyQuestProgress);
+
+  // Life Skills mutations
+  const initializeLifeSkills = useMutation(api.lifeSkills.initializeLifeSkills);
+  const completeLessonMutation = useMutation(api.lifeSkills.completeLesson);
+  const completeBossBattleMutation = useMutation(api.lifeSkills.completeBossBattle);
+
+  // Life Skills progress query
+  const lifeSkillsProgress = useQuery(
+    api.lifeSkills.getLifeSkillsProgress,
+    playerId ? { playerId } : "skip"
+  );
+
   // Practice quest progress mutation
   const answerPracticeQuestion = useMutation(api.weeklyQuests.answerPracticeQuestion);
 
@@ -539,6 +557,11 @@ export default function Home() {
 
   // Active mini-game state
   const [activeGame, setActiveGame] = useState<string | null>(null);
+
+  // Life Skills Academy state
+  const [selectedLifeSkillsChapter, setSelectedLifeSkillsChapter] = useState<Chapter | null>(null);
+  const [selectedLifeSkillsLesson, setSelectedLifeSkillsLesson] = useState<number>(0);
+  const [currentBossBattle, setCurrentBossBattle] = useState<Chapter | null>(null);
 
   // Error modal state
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -782,6 +805,104 @@ export default function Home() {
     // For now, just go back to home
     setScreen("home");
   }, [setScreen]);
+
+  // Life Skills Academy handlers
+  const handleOpenLifeSkillsMap = useCallback(async () => {
+    // Initialize life skills progress if not already done
+    if (playerId && lifeSkillsProgress && !lifeSkillsProgress.wizard) {
+      try {
+        await initializeLifeSkills({ playerId });
+      } catch (err) {
+        console.error("Failed to initialize life skills:", err);
+      }
+    }
+    setScreen("life-skills-map");
+  }, [playerId, lifeSkillsProgress, initializeLifeSkills, setScreen]);
+
+  const handleSelectLifeSkillsChapter = useCallback((chapter: Chapter) => {
+    setSelectedLifeSkillsChapter(chapter);
+    setSelectedLifeSkillsLesson(0);
+    setScreen("life-skills-lesson");
+  }, [setScreen]);
+
+  const handleLifeSkillsLessonComplete = useCallback(async (
+    chapterId: string,
+    lessonIndex: number,
+    stars: number,
+    score: number,
+    correctAnswers: number,
+    totalQuestions: number
+  ) => {
+    if (!playerId) return;
+
+    try {
+      // Save lesson progress
+      await completeLessonMutation({
+        playerId,
+        chapterId,
+        lessonId: `${chapterId}_lesson_${lessonIndex}`,
+        stars,
+        score,
+        correctAnswers,
+        totalQuestions,
+      });
+
+      // Award diamonds based on stars
+      const diamondsToAward = stars * 10;
+      await awardCurrency("diamonds", diamondsToAward);
+      spawnParticles(["💎", "✨", "⭐"]);
+
+      // Check if all lessons complete - start boss battle
+      const chapter = getChapterById(chapterId);
+      if (chapter && lessonIndex >= chapter.lessons.length - 1) {
+        // All lessons complete, start boss battle
+        setCurrentBossBattle(chapter);
+        setScreen("life-skills-boss");
+      } else {
+        // Move to next lesson
+        setSelectedLifeSkillsLesson(lessonIndex + 1);
+      }
+    } catch (err) {
+      console.error("Failed to save lesson progress:", err);
+    }
+  }, [playerId, completeLessonMutation, awardCurrency, spawnParticles, setScreen]);
+
+  const handleBossBattleComplete = useCallback(async (victory: boolean, chapterId: string) => {
+    if (!playerId) return;
+
+    try {
+      const result = await completeBossBattleMutation({
+        playerId,
+        chapterId,
+        victory,
+      });
+
+      if (victory && result.victory) {
+        // Award bonus rewards
+        await awardCurrency("diamonds", 50);
+        spawnParticles(["💎", "🏆", "✨", "🎉"]);
+      }
+
+      // Return to map
+      setCurrentBossBattle(null);
+      setSelectedLifeSkillsChapter(null);
+      setScreen("life-skills-map");
+    } catch (err) {
+      console.error("Failed to complete boss battle:", err);
+    }
+  }, [playerId, completeBossBattleMutation, awardCurrency, spawnParticles, setScreen]);
+
+  const handleLifeSkillsBack = useCallback(() => {
+    if (currentBossBattle) {
+      setCurrentBossBattle(null);
+    }
+    if (selectedLifeSkillsChapter) {
+      setSelectedLifeSkillsChapter(null);
+      setScreen("life-skills-map");
+    } else {
+      setScreen("home");
+    }
+  }, [currentBossBattle, selectedLifeSkillsChapter, setScreen]);
 
   // Start a practice quest from WeeklyQuestsScreen
   const handleStartPracticeQuest = useCallback((questId: Id<"weeklyPracticeQuests">) => {
@@ -1083,9 +1204,26 @@ export default function Home() {
                 definition: wordData.definition,
                 exampleSentence: currentQ.text,
               });
+              // Update word_collector daily quest
+              await updateDailyQuestProgress({
+                playerId,
+                questType: "word_collector",
+                increment: 1,
+              });
             }
           } catch (err) {
             console.error("Failed to add word to spell book:", err);
+          }
+
+          // Update morning_practice daily quest (correct answer on first try)
+          try {
+            await updateDailyQuestProgress({
+              playerId,
+              questType: "morning_practice",
+              increment: 1,
+            });
+          } catch (err) {
+            console.error("Failed to update morning_practice quest:", err);
           }
         }
 
@@ -1245,7 +1383,7 @@ export default function Home() {
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [aiGameData, aiGameProgress, showFeedback, awardCurrency, spawnParticles, playerId, trackError, currentHomeworkSessionId, addToSpellBook, currentPracticeQuestId, answerPracticeQuestion, updateTopicProgress, currentQuestionAttempts, questionStartTime]
+    [aiGameData, aiGameProgress, showFeedback, awardCurrency, spawnParticles, playerId, trackError, currentHomeworkSessionId, addToSpellBook, currentPracticeQuestId, answerPracticeQuestion, updateTopicProgress, currentQuestionAttempts, questionStartTime, updateDailyQuestProgress]
   );
 
   // Move to next question helper
@@ -1262,6 +1400,19 @@ export default function Home() {
       setSelectedAnswer(null);
       setShowFeedback(false);
       setQuestionStartTime(Date.now()); // Anti-cheat: Reset timer for next question
+
+      // Update streak_keeper daily quest (each question ~1 minute of play)
+      if (playerId) {
+        try {
+          await updateDailyQuestProgress({
+            playerId,
+            questType: "streak_keeper",
+            increment: 1,
+          });
+        } catch (err) {
+          console.error("Failed to update streak_keeper quest:", err);
+        }
+      }
 
       // Check if game is complete
       if (newProgress.current >= aiGameData.questions.length) {
@@ -1306,6 +1457,19 @@ export default function Home() {
             });
             // Save data for the answers summary screen
             setCompletedHomeworkData(aiGameData);
+
+            // Update daily quest progress for homework completion
+            if (playerId) {
+              try {
+                await updateDailyQuestProgress({
+                  playerId,
+                  questType: "homework",
+                  increment: 1,
+                });
+              } catch (err) {
+                console.error("Failed to update daily quest progress:", err);
+              }
+            }
 
             // Send parent notification about homework completion
             const accuracy = totalQuestions > 0 ? Math.round((newProgress.correct / totalQuestions) * 100) : 0;
@@ -1379,7 +1543,7 @@ export default function Home() {
         spawnParticles(["💎", "🟢", "⭐"]);
       }
     },
-    [aiGameData, aiGameProgress, completeLevelSync, addWordsLearned, spawnParticles, currentHomeworkSessionId, completeHomeworkSession, homeworkAnswers, sendParentNotification, player.name, currentReviewSession, updateSpacedRepetition, playerId, recordActivity]
+    [aiGameData, aiGameProgress, completeLevelSync, addWordsLearned, spawnParticles, currentHomeworkSessionId, completeHomeworkSession, homeworkAnswers, sendParentNotification, player.name, currentReviewSession, updateSpacedRepetition, playerId, recordActivity, updateDailyQuestProgress]
   );
 
   // Handle continue from explanation screen - now returns to question for retry
@@ -2163,6 +2327,7 @@ export default function Home() {
             onProfileSettings={handleOpenProfileSettings}
             onHomework={() => setScreen("homework")}
             onAllGames={() => setScreen("games")}
+            onLifeSkillsAcademy={handleOpenLifeSkillsMap}
           />
         );
       case "shop":
@@ -2275,6 +2440,55 @@ export default function Home() {
             onBack={() => setScreen("home")}
           />
         );
+      case "life-skills-map":
+        return (
+          <ChapterMapScreen
+            playerId={playerId}
+            chapterProgress={lifeSkillsProgress?.chapters?.map(ch => ({
+              chapterId: ch.chapterId,
+              isUnlocked: ch.isUnlocked,
+              isCompleted: ch.isCompleted,
+              lessonsCompleted: ch.lessonsCompleted,
+              totalLessons: ch.totalLessons,
+              starsEarned: ch.starsEarned,
+              bossDefeated: ch.bossDefeated,
+            })) || []}
+            onSelectChapter={handleSelectLifeSkillsChapter}
+            onBack={() => setScreen("home")}
+            totalStars={lifeSkillsProgress?.wizard?.totalStars || 0}
+            diamonds={player.diamonds}
+          />
+        );
+      case "life-skills-lesson":
+        return selectedLifeSkillsChapter ? (
+          <QuestGameScreen
+            chapter={selectedLifeSkillsChapter}
+            lessonIndex={selectedLifeSkillsLesson}
+            onComplete={(result) =>
+              handleLifeSkillsLessonComplete(
+                selectedLifeSkillsChapter.chapterId,
+                selectedLifeSkillsLesson,
+                result.stars,
+                result.xp,
+                result.correctCount,
+                result.totalCount
+              )
+            }
+            onBack={handleLifeSkillsBack}
+            playerId={playerId}
+          />
+        ) : null;
+      case "life-skills-boss":
+        return currentBossBattle && currentBossBattle.boss ? (
+          <BossBattleScreen
+            boss={currentBossBattle.boss}
+            chapterId={currentBossBattle.chapterId}
+            onVictory={() => handleBossBattleComplete(true, currentBossBattle.chapterId)}
+            onDefeat={() => handleBossBattleComplete(false, currentBossBattle.chapterId)}
+            onBack={handleLifeSkillsBack}
+            playerId={playerId}
+          />
+        ) : null;
       default:
         return null;
     }

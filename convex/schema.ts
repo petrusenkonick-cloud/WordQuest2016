@@ -744,6 +744,56 @@ export default defineSchema({
     .index("by_player", ["playerId"])
     .index("by_player_game", ["playerId", "gameId"]),
 
+  // ========== LIFE SKILLS ACADEMY ==========
+
+  // Life skills chapter progress (21st Century Skills - 4 Islands, 12 Chapters)
+  lifeSkillsProgress: defineTable({
+    playerId: v.id("players"),
+    chapterId: v.string(), // e.g., "ct_ch1", "ei_ch2", "ai_ch3", "fl_ch1"
+    islandId: v.number(), // 1-4 (Critical Thinking, Emotional, AI, Financial)
+    isUnlocked: v.boolean(),
+    isCompleted: v.boolean(),
+    lessonsCompleted: v.number(),
+    totalLessons: v.number(),
+    starsEarned: v.number(),
+    bossDefeated: v.boolean(),
+    unlockedAt: v.optional(v.string()),
+    completedAt: v.optional(v.string()),
+  })
+    .index("by_player", ["playerId"])
+    .index("by_player_chapter", ["playerId", "chapterId"])
+    .index("by_player_island", ["playerId", "islandId"]),
+
+  // Life skills lesson progress
+  lifeSkillsLessons: defineTable({
+    playerId: v.id("players"),
+    chapterId: v.string(),
+    lessonId: v.string(), // e.g., "ct_ch1_l1"
+    isCompleted: v.boolean(),
+    starsEarned: v.number(),
+    bestScore: v.number(),
+    attempts: v.number(),
+    correctAnswers: v.number(),
+    totalQuestions: v.number(),
+    completedAt: v.optional(v.string()),
+  })
+    .index("by_player", ["playerId"])
+    .index("by_player_lesson", ["playerId", "lessonId"])
+    .index("by_player_chapter", ["playerId", "chapterId"]),
+
+  // Life skills wizard rank (overall progress tracking)
+  lifeSkillsWizard: defineTable({
+    playerId: v.id("players"),
+    wizardLevel: v.string(), // "apprentice", "junior", "wizard", "senior", "master"
+    totalChaptersCompleted: v.number(),
+    totalBossesDefeated: v.number(),
+    totalStars: v.number(),
+    currentIsland: v.number(), // 1-4
+    currentChapter: v.string(), // Current chapter ID
+    lastPlayedAt: v.optional(v.string()),
+    createdAt: v.string(),
+  }).index("by_player", ["playerId"]),
+
   // ========== PERSONALIZED LEARNING PATHS ==========
 
   // Learning path progress
