@@ -284,36 +284,7 @@ export function AmbientEffects({
         </motion.div>
       )}
 
-      {/* Sun (during day) */}
-      {enableDayNight && (timePeriod === "morning" || timePeriod === "noon" || timePeriod === "afternoon") && (
-        <motion.div
-          initial={{ opacity: 0, scale: 0.8 }}
-          animate={{
-            opacity: 1,
-            scale: 1,
-            boxShadow: [
-              "0 0 40px rgba(255, 200, 50, 0.6)",
-              "0 0 60px rgba(255, 200, 50, 0.8)",
-              "0 0 40px rgba(255, 200, 50, 0.6)",
-            ],
-          }}
-          transition={{
-            duration: 2,
-            boxShadow: { duration: 3, repeat: Infinity },
-          }}
-          style={{
-            position: "fixed",
-            top: timePeriod === "noon" ? "5%" : "15%",
-            right: timePeriod === "morning" ? "30%" : timePeriod === "afternoon" ? "10%" : "20%",
-            width: "45px",
-            height: "45px",
-            borderRadius: "50%",
-            background: "linear-gradient(135deg, #ffd700 0%, #ffb347 100%)",
-            pointerEvents: "none",
-            zIndex: 45,
-          }}
-        />
-      )}
+      {/* Sun removed - already rendered by GameWorld.tsx (.sun CSS class) */}
 
       {/* Time indicator (small, subtle) */}
       {enableDayNight && (
