@@ -134,6 +134,14 @@ export default defineSchema({
     // Practice mode: reduced rewards for repeated homework
     isPracticeMode: v.optional(v.boolean()), // true if this is a repeat of completed homework
     originalSessionId: v.optional(v.id("homeworkSessions")), // reference to original completed session
+    // Anti-cheat tracking for parents
+    antiCheatData: v.optional(v.object({
+      tabSwitchCount: v.number(), // How many times they switched tabs/apps
+      suspiciouslyFastAnswers: v.number(), // Answers under 3 seconds
+      suspiciouslySlowAnswers: v.number(), // Answers over 2 minutes
+      averageResponseTimeMs: v.number(), // Average time per question
+      totalTimeMs: v.number(), // Total time spent on homework
+    })),
     createdAt: v.string(),
     completedAt: v.optional(v.string()),
   })

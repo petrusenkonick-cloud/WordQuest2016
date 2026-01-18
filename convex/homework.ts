@@ -242,6 +242,14 @@ export const completeHomeworkSession = mutation({
         })
       )
     ),
+    // Anti-cheat data
+    antiCheatData: v.optional(v.object({
+      tabSwitchCount: v.number(),
+      suspiciouslyFastAnswers: v.number(),
+      suspiciouslySlowAnswers: v.number(),
+      averageResponseTimeMs: v.number(),
+      totalTimeMs: v.number(),
+    })),
   },
   handler: async (ctx, args) => {
     const session = await ctx.db.get(args.sessionId);
@@ -254,6 +262,7 @@ export const completeHomeworkSession = mutation({
       score: args.score,
       stars: args.stars,
       userAnswers: args.userAnswers,
+      antiCheatData: args.antiCheatData,
       completedAt: new Date().toISOString(),
     });
 

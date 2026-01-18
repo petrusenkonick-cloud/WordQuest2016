@@ -1623,11 +1623,21 @@ export default function Home() {
         const stars = newProgress.mistakes === 0 ? 3 : newProgress.mistakes <= 2 ? 2 : 1;
 
         // Practice mode: 25% rewards, no leaderboard points
-        const rewardMultiplier = isPracticeMode ? 0.25 : 1.0;
+        // Anti-cheat penalty: 50% rewards if 3+ tab switches
+        const practiceMultiplier = isPracticeMode ? 0.25 : 1.0;
+        const antiCheatPenalty = tabSwitchCount >= 3 ? 0.5 : 1.0;
+        const rewardMultiplier = practiceMultiplier * antiCheatPenalty;
+
+        const baseRewards = {
+          diamonds: isPracticeMode ? 0 : 50 + newProgress.correct * 10,
+          emeralds: isPracticeMode ? 0 : 20 + stars * 5,
+          xp: 100 + newProgress.correct * 20,
+        };
+
         const rewards = {
-          diamonds: isPracticeMode ? 0 : 50 + newProgress.correct * 10, // No diamonds in practice
-          emeralds: isPracticeMode ? 0 : 20 + stars * 5, // No emeralds in practice
-          xp: Math.round((100 + newProgress.correct * 20) * rewardMultiplier), // 25% XP in practice
+          diamonds: Math.round(baseRewards.diamonds * antiCheatPenalty), // Apply penalty
+          emeralds: Math.round(baseRewards.emeralds * antiCheatPenalty), // Apply penalty
+          xp: Math.round(baseRewards.xp * rewardMultiplier), // Apply both multipliers
         };
 
         // Calculate session stats for normalized scoring
@@ -1657,11 +1667,26 @@ export default function Home() {
         // Mark homework session as completed and save answers
         if (currentHomeworkSessionId) {
           try {
+            // Calculate anti-cheat metrics
+            const suspiciouslyFastAnswers = responseTimeData.filter(r => r.isSuspiciouslyFast).length;
+            const suspiciouslySlowAnswers = responseTimeData.filter(r => r.isSuspiciouslySlow).length;
+            const totalTimeMs = responseTimeData.reduce((sum, r) => sum + r.responseTimeMs, 0);
+            const averageResponseTimeMs = responseTimeData.length > 0
+              ? Math.round(totalTimeMs / responseTimeData.length)
+              : 0;
+
             await completeHomeworkSession({
               sessionId: currentHomeworkSessionId,
               score: newProgress.correct,
               stars,
               userAnswers: homeworkAnswers,
+              antiCheatData: {
+                tabSwitchCount,
+                suspiciouslyFastAnswers,
+                suspiciouslySlowAnswers,
+                averageResponseTimeMs,
+                totalTimeMs,
+              },
             });
             // Save data for the answers summary screen
             setCompletedHomeworkData(aiGameData);
@@ -1686,7 +1711,21 @@ export default function Home() {
             notifMessage += `${player.name} finished their <b>${aiGameData.subject}</b> homework!\n\n`;
             notifMessage += `📊 <b>Results:</b>\n`;
             notifMessage += `• Score: ${newProgress.correct}/${totalQuestions} (${accuracy}%)\n`;
-            notifMessage += `• Stars: ${starEmoji}\n\n`;
+            notifMessage += `• Stars: ${starEmoji}\n`;
+            notifMessage += `• Time: ${Math.round(totalTimeMs / 60000)} min\n\n`;
+
+            // Add anti-cheat warning if suspicious activity detected
+            if (tabSwitchCount > 0 || suspiciouslyFastAnswers > 2) {
+              notifMessage += `⚠️ <b>Activity Note:</b>\n`;
+              if (tabSwitchCount > 0) {
+                notifMessage += `• Switched tabs ${tabSwitchCount} time(s)\n`;
+              }
+              if (suspiciouslyFastAnswers > 2) {
+                notifMessage += `• ${suspiciouslyFastAnswers} very fast answers (&lt;3s)\n`;
+              }
+              notifMessage += `\n`;
+            }
+
             if (accuracy >= 80) notifMessage += `🎉 Excellent work!`;
             else if (accuracy >= 60) notifMessage += `👍 Good effort!`;
             else notifMessage += `💪 Keep practicing!`;
@@ -2100,8 +2139,10 @@ export default function Home() {
           {/* Tab switch warning banner */}
           {showTabSwitchWarning && (
             <div style={{
-              background: "linear-gradient(135deg, rgba(239, 68, 68, 0.95) 0%, rgba(185, 28, 28, 0.95) 100%)",
-              border: "2px solid #fca5a5",
+              background: tabSwitchCount >= 3
+                ? "linear-gradient(135deg, rgba(127, 29, 29, 0.98) 0%, rgba(69, 10, 10, 0.98) 100%)"
+                : "linear-gradient(135deg, rgba(239, 68, 68, 0.95) 0%, rgba(185, 28, 28, 0.95) 100%)",
+              border: tabSwitchCount >= 3 ? "2px solid #ef4444" : "2px solid #fca5a5",
               borderRadius: "12px",
               padding: "12px 16px",
               marginBottom: "12px",
@@ -2109,9 +2150,11 @@ export default function Home() {
               alignItems: "center",
               gap: "12px",
               animation: "pulse 1s ease-in-out infinite",
-              boxShadow: "0 4px 15px rgba(239, 68, 68, 0.4)",
+              boxShadow: tabSwitchCount >= 3
+                ? "0 4px 20px rgba(239, 68, 68, 0.6)"
+                : "0 4px 15px rgba(239, 68, 68, 0.4)",
             }}>
-              <span style={{ fontSize: "1.8em" }}>👀</span>
+              <span style={{ fontSize: "1.8em" }}>{tabSwitchCount >= 3 ? "🚫" : "👀"}</span>
               <div>
                 <p style={{
                   margin: 0,
@@ -2119,17 +2162,28 @@ export default function Home() {
                   fontWeight: "bold",
                   fontSize: "1em",
                 }}>
-                  We noticed you switched tabs!
+                  {tabSwitchCount >= 3
+                    ? "Too many tab switches! Rewards reduced 50%"
+                    : tabSwitchCount === 2
+                      ? "Warning! One more switch = reduced rewards"
+                      : "We noticed you switched tabs!"}
                 </p>
                 <p style={{
                   margin: "4px 0 0 0",
                   color: "#fecaca",
                   fontSize: "0.85em",
                 }}>
-                  Try solving it yourself — you'll learn better! 💪
+                  {tabSwitchCount >= 3
+                    ? "Your parent will be notified about this activity"
+                    : "Try solving it yourself — you'll learn better! 💪"}
                 </p>
               </div>
-              <span style={{ fontSize: "1.2em", marginLeft: "auto" }}>
+              <span style={{
+                fontSize: "1.2em",
+                marginLeft: "auto",
+                color: tabSwitchCount >= 3 ? "#ef4444" : "#fff",
+                fontWeight: tabSwitchCount >= 3 ? "bold" : "normal",
+              }}>
                 {tabSwitchCount}x
               </span>
             </div>
