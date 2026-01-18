@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
+import { motion } from "framer-motion";
 import { Textarea } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import {
@@ -44,8 +45,32 @@ export function VocabularyGame({
   } | null>(null);
   const [correct, setCorrect] = useState(0);
   const [mistakes, setMistakes] = useState(0);
+  const autoAdvanceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const currentPair = WORD_PAIRS[questionIndex];
+
+  const advanceToNext = useCallback(() => {
+    if (autoAdvanceTimeoutRef.current) {
+      clearTimeout(autoAdvanceTimeoutRef.current);
+      autoAdvanceTimeoutRef.current = null;
+    }
+
+    if (questionIndex < WORD_PAIRS.length - 1) {
+      setQuestionIndex((i) => i + 1);
+      setAnswer("");
+      setFeedback(null);
+    } else {
+      onComplete(correct, mistakes);
+    }
+  }, [questionIndex, correct, mistakes, onComplete]);
+
+  useEffect(() => {
+    return () => {
+      if (autoAdvanceTimeoutRef.current) {
+        clearTimeout(autoAdvanceTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const checkAnswer = useCallback(() => {
     const userAnswer = answer.trim().toLowerCase();
@@ -61,7 +86,7 @@ export function VocabularyGame({
       });
       onCorrectAnswer();
 
-      setTimeout(() => {
+      autoAdvanceTimeoutRef.current = setTimeout(() => {
         if (questionIndex < WORD_PAIRS.length - 1) {
           setQuestionIndex((i) => i + 1);
           setAnswer("");
@@ -69,6 +94,7 @@ export function VocabularyGame({
         } else {
           onComplete(correct + 1, mistakes);
         }
+        autoAdvanceTimeoutRef.current = null;
       }, 1500);
     } else {
       setMistakes((m) => m + 1);
@@ -130,6 +156,23 @@ export function VocabularyGame({
         message={feedback?.message || ""}
         visible={!!feedback}
       />
+
+      {feedback?.type === "success" && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mt-4"
+        >
+          <Button
+            variant="emerald"
+            size="lg"
+            onClick={advanceToNext}
+            className="w-full text-[1.1em]"
+          >
+            {questionIndex < WORD_PAIRS.length - 1 ? "NEXT →" : "FINISH ✓"}
+          </Button>
+        </motion.div>
+      )}
     </GameContainer>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
+import { motion } from "framer-motion";
 import { Button } from "@/components/ui/Button";
 import {
   GameContainer,
@@ -46,8 +47,35 @@ export function ImperativeGame({
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
   const [correct, setCorrect] = useState(0);
   const [mistakes, setMistakes] = useState(0);
+  const autoAdvanceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const currentQuestion = QUESTIONS[questionIndex];
+
+  // Advance to next question or complete game
+  const advanceToNext = useCallback(() => {
+    if (autoAdvanceTimeoutRef.current) {
+      clearTimeout(autoAdvanceTimeoutRef.current);
+      autoAdvanceTimeoutRef.current = null;
+    }
+
+    if (questionIndex < QUESTIONS.length - 1) {
+      setQuestionIndex((i) => i + 1);
+      setShowHint(false);
+      setFeedback(null);
+      setSelectedAnswer(null);
+    } else {
+      onComplete(correct, mistakes);
+    }
+  }, [questionIndex, correct, mistakes, onComplete]);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (autoAdvanceTimeoutRef.current) {
+        clearTimeout(autoAdvanceTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const checkAnswer = useCallback(
     (answer: string) => {
@@ -61,7 +89,7 @@ export function ImperativeGame({
         });
         onCorrectAnswer();
 
-        setTimeout(() => {
+        autoAdvanceTimeoutRef.current = setTimeout(() => {
           if (questionIndex < QUESTIONS.length - 1) {
             setQuestionIndex((i) => i + 1);
             setShowHint(false);
@@ -70,6 +98,7 @@ export function ImperativeGame({
           } else {
             onComplete(correct + 1, mistakes);
           }
+          autoAdvanceTimeoutRef.current = null;
         }, 1500);
       } else {
         setMistakes((m) => m + 1);
@@ -144,6 +173,24 @@ export function ImperativeGame({
         message={feedback?.message || ""}
         visible={!!feedback}
       />
+
+      {/* Next button - appears after correct answer for mobile users */}
+      {feedback?.type === "success" && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mt-4"
+        >
+          <Button
+            variant="emerald"
+            size="lg"
+            onClick={advanceToNext}
+            className="w-full text-[1.1em]"
+          >
+            {questionIndex < QUESTIONS.length - 1 ? "NEXT →" : "FINISH ✓"}
+          </Button>
+        </motion.div>
+      )}
     </GameContainer>
   );
 }

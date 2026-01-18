@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/Button";
 import {
@@ -375,9 +375,38 @@ export function FactFinderGame({
   const [mistakes, setMistakes] = useState(0);
   const [crystalState, setCrystalState] = useState<"idle" | "fact" | "opinion">("idle");
   const [isAnimating, setIsAnimating] = useState(false);
+  const autoAdvanceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const questions = difficulty ? QUESTIONS[difficulty] : [];
   const currentQuestion = questions[questionIndex];
+
+  // Advance to next question or complete game
+  const advanceToNext = useCallback(() => {
+    // Clear any pending auto-advance timeout
+    if (autoAdvanceTimeoutRef.current) {
+      clearTimeout(autoAdvanceTimeoutRef.current);
+      autoAdvanceTimeoutRef.current = null;
+    }
+
+    if (questionIndex < questions.length - 1) {
+      setQuestionIndex((i) => i + 1);
+      setShowHint(false);
+      setFeedback(null);
+      setSelectedAnswer(null);
+      setCrystalState("idle");
+    } else {
+      onComplete(correct, mistakes);
+    }
+  }, [questionIndex, questions.length, correct, mistakes, onComplete]);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (autoAdvanceTimeoutRef.current) {
+        clearTimeout(autoAdvanceTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const checkAnswer = useCallback(
     (answer: string) => {
@@ -399,7 +428,8 @@ export function FactFinderGame({
         });
         onCorrectAnswer();
 
-        setTimeout(() => {
+        // Store timeout ref so user can manually advance by tapping "Next"
+        autoAdvanceTimeoutRef.current = setTimeout(() => {
           if (questionIndex < questions.length - 1) {
             setQuestionIndex((i) => i + 1);
             setShowHint(false);
@@ -409,6 +439,7 @@ export function FactFinderGame({
           } else {
             onComplete(correct + 1, mistakes);
           }
+          autoAdvanceTimeoutRef.current = null;
         }, 2500);
       } else {
         setMistakes((m) => m + 1);
@@ -523,6 +554,24 @@ export function FactFinderGame({
         message={feedback?.message || ""}
         visible={!!feedback}
       />
+
+      {/* Next button - appears after correct answer for mobile users */}
+      {feedback?.type === "success" && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mt-4"
+        >
+          <Button
+            variant="emerald"
+            size="lg"
+            onClick={advanceToNext}
+            className="w-full text-[1.1em]"
+          >
+            {questionIndex < questions.length - 1 ? "NEXT →" : "FINISH ✓"}
+          </Button>
+        </motion.div>
+      )}
     </GameContainer>
   );
 }

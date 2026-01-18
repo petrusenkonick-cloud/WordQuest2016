@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/Button";
 import {
@@ -317,9 +317,35 @@ export function AIHelperGame({
   const [mistakes, setMistakes] = useState(0);
   const [visualState, setVisualState] = useState<"idle" | "ai" | "yourself">("idle");
   const [isAnimating, setIsAnimating] = useState(false);
+  const autoAdvanceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const questions = difficulty ? QUESTIONS[difficulty] : [];
   const currentQuestion = questions[questionIndex];
+
+  const advanceToNext = useCallback(() => {
+    if (autoAdvanceTimeoutRef.current) {
+      clearTimeout(autoAdvanceTimeoutRef.current);
+      autoAdvanceTimeoutRef.current = null;
+    }
+
+    if (questionIndex < questions.length - 1) {
+      setQuestionIndex((i) => i + 1);
+      setShowHint(false);
+      setFeedback(null);
+      setSelectedAnswer(null);
+      setVisualState("idle");
+    } else {
+      onComplete(correct, mistakes);
+    }
+  }, [questionIndex, questions.length, correct, mistakes, onComplete]);
+
+  useEffect(() => {
+    return () => {
+      if (autoAdvanceTimeoutRef.current) {
+        clearTimeout(autoAdvanceTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const checkAnswer = useCallback(
     (answer: string) => {
@@ -339,7 +365,7 @@ export function AIHelperGame({
         });
         onCorrectAnswer();
 
-        setTimeout(() => {
+        autoAdvanceTimeoutRef.current = setTimeout(() => {
           if (questionIndex < questions.length - 1) {
             setQuestionIndex((i) => i + 1);
             setShowHint(false);
@@ -349,6 +375,7 @@ export function AIHelperGame({
           } else {
             onComplete(correct + 1, mistakes);
           }
+          autoAdvanceTimeoutRef.current = null;
         }, 2500);
       } else {
         setMistakes((m) => m + 1);
@@ -462,6 +489,23 @@ export function AIHelperGame({
         message={feedback?.message || ""}
         visible={!!feedback}
       />
+
+      {feedback?.type === "success" && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mt-4"
+        >
+          <Button
+            variant="emerald"
+            size="lg"
+            onClick={advanceToNext}
+            className="w-full text-[1.1em]"
+          >
+            {questionIndex < questions.length - 1 ? "NEXT →" : "FINISH ✓"}
+          </Button>
+        </motion.div>
+      )}
     </GameContainer>
   );
 }
