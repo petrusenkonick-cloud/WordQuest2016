@@ -1643,11 +1643,28 @@ export default function Home() {
       if (newProgress.current >= aiGameData.questions.length) {
         const stars = newProgress.mistakes === 0 ? 3 : newProgress.mistakes <= 2 ? 2 : 1;
 
+        // Calculate time bonus
+        const expectedTimePerQuestion = 90; // 1.5 minutes per question
+        const totalQuestions = aiGameData.questions.length;
+        const expectedTotalSeconds = totalQuestions * expectedTimePerQuestion;
+        const actualTimeSeconds = gameStartTime ? Math.floor((Date.now() - gameStartTime) / 1000) : expectedTotalSeconds;
+
+        // Speed bonus: +50% if under 50% time, +25% if under expected time
+        let speedBonus = 1.0;
+        let speedBonusLabel = "";
+        if (actualTimeSeconds <= expectedTotalSeconds * 0.5) {
+          speedBonus = 1.5; // +50% for super speed
+          speedBonusLabel = "⚡ SPEED BONUS +50%!";
+        } else if (actualTimeSeconds <= expectedTotalSeconds) {
+          speedBonus = 1.25; // +25% for finishing on time
+          speedBonusLabel = "🎯 TIME BONUS +25%!";
+        }
+
         // Practice mode: 25% rewards, no leaderboard points
         // Anti-cheat penalty: 50% rewards if 3+ tab switches
         const practiceMultiplier = isPracticeMode ? 0.25 : 1.0;
         const antiCheatPenalty = tabSwitchCount >= 3 ? 0.5 : 1.0;
-        const rewardMultiplier = practiceMultiplier * antiCheatPenalty;
+        const rewardMultiplier = practiceMultiplier * antiCheatPenalty * speedBonus;
 
         const baseRewards = {
           diamonds: isPracticeMode ? 0 : 50 + newProgress.correct * 10,
@@ -1656,13 +1673,17 @@ export default function Home() {
         };
 
         const rewards = {
-          diamonds: Math.round(baseRewards.diamonds * antiCheatPenalty), // Apply penalty
-          emeralds: Math.round(baseRewards.emeralds * antiCheatPenalty), // Apply penalty
-          xp: Math.round(baseRewards.xp * rewardMultiplier), // Apply both multipliers
+          diamonds: Math.round(baseRewards.diamonds * antiCheatPenalty * speedBonus), // Apply penalty + bonus
+          emeralds: Math.round(baseRewards.emeralds * antiCheatPenalty * speedBonus), // Apply penalty + bonus
+          xp: Math.round(baseRewards.xp * rewardMultiplier), // Apply all multipliers
         };
 
+        // Show speed bonus particles if earned
+        if (speedBonus > 1.0) {
+          spawnParticles(["⚡", "🎯", "💨", "🏃"]);
+        }
+
         // Calculate session stats for normalized scoring
-        const totalQuestions = aiGameData.questions.length;
         const accuracy = totalQuestions > 0 ? Math.round((newProgress.correct / totalQuestions) * 100) : 0;
         // Include difficulty multiplier from AI analysis (default 1.0 if not available)
         const difficultyMultiplier = aiGameData.difficulty?.multiplier || 1.0;
@@ -1726,14 +1747,22 @@ export default function Home() {
             }
 
             // Send parent notification about homework completion
-            const accuracy = totalQuestions > 0 ? Math.round((newProgress.correct / totalQuestions) * 100) : 0;
+            const notifAccuracy = totalQuestions > 0 ? Math.round((newProgress.correct / totalQuestions) * 100) : 0;
             const starEmoji = "⭐".repeat(stars);
+            const timeMinutes = Math.round(actualTimeSeconds / 60);
+            const expectedMinutes = Math.round(expectedTotalSeconds / 60);
             let notifMessage = `📚 <b>Homework Complete!</b>\n\n`;
             notifMessage += `${player.name} finished their <b>${aiGameData.subject}</b> homework!\n\n`;
             notifMessage += `📊 <b>Results:</b>\n`;
-            notifMessage += `• Score: ${newProgress.correct}/${totalQuestions} (${accuracy}%)\n`;
+            notifMessage += `• Score: ${newProgress.correct}/${totalQuestions} (${notifAccuracy}%)\n`;
             notifMessage += `• Stars: ${starEmoji}\n`;
-            notifMessage += `• Time: ${Math.round(totalTimeMs / 60000)} min\n\n`;
+            notifMessage += `• Time: ${timeMinutes} min (expected: ${expectedMinutes} min)\n`;
+
+            // Add speed bonus info
+            if (speedBonusLabel) {
+              notifMessage += `• ${speedBonusLabel}\n`;
+            }
+            notifMessage += `\n`;
 
             // Add anti-cheat warning if suspicious activity detected
             if (tabSwitchCount > 0 || suspiciouslyFastAnswers > 2) {
