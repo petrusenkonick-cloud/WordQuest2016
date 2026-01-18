@@ -186,7 +186,7 @@ body {
 .currency-item .amount { font-family: 'Press Start 2P'; font-size: 0.7em; color: white; text-shadow: 2px 2px 0 #000; }
 
 /* MAIN */
-.main-container { position: relative; z-index: 10; max-width: 900px; margin: 0 auto; padding: 90px 15px 75px; }
+.main-container { position: relative; z-index: 10; max-width: 900px; margin: 0 auto; padding: 105px 15px 75px; }
 .screen { display: none; }
 .screen.active { display: block; animation: screenIn 0.4s ease-out; }
 
@@ -558,7 +558,7 @@ body {
 
 /* Desktop (>1024px) - default styles */
 @media (min-width: 1025px) {
-  .main-container { max-width: 1000px; padding: 100px 30px 80px; }
+  .main-container { max-width: 1000px; padding: 110px 30px 80px; }
   .level-grid { grid-template-columns: repeat(3, 1fr); gap: 20px; }
   .shop-grid { grid-template-columns: repeat(4, 1fr); }
   .stats-grid { grid-template-columns: repeat(4, 1fr); }
@@ -568,7 +568,7 @@ body {
 
 /* Tablet (768px - 1024px) */
 @media (max-width: 1024px) and (min-width: 769px) {
-  .main-container { padding: 95px 20px 75px; }
+  .main-container { padding: 105px 20px 75px; }
   .level-grid { grid-template-columns: repeat(2, 1fr); }
   .shop-grid { grid-template-columns: repeat(3, 1fr); }
   .stats-grid { grid-template-columns: repeat(4, 1fr); }
@@ -579,7 +579,7 @@ body {
 /* Mobile Large (480px - 768px) */
 @media (max-width: 768px) {
   html { font-size: 17px; }
-  .main-container { padding: 85px 12px 70px; }
+  .main-container { padding: 95px 12px 70px; }
   .hud { padding: 10px 12px; }
   .hud-top { flex-direction: row; flex-wrap: wrap; gap: 10px; }
   .player-info { min-width: auto; }
@@ -610,7 +610,7 @@ body {
 /* Mobile Small (<480px) */
 @media (max-width: 480px) {
   html { font-size: 16px; }
-  .main-container { padding: 80px 10px 65px; }
+  .main-container { padding: 90px 10px 65px; }
   .hud-top { justify-content: space-between; }
   .player-avatar { width: 40px; height: 40px; font-size: 1.3em; }
   .currencies { flex-wrap: wrap; justify-content: flex-end; }
@@ -658,7 +658,7 @@ body {
   .currency-item { padding: 4px 8px; }
   .currency-item .amount { font-size: 0.6em; }
 
-  .main-container { padding: 55px 15px 55px; }
+  .main-container { padding: 60px 15px 55px; }
   .stats-grid { grid-template-columns: repeat(4, 1fr); gap: 6px; }
   .stat-card { padding: 8px; }
   .stat-card .icon { font-size: 1.1em; margin-bottom: 2px; }

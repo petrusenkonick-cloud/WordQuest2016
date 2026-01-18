@@ -293,17 +293,73 @@ export function HomeScreen({
   }, [homeworkSessions, pendingWeeklyQuests, completedDailyQuests, totalDailyQuests]);
 
   return (
-    <div className="screen active">
+    <div className="screen active" style={{ paddingTop: "10px" }}>
       {/* Top Wizards Leaderboard */}
       <LeaderboardPodium playerId={playerId} onViewFull={onLeaderboard} />
 
-      {/* Daily Reward Banner - right under leaderboard */}
-      <div className="daily-banner" onClick={showDailyReward} style={{ marginBottom: "12px" }}>
-        <div>
-          <h3>DAILY REWARD!</h3>
-          <p>Claim free rewards!</p>
+      {/* Quick Actions Row - Daily Reward & Share */}
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: "1fr 1fr",
+        gap: "8px",
+        marginBottom: "12px",
+      }}>
+        {/* Daily Reward Banner */}
+        <div
+          onClick={showDailyReward}
+          style={{
+            background: "linear-gradient(135deg, rgba(251, 191, 36, 0.3) 0%, rgba(245, 158, 11, 0.3) 100%)",
+            borderRadius: "12px",
+            padding: "10px 12px",
+            cursor: "pointer",
+            border: "2px solid #fbbf24",
+            display: "flex",
+            alignItems: "center",
+            gap: "10px",
+          }}
+        >
+          <span style={{ fontSize: "1.5em" }}>🎁</span>
+          <div>
+            <div style={{ fontWeight: "bold", fontSize: "0.8em", color: "#fbbf24" }}>Daily Reward</div>
+            <div style={{ color: "#fde68a", fontSize: "0.65em" }}>Free gems!</div>
+          </div>
         </div>
-        <div className="daily-icon">🎁</div>
+
+        {/* Share & Get 1000 Banner */}
+        <div
+          onClick={() => {
+            // Share functionality
+            const shareUrl = `${window.location.origin}?ref=${playerId || 'guest'}`;
+            const shareText = "Join me on WordQuest Academy! Learn words and have fun! 🧙‍♂️✨";
+
+            if (navigator.share) {
+              navigator.share({
+                title: "WordQuest Academy",
+                text: shareText,
+                url: shareUrl,
+              }).catch(() => {});
+            } else {
+              navigator.clipboard.writeText(`${shareText}\n${shareUrl}`);
+              alert("Link copied! Share it with friends to earn 1000 points!");
+            }
+          }}
+          style={{
+            background: "linear-gradient(135deg, rgba(34, 197, 94, 0.3) 0%, rgba(22, 163, 74, 0.3) 100%)",
+            borderRadius: "12px",
+            padding: "10px 12px",
+            cursor: "pointer",
+            border: "2px solid #22c55e",
+            display: "flex",
+            alignItems: "center",
+            gap: "10px",
+          }}
+        >
+          <span style={{ fontSize: "1.5em" }}>🎉</span>
+          <div>
+            <div style={{ fontWeight: "bold", fontSize: "0.8em", color: "#22c55e" }}>Share & Get</div>
+            <div style={{ color: "#86efac", fontSize: "0.65em" }}>+1000 pts!</div>
+          </div>
+        </div>
       </div>
 
       {/* 🧙‍♂️ MASCOT HEADER */}
