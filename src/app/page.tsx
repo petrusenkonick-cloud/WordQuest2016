@@ -514,6 +514,8 @@ export default function Home() {
   }>>([]);
   const [tabSwitchCount, setTabSwitchCount] = useState(0);
   const [showTabSwitchWarning, setShowTabSwitchWarning] = useState(false);
+  const [gameStartTime, setGameStartTime] = useState<number | null>(null);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [isSpeaking, setIsSpeaking] = useState(false);
 
   // Similar questions system (instead of showing answer)
@@ -646,6 +648,20 @@ export default function Home() {
     document.addEventListener("visibilitychange", handleVisibilityChange);
     return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
   }, [isPlayingAIGame, tabSwitchCount]);
+
+  // Game timer - updates every second
+  useEffect(() => {
+    if (!isPlayingAIGame || !gameStartTime) {
+      setElapsedSeconds(0);
+      return;
+    }
+
+    const interval = setInterval(() => {
+      setElapsedSeconds(Math.floor((Date.now() - gameStartTime) / 1000));
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [isPlayingAIGame, gameStartTime]);
 
   // Handlers
   const handleLoadingComplete = useCallback(() => {
@@ -809,6 +825,7 @@ export default function Home() {
     // Start the game
     setAiGameData(gameData);
     setIsPlayingAIGame(true);
+    setGameStartTime(Date.now());
     setAiGameProgress({ current: 0, correct: 0, mistakes: 0 });
     setSelectedAnswer(null);
     setShowFeedback(false);
@@ -1019,6 +1036,7 @@ export default function Home() {
     // Start the game
     setAiGameData(gameData);
     setIsPlayingAIGame(true);
+    setGameStartTime(Date.now());
     setAiGameProgress({ current: 0, correct: 0, mistakes: 0 });
     setSelectedAnswer(null);
     setShowFeedback(false);
@@ -1083,6 +1101,7 @@ export default function Home() {
       // Start the review game
       setAiGameData(gameData);
       setIsPlayingAIGame(true);
+      setGameStartTime(Date.now());
       setAiGameProgress({ current: 0, correct: 0, mistakes: 0 });
       setSelectedAnswer(null);
       setShowFeedback(false);
@@ -1182,6 +1201,7 @@ export default function Home() {
     setAiGameData(processedResult);
     setShowAIProcessing(false);
     setIsPlayingAIGame(true);
+    setGameStartTime(Date.now());
     setIsPracticeMode(false);
     setAiGameProgress({ current: 0, correct: 0, mistakes: 0 });
     setSelectedAnswer(null);
@@ -1244,6 +1264,7 @@ export default function Home() {
     // Start game in practice mode
     setAiGameData(pendingHomeworkData);
     setIsPlayingAIGame(true);
+    setGameStartTime(Date.now());
     setIsPracticeMode(true); // 25% rewards
     setAiGameProgress({ current: 0, correct: 0, mistakes: 0 });
     setSelectedAnswer(null);
@@ -1950,6 +1971,7 @@ export default function Home() {
     setShowHint(false);
     setCurrentHint(null);
     setMustAnswerCorrectly(false);
+    setGameStartTime(null);
     setHomeworkAnswers([]);
     // Reset similar/verification question state
     setSimilarQuestion(null);
@@ -2131,9 +2153,22 @@ export default function Home() {
               {isPractice && "⚔️ "}
               {aiGameData.gameIcon} {aiGameData.gameName}
             </h2>
-            <button className="btn btn-secondary" onClick={handleExitAIGame}>
-              ← EXIT
-            </button>
+            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+              {/* Timer display */}
+              <div style={{
+                background: "rgba(0,0,0,0.3)",
+                padding: "6px 12px",
+                borderRadius: "8px",
+                fontSize: "0.9em",
+                fontFamily: "monospace",
+                color: elapsedSeconds >= 600 ? "#fbbf24" : "#94a3b8",
+              }}>
+                ⏱️ {Math.floor(elapsedSeconds / 60)}:{(elapsedSeconds % 60).toString().padStart(2, '0')}
+              </div>
+              <button className="btn btn-secondary" onClick={handleExitAIGame}>
+                ← EXIT
+              </button>
+            </div>
           </div>
 
           {/* Tab switch warning banner */}
