@@ -1301,7 +1301,31 @@ export default function Home() {
 
       setSelectedAnswer(answer);
       const currentQ = aiGameData.questions[aiGameProgress.current];
-      const isCorrect = answer.toLowerCase().trim() === currentQ.correct.toLowerCase().trim();
+
+      // Smart answer comparison to handle multiple formats:
+      // - Direct match: "Perfect and without any mistakes" === "Perfect and without any mistakes"
+      // - Letter match: "E) Perfect..." starts with "E" (when correct is just a letter)
+      // - Text match: "E) Perfect..." contains "Perfect..." (when correct is the text without letter)
+      const answerLower = answer.toLowerCase().trim();
+      const correctLower = currentQ.correct.toLowerCase().trim();
+
+      // Extract letter prefix if present (e.g., "E)" from "E) Perfect...")
+      const answerLetterMatch = answerLower.match(/^([a-e])\)/);
+      const answerLetter = answerLetterMatch ? answerLetterMatch[1] : null;
+      const answerTextOnly = answerLower.replace(/^[a-e]\)\s*/, '');
+
+      // Check if correct is just a letter (A, B, C, D, E)
+      const correctIsJustLetter = /^[a-e]\.?$/.test(correctLower);
+      const correctLetter = correctIsJustLetter ? correctLower.replace('.', '') : null;
+      const correctTextOnly = correctLower.replace(/^[a-e]\)\s*/, '');
+
+      const isCorrect =
+        answerLower === correctLower || // Direct match
+        (answerLetter && correctLetter && answerLetter === correctLetter) || // Letter matches letter
+        (answerLetter && answerLetter === correctLower.charAt(0) && correctIsJustLetter) || // Answer letter matches correct letter
+        answerTextOnly === correctTextOnly || // Text without letters matches
+        answerTextOnly === correctLower || // Answer text matches full correct
+        answerLower === correctTextOnly; // Full answer matches correct text
 
       setFeedbackCorrect(isCorrect);
       setShowFeedback(true);
@@ -1540,8 +1564,23 @@ export default function Home() {
           setTimeout(() => {
             setShowFeedback(false);
             setSelectedAnswer(null);
-            // Show a message that they need to pick the correct answer
-            setCurrentHint(`The correct answer is: ${currentQ.correct}. Select it to continue!`);
+            // Find the correct option to display in hint
+            const correctLower = currentQ.correct.toLowerCase().trim();
+            const correctIsJustLetter = /^[a-e]\.?$/.test(correctLower);
+            let correctOptionText = currentQ.correct;
+
+            // If correct is just a letter, find the matching option
+            if (correctIsJustLetter && currentQ.options) {
+              const letter = correctLower.replace('.', '');
+              const matchingOption = currentQ.options.find(opt =>
+                opt.toLowerCase().trim().startsWith(letter + ')')
+              );
+              if (matchingOption) {
+                correctOptionText = matchingOption;
+              }
+            }
+
+            setCurrentHint(`The correct answer is: ${correctOptionText}. Select it to continue!`);
             setShowHint(true);
           }, 800);
         }
