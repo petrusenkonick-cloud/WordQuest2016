@@ -6,6 +6,7 @@ import { ProgressBar } from "@/components/ui/ProgressBar";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { useAudio } from "@/hooks/useAudio";
+import { AudioControls } from "@/components/ui/AudioControls";
 
 // Floating particles for atmosphere
 function FloatingParticles() {
@@ -189,28 +190,40 @@ export function GameContainer({
 
       {/* Content wrapper */}
       <div className="relative z-10 p-2">
-        {/* Header */}
-        <div className="flex justify-between items-center mb-5 pb-4 border-b-4 border-black/30 flex-wrap gap-3 pt-1">
-          <motion.h2
-            initial={{ x: -20, opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            className="font-pixel text-[0.85em] text-white text-shadow-lg flex items-center gap-2"
-          >
-            <motion.span
-              animate={{ rotate: [0, 10, -10, 0], scale: [1, 1.1, 1] }}
-              transition={{ duration: 2, repeat: Infinity }}
-              className="text-[1.3em]"
+        {/* Header - Responsive layout */}
+        <div className="flex flex-col gap-2 mb-5 pb-4 border-b-4 border-black/30 pt-1">
+          {/* Top row: Title and Exit */}
+          <div className="flex justify-between items-center gap-2">
+            <motion.h2
+              initial={{ x: -20, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              className="font-pixel text-[0.75em] sm:text-[0.85em] text-white text-shadow-lg flex items-center gap-2 min-w-0 flex-1"
             >
-              {icon}
-            </motion.span>
-            <span className="bg-gradient-to-r from-white to-[#E0D0C0] bg-clip-text text-transparent">
-              {title}
-            </span>
-          </motion.h2>
+              <motion.span
+                animate={{ rotate: [0, 10, -10, 0], scale: [1, 1.1, 1] }}
+                transition={{ duration: 2, repeat: Infinity }}
+                className="text-[1.2em] sm:text-[1.3em] flex-shrink-0"
+              >
+                {icon}
+              </motion.span>
+              <span className="bg-gradient-to-r from-white to-[#E0D0C0] bg-clip-text text-transparent truncate">
+                {title}
+              </span>
+            </motion.h2>
 
-          <Button variant="stone" size="sm" onClick={onExit}>
-            ← EXIT
-          </Button>
+            {/* Right side: Audio + Exit */}
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <AudioControls compact className="hidden sm:flex" />
+              <Button variant="stone" size="sm" onClick={onExit}>
+                ←
+              </Button>
+            </div>
+          </div>
+
+          {/* Mobile: Audio controls on separate row */}
+          <div className="flex sm:hidden justify-end">
+            <AudioControls compact />
+          </div>
         </div>
 
         {/* Progress bar */}

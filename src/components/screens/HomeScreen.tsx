@@ -373,14 +373,14 @@ export function HomeScreen({
       {/* ════════════ 📚 LEARN SECTION ════════════ */}
       <SectionHeader title="LEARN" icon="📚" infoKey="learn" />
 
-      {/* Homework + Quest Map Row */}
+      {/* Homework + My Answers + Quest Map + Life Skills Grid */}
       <div style={{
         display: "grid",
         gridTemplateColumns: "1fr 1fr",
         gap: "8px",
-        marginBottom: "8px",
+        marginBottom: "12px",
       }}>
-        {/* Homework Card */}
+        {/* Scan Homework Card */}
         <StartHereIndicator active={recommendedAction === "homework"}>
           <div
             id="homework-section"
@@ -403,6 +403,52 @@ export function HomeScreen({
             <div style={{ color: "#fed7aa", fontSize: "0.7em" }}>Scan & Play</div>
           </div>
         </StartHereIndicator>
+
+        {/* My Answers Card */}
+        <div
+          onClick={onHomework}
+          style={{
+            background: "linear-gradient(135deg, rgba(34, 197, 94, 0.3) 0%, rgba(30, 27, 75, 0.4) 100%)",
+            borderRadius: "14px",
+            padding: "16px 12px",
+            cursor: "pointer",
+            border: "2px solid #22c55e",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: "6px",
+            textAlign: "center",
+            position: "relative",
+          }}
+        >
+          <span style={{ fontSize: "2em" }}>📝</span>
+          <div style={{ fontWeight: "bold", fontSize: "0.85em" }}>MY ANSWERS</div>
+          <div style={{ color: "#86efac", fontSize: "0.7em" }}>
+            {homeworkSessions && homeworkSessions.length > 0
+              ? `${homeworkSessions.length} active`
+              : "View all"
+            }
+          </div>
+          {homeworkSessions && homeworkSessions.length > 0 && (
+            <div style={{
+              position: "absolute",
+              top: "8px",
+              right: "8px",
+              background: "#22c55e",
+              color: "white",
+              borderRadius: "50%",
+              width: "20px",
+              height: "20px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: "0.7em",
+              fontWeight: "bold",
+            }}>
+              {homeworkSessions.length}
+            </div>
+          )}
+        </div>
 
         {/* Quest Map Card */}
         <div
@@ -427,40 +473,40 @@ export function HomeScreen({
             Ch. {wizardProfile?.currentChapter || 1}
           </div>
         </div>
-      </div>
 
-      {/* Life Skills Academy - Full Width */}
-      <div
-        onClick={onLifeSkillsAcademy}
-        style={{
-          background: "linear-gradient(135deg, rgba(236, 72, 153, 0.3) 0%, rgba(30, 27, 75, 0.4) 100%)",
-          borderRadius: "12px",
-          padding: "12px",
-          cursor: "pointer",
-          border: "2px solid #ec4899",
-          display: "flex",
-          alignItems: "center",
-          gap: "10px",
-          marginBottom: "12px",
-        }}
-      >
-        <span style={{ fontSize: "1.6em" }}>🏰</span>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: "bold", fontSize: "0.85em" }}>LIFE SKILLS ACADEMY</div>
-          <div style={{ color: "#f9a8d4", fontSize: "0.7em" }}>
-            21st Century Skills
+        {/* Life Skills Academy Card */}
+        <div
+          onClick={onLifeSkillsAcademy}
+          style={{
+            background: "linear-gradient(135deg, rgba(236, 72, 153, 0.3) 0%, rgba(30, 27, 75, 0.4) 100%)",
+            borderRadius: "14px",
+            padding: "16px 12px",
+            cursor: "pointer",
+            border: "2px solid #ec4899",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: "6px",
+            textAlign: "center",
+            position: "relative",
+          }}
+        >
+          <span style={{ fontSize: "2em" }}>🏰</span>
+          <div style={{ fontWeight: "bold", fontSize: "0.85em" }}>LIFE SKILLS</div>
+          <div style={{ color: "#f9a8d4", fontSize: "0.7em" }}>21st Century</div>
+          <div style={{
+            position: "absolute",
+            top: "8px",
+            right: "8px",
+            background: "linear-gradient(135deg, #ec4899, #f472b6)",
+            padding: "2px 5px",
+            borderRadius: "4px",
+            fontSize: "0.55em",
+            fontWeight: "bold",
+          }}>
+            NEW
           </div>
         </div>
-        <span style={{
-          background: "linear-gradient(135deg, #ec4899, #f472b6)",
-          padding: "3px 6px",
-          borderRadius: "6px",
-          fontSize: "0.65em",
-          fontWeight: "bold",
-          flexShrink: 0,
-        }}>
-          NEW
-        </span>
       </div>
 
       {/* ════════════ 🎯 PRACTICE SECTION ════════════ */}
