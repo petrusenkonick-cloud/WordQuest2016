@@ -495,6 +495,7 @@ export default function Home() {
   // Convex mutations for homework
   const createHomeworkSession = useMutation(api.homework.createHomeworkSession);
   const completeHomeworkSession = useMutation(api.homework.completeHomeworkSession);
+  const savePartialProgress = useMutation(api.homework.savePartialProgress);
 
   // Error tracking mutation
   const trackError = useMutation(api.errors.trackError);
@@ -929,6 +930,11 @@ export default function Home() {
       hint?: string;
       pageRef?: number;
     }[];
+    userAnswers?: {
+      questionIndex: number;
+      userAnswer: string;
+      isCorrect: boolean;
+    }[];
   }) => {
     // VALIDATION: Check if homework has questions
     if (!homework.questions || homework.questions.length === 0) {
@@ -952,14 +958,18 @@ export default function Home() {
       return;
     }
 
+    // Check if resuming from partial progress
+    const savedAnswers = homework.userAnswers || [];
+    const isResuming = savedAnswers.length > 0 && savedAnswers.length < validQuestions.length;
+
     // Convert homework session to AIAnalysisResult format
-    // Shuffle questions for variety each time player starts
+    // DON'T shuffle if resuming - keep original order to match saved answers
     const mappedQuestions = validQuestions.map(q => {
       const options = generateOptionsForQuestion(q);
       return {
         text: q.text,
         type: options.length >= 2 ? "multiple_choice" as const : q.type as "multiple_choice" | "fill_blank" | "true_false",
-        options: shuffleArray(options), // Shuffle multiple choice options
+        options: isResuming ? options : shuffleArray(options), // Only shuffle on fresh start
         correct: q.correct,
         explanation: q.explanation,
         hint: q.hint,
@@ -974,22 +984,36 @@ export default function Home() {
       totalPages: 1,
       gameName: homework.gameName,
       gameIcon: homework.gameIcon,
-      questions: shuffleArray(mappedQuestions), // Shuffle question order
+      questions: isResuming ? mappedQuestions : shuffleArray(mappedQuestions), // Only shuffle on fresh start
     };
 
     // Set the homework session ID for completion tracking
     setCurrentHomeworkSessionId(homework._id);
 
+    // Calculate progress from saved answers
+    const correctCount = savedAnswers.filter(a => a.isCorrect).length;
+    const mistakeCount = savedAnswers.filter(a => !a.isCorrect).length;
+    const startQuestion = savedAnswers.length; // Start from first unanswered question
+
     // Start the game
     setAiGameData(gameData);
     setIsPlayingAIGame(true);
     setGameStartTime(Date.now());
-    setAiGameProgress({ current: 0, correct: 0, mistakes: 0 });
+    setAiGameProgress({
+      current: startQuestion,
+      correct: correctCount,
+      mistakes: mistakeCount,
+    });
+    setHomeworkAnswers(savedAnswers); // Load saved answers
     setSelectedAnswer(null);
     setShowFeedback(false);
     setQuestionStartTime(Date.now()); // Anti-cheat: Start timer
     setResponseTimeData([]); // Reset response time data
     setTabSwitchCount(0); // Reset tab switch count
+
+    if (isResuming) {
+      console.log(`📚 Resuming homework: ${startQuestion}/${validQuestions.length} questions completed`);
+    }
   }, []);
 
   // View answers for a completed homework session (from history)
@@ -1541,14 +1565,25 @@ export default function Home() {
       if (isCorrect) {
         // Track final answer for homework summary (correct after any attempts)
         if (currentHomeworkSessionId) {
+          // Calculate new answers for both state and database
+          const newAnswer = {
+            questionIndex: aiGameProgress.current,
+            userAnswer: answer,
+            isCorrect: true,
+          };
+
           setHomeworkAnswers(prev => {
-            // Remove any previous answer for this question and add the correct one
             const filtered = prev.filter(a => a.questionIndex !== aiGameProgress.current);
-            return [...filtered, {
-              questionIndex: aiGameProgress.current,
-              userAnswer: answer,
-              isCorrect: true,
-            }];
+            const updatedAnswers = [...filtered, newAnswer];
+
+            // Save partial progress to database (fire and forget)
+            savePartialProgress({
+              sessionId: currentHomeworkSessionId,
+              userAnswers: updatedAnswers,
+              callerClerkId: deviceId || undefined,
+            }).catch(err => console.error("Failed to save partial progress:", err));
+
+            return updatedAnswers;
           });
         }
 
@@ -1647,11 +1682,24 @@ export default function Home() {
 
         // Track homework answer only on first wrong attempt
         if (currentHomeworkSessionId && currentQuestionAttempts === 0) {
-          setHomeworkAnswers(prev => [...prev, {
+          const newAnswer = {
             questionIndex: aiGameProgress.current,
             userAnswer: answer,
             isCorrect: false,
-          }]);
+          };
+
+          setHomeworkAnswers(prev => {
+            const updatedAnswers = [...prev, newAnswer];
+
+            // Save partial progress to database (fire and forget)
+            savePartialProgress({
+              sessionId: currentHomeworkSessionId,
+              userAnswers: updatedAnswers,
+              callerClerkId: deviceId || undefined,
+            }).catch(err => console.error("Failed to save partial progress:", err));
+
+            return updatedAnswers;
+          });
         }
 
         // Track error only on first wrong attempt

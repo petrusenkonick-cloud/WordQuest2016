@@ -387,6 +387,47 @@ export const cleanupDuplicateSessions = mutation({
   },
 });
 
+// Save partial progress (called after each answer)
+export const savePartialProgress = mutation({
+  args: {
+    sessionId: v.id("homeworkSessions"),
+    userAnswers: v.array(
+      v.object({
+        questionIndex: v.number(),
+        userAnswer: v.string(),
+        isCorrect: v.boolean(),
+      })
+    ),
+    callerClerkId: v.optional(v.string()), // SECURITY: verify ownership
+  },
+  handler: async (ctx, args) => {
+    const session = await ctx.db.get(args.sessionId);
+    if (!session) {
+      return { success: false, error: "Homework session not found" };
+    }
+
+    // Don't update if already completed
+    if (session.status === "completed") {
+      return { success: false, error: "Session already completed" };
+    }
+
+    // SECURITY: If session has playerId and caller provided clerkId, verify ownership
+    if (session.playerId && args.callerClerkId) {
+      const player = await ctx.db.get(session.playerId);
+      if (player && player.clerkId !== args.callerClerkId) {
+        console.error(`SECURITY: savePartialProgress IDOR attempt - caller ${args.callerClerkId} tried to update session for player ${session.playerId}`);
+        return { success: false, error: "Unauthorized" };
+      }
+    }
+
+    await ctx.db.patch(args.sessionId, {
+      userAnswers: args.userAnswers,
+    });
+
+    return { success: true, savedCount: args.userAnswers.length };
+  },
+});
+
 // Get completed homework sessions for history
 export const getCompletedHomeworkSessions = query({
   args: {

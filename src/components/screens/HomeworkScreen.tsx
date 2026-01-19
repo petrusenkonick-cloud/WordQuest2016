@@ -160,60 +160,90 @@ export function HomeworkScreen({
             flexDirection: "column",
             gap: "12px",
           }}>
-            {homeworkSessions.map((hw, index) => (
-              <motion.div
-                key={hw._id}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: index * 0.05 }}
-                onClick={() => onPlayHomework(hw)}
-                style={{
-                  background: "linear-gradient(135deg, rgba(168, 85, 247, 0.3) 0%, rgba(30, 27, 75, 0.4) 100%)",
-                  borderRadius: "12px",
-                  padding: "15px",
-                  cursor: "pointer",
-                  border: "2px solid #a855f7",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "15px",
-                  transition: "transform 0.2s ease, box-shadow 0.2s ease",
-                }}
-              >
-                <div style={{
-                  width: "50px",
-                  height: "50px",
-                  borderRadius: "12px",
-                  background: "rgba(168, 85, 247, 0.3)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: "1.8em",
-                }}>
-                  {hw.gameIcon}
-                </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: "bold", fontSize: "1em", marginBottom: "4px", color: "white" }}>
-                    {hw.gameName}
+            {homeworkSessions.map((hw, index) => {
+              const hasProgress = hw.userAnswers && hw.userAnswers.length > 0;
+              const progressCount = hw.userAnswers?.length || 0;
+              const totalQuestions = hw.questions.length;
+
+              return (
+                <motion.div
+                  key={hw._id}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: index * 0.05 }}
+                  onClick={() => onPlayHomework(hw)}
+                  style={{
+                    background: hasProgress
+                      ? "linear-gradient(135deg, rgba(34, 197, 94, 0.2) 0%, rgba(30, 27, 75, 0.4) 100%)"
+                      : "linear-gradient(135deg, rgba(168, 85, 247, 0.3) 0%, rgba(30, 27, 75, 0.4) 100%)",
+                    borderRadius: "12px",
+                    padding: "15px",
+                    cursor: "pointer",
+                    border: hasProgress ? "2px solid #22c55e" : "2px solid #a855f7",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "15px",
+                    transition: "transform 0.2s ease, box-shadow 0.2s ease",
+                  }}
+                >
+                  <div style={{
+                    width: "50px",
+                    height: "50px",
+                    borderRadius: "12px",
+                    background: hasProgress ? "rgba(34, 197, 94, 0.3)" : "rgba(168, 85, 247, 0.3)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: "1.8em",
+                  }}>
+                    {hw.gameIcon}
                   </div>
-                  <div style={{ color: "#c4b5fd", fontSize: "0.85em", marginBottom: "4px" }}>
-                    {hw.subject} • {hw.grade}
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: "bold", fontSize: "1em", marginBottom: "4px", color: "white" }}>
+                      {hw.gameName}
+                    </div>
+                    <div style={{ color: "#c4b5fd", fontSize: "0.85em", marginBottom: "4px" }}>
+                      {hw.subject} • {hw.grade}
+                    </div>
+                    <div style={{ color: hasProgress ? "#22c55e" : "#8b5cf6", fontSize: "0.8em" }}>
+                      {hasProgress
+                        ? `${progressCount}/${totalQuestions} completed`
+                        : `${totalQuestions} questions`
+                      }
+                    </div>
+                    {/* Progress bar for partial progress */}
+                    {hasProgress && (
+                      <div style={{
+                        marginTop: "6px",
+                        height: "4px",
+                        background: "rgba(0,0,0,0.3)",
+                        borderRadius: "2px",
+                        overflow: "hidden",
+                      }}>
+                        <div style={{
+                          width: `${(progressCount / totalQuestions) * 100}%`,
+                          height: "100%",
+                          background: "linear-gradient(90deg, #22c55e, #4ade80)",
+                          borderRadius: "2px",
+                        }} />
+                      </div>
+                    )}
                   </div>
-                  <div style={{ color: "#8b5cf6", fontSize: "0.8em" }}>
-                    {hw.questions.length} questions
+                  <div style={{
+                    background: hasProgress
+                      ? "linear-gradient(135deg, #22c55e 0%, #16a34a 100%)"
+                      : "linear-gradient(135deg, #8b5cf6 0%, #a855f7 100%)",
+                    borderRadius: "8px",
+                    padding: "8px 16px",
+                    fontSize: "0.85em",
+                    fontWeight: "bold",
+                    color: "white",
+                  }}>
+                    {hasProgress ? "CONTINUE" : "PLAY"}
                   </div>
-                </div>
-                <div style={{
-                  background: "linear-gradient(135deg, #8b5cf6 0%, #a855f7 100%)",
-                  borderRadius: "8px",
-                  padding: "8px 16px",
-                  fontSize: "0.85em",
-                  fontWeight: "bold",
-                  color: "white",
-                }}>
-                  PLAY
-                </div>
-              </motion.div>
-            ))}
+                </motion.div>
+              );
+            })}
           </div>
         ) : (
           <div style={{
