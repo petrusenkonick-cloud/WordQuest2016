@@ -645,8 +645,9 @@ body {
   html { font-size: 15px; }
   .hud { padding: 8px; }
   .player-details { display: none; }
-  .currencies { gap: 5px; }
-  .currency-item .amount { display: none; }
+  .currencies { gap: 4px; }
+  .currency-item { padding: 4px 6px; }
+  .currency-item .amount { display: inline; font-size: 0.55em; } /* Show amounts! */
   .stats-grid { grid-template-columns: repeat(2, 1fr); }
   .stat-card .label { display: none; }
   .bottom-nav .label { display: none; }

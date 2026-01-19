@@ -365,6 +365,164 @@ export function ProfileSettingsScreen({ playerId, onBack, onLogout }: ProfileSet
         )}
       </AnimatePresence>
 
+      {/* Full Stats Section - Always visible */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+        style={{
+          background: "rgba(0,0,0,0.4)",
+          borderRadius: "16px",
+          padding: "20px",
+          marginBottom: "20px",
+          border: "2px solid #333",
+        }}
+      >
+        <h3 style={{
+          color: "#4AEDD9",
+          marginBottom: "15px",
+          fontSize: "1em",
+          display: "flex",
+          alignItems: "center",
+          gap: "8px",
+        }}>
+          📊 My Stats
+        </h3>
+
+        {/* Level & XP */}
+        <div style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "15px",
+          marginBottom: "15px",
+          padding: "12px",
+          background: "rgba(139, 92, 246, 0.1)",
+          borderRadius: "12px",
+          border: "1px solid rgba(139, 92, 246, 0.3)",
+        }}>
+          <div style={{
+            background: "linear-gradient(135deg, #FFD700, #FFA500)",
+            borderRadius: "10px",
+            padding: "8px 14px",
+            fontWeight: "bold",
+            color: "#000",
+            fontSize: "1em",
+          }}>
+            LVL {player.level || 1}
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{
+              display: "flex",
+              justifyContent: "space-between",
+              marginBottom: "4px",
+              fontSize: "0.85em",
+              color: "#c4b5fd",
+            }}>
+              <span>XP Progress</span>
+              <span>{player.xp || 0} / {player.xpNext || 100}</span>
+            </div>
+            <div style={{
+              background: "rgba(0,0,0,0.4)",
+              borderRadius: "6px",
+              height: "10px",
+              overflow: "hidden",
+            }}>
+              <div style={{
+                width: `${((player.xp || 0) / (player.xpNext || 100)) * 100}%`,
+                height: "100%",
+                background: "linear-gradient(90deg, #22c55e, #4ade80)",
+                borderRadius: "6px",
+                transition: "width 0.5s ease",
+              }} />
+            </div>
+          </div>
+        </div>
+
+        {/* Currencies Grid */}
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(3, 1fr)",
+          gap: "10px",
+          marginBottom: "15px",
+        }}>
+          <div style={{
+            background: "rgba(59, 130, 246, 0.15)",
+            borderRadius: "12px",
+            padding: "12px",
+            textAlign: "center",
+            border: "1px solid rgba(59, 130, 246, 0.3)",
+          }}>
+            <div style={{ fontSize: "1.5em", marginBottom: "4px" }}>💎</div>
+            <div style={{ color: "#60a5fa", fontWeight: "bold", fontSize: "1.1em" }}>
+              {player.diamonds || 0}
+            </div>
+            <div style={{ color: "#888", fontSize: "0.75em" }}>Diamonds</div>
+          </div>
+          <div style={{
+            background: "rgba(34, 197, 94, 0.15)",
+            borderRadius: "12px",
+            padding: "12px",
+            textAlign: "center",
+            border: "1px solid rgba(34, 197, 94, 0.3)",
+          }}>
+            <div style={{ fontSize: "1.5em", marginBottom: "4px" }}>🟢</div>
+            <div style={{ color: "#4ade80", fontWeight: "bold", fontSize: "1.1em" }}>
+              {player.emeralds || 0}
+            </div>
+            <div style={{ color: "#888", fontSize: "0.75em" }}>Emeralds</div>
+          </div>
+          <div style={{
+            background: "rgba(234, 179, 8, 0.15)",
+            borderRadius: "12px",
+            padding: "12px",
+            textAlign: "center",
+            border: "1px solid rgba(234, 179, 8, 0.3)",
+          }}>
+            <div style={{ fontSize: "1.5em", marginBottom: "4px" }}>🪙</div>
+            <div style={{ color: "#facc15", fontWeight: "bold", fontSize: "1.1em" }}>
+              {player.gold || 0}
+            </div>
+            <div style={{ color: "#888", fontSize: "0.75em" }}>Gold</div>
+          </div>
+        </div>
+
+        {/* Additional Stats */}
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(2, 1fr)",
+          gap: "10px",
+        }}>
+          <div style={{
+            background: "rgba(255, 255, 255, 0.05)",
+            borderRadius: "10px",
+            padding: "12px",
+            display: "flex",
+            alignItems: "center",
+            gap: "10px",
+          }}>
+            <span style={{ fontSize: "1.3em" }}>🔥</span>
+            <div>
+              <div style={{ color: "#fb923c", fontWeight: "bold" }}>{player.streak || 0} days</div>
+              <div style={{ color: "#888", fontSize: "0.75em" }}>Streak</div>
+            </div>
+          </div>
+          <div style={{
+            background: "rgba(255, 255, 255, 0.05)",
+            borderRadius: "10px",
+            padding: "12px",
+            display: "flex",
+            alignItems: "center",
+            gap: "10px",
+          }}>
+            <span style={{ fontSize: "1.3em" }}>📚</span>
+            <div>
+              <div style={{ color: "#a78bfa", fontWeight: "bold" }}>{player.wordsLearned || 0}</div>
+              <div style={{ color: "#888", fontSize: "0.75em" }}>Words</div>
+            </div>
+          </div>
+        </div>
+      </motion.div>
+
       {/* Tabs */}
       <div style={{
         display: "flex",
