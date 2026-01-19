@@ -1,9 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import { useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { Id } from "../../../convex/_generated/dataModel";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { ScanHomeworkButton } from "../ui/ScanHomeworkButton";
 
 interface HomeworkSession {
@@ -48,6 +49,8 @@ export function HomeworkScreen({
   onScanHomework,
   onViewAnswers,
 }: HomeworkScreenProps) {
+  const [showAnswersModal, setShowAnswersModal] = useState(false);
+
   // Get active homework sessions
   const homeworkSessions = useQuery(
     api.homework.getActiveHomeworkSessions,
@@ -99,7 +102,13 @@ export function HomeworkScreen({
         animate={{ opacity: 1, y: 0 }}
         style={{ marginBottom: "25px" }}
       >
-        <ScanHomeworkButton onClick={onScanHomework} />
+        <ScanHomeworkButton
+          onClick={onScanHomework}
+          completedCount={completedSessions?.length}
+          onViewAnswers={onViewAnswers && completedSessions && completedSessions.length > 0 ? () => {
+            setShowAnswersModal(true);
+          } : undefined}
+        />
       </motion.div>
 
       {/* Active Homework Section */}
@@ -403,6 +412,133 @@ export function HomeworkScreen({
           </div>
         )}
       </motion.div>
+
+      {/* Answers Selection Modal */}
+      <AnimatePresence>
+        {showAnswersModal && completedSessions && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setShowAnswersModal(false)}
+            style={{
+              position: "fixed",
+              inset: 0,
+              background: "rgba(0,0,0,0.8)",
+              zIndex: 100,
+              display: "flex",
+              alignItems: "flex-end",
+              justifyContent: "center",
+            }}
+          >
+            <motion.div
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                width: "100%",
+                maxWidth: "500px",
+                maxHeight: "70vh",
+                background: "linear-gradient(180deg, #1e1b4b 0%, #0f172a 100%)",
+                borderRadius: "20px 20px 0 0",
+                padding: "20px",
+                overflowY: "auto",
+              }}
+            >
+              {/* Handle bar */}
+              <div style={{
+                width: "40px",
+                height: "4px",
+                background: "#444",
+                borderRadius: "2px",
+                margin: "0 auto 16px",
+              }} />
+
+              {/* Header */}
+              <div style={{ textAlign: "center", marginBottom: "20px" }}>
+                <h2 style={{ color: "white", fontSize: "1.2em", margin: "0 0 4px 0" }}>
+                  📝 My Homework Answers
+                </h2>
+                <p style={{ color: "#888", fontSize: "0.85em", margin: 0 }}>
+                  Select homework to copy answers
+                </p>
+              </div>
+
+              {/* Homework list */}
+              <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                {completedSessions.map((hw) => (
+                  <motion.button
+                    key={hw._id}
+                    onClick={() => {
+                      setShowAnswersModal(false);
+                      if (onViewAnswers) {
+                        onViewAnswers(hw);
+                      }
+                    }}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    style={{
+                      width: "100%",
+                      padding: "14px",
+                      borderRadius: "12px",
+                      border: "2px solid rgba(34, 197, 94, 0.4)",
+                      background: "rgba(34, 197, 94, 0.1)",
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "12px",
+                      textAlign: "left",
+                    }}
+                  >
+                    <div style={{
+                      width: "45px",
+                      height: "45px",
+                      borderRadius: "10px",
+                      background: "rgba(34, 197, 94, 0.2)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: "1.5em",
+                      flexShrink: 0,
+                    }}>
+                      {hw.gameIcon}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ color: "white", fontWeight: "bold", fontSize: "0.95em" }}>
+                        {hw.gameName}
+                      </div>
+                      <div style={{ color: "#888", fontSize: "0.8em" }}>
+                        {hw.questions.length} answers • {hw.score !== undefined ? `${hw.score}%` : ""}
+                      </div>
+                    </div>
+                    <div style={{ color: "#22c55e", fontSize: "1.2em" }}>→</div>
+                  </motion.button>
+                ))}
+              </div>
+
+              {/* Close button */}
+              <button
+                onClick={() => setShowAnswersModal(false)}
+                style={{
+                  width: "100%",
+                  marginTop: "16px",
+                  padding: "12px",
+                  borderRadius: "10px",
+                  border: "1px solid #444",
+                  background: "rgba(255,255,255,0.05)",
+                  color: "#888",
+                  fontSize: "0.9em",
+                  cursor: "pointer",
+                }}
+              >
+                Close
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
