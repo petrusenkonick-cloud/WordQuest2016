@@ -367,8 +367,29 @@ function generateOptionsForQuestion(q: { text: string; correct: string; type?: s
   if (text.includes('subject') && text.includes('object')) {
     return ['Subject', 'Object'];
   }
-  // Default: include the correct answer as an option
-  return [q.correct];
+  // Conditional/If only sentences - generate plausible alternatives
+  if (text.includes('if only') || text.includes('conditional') || text.includes('wish')) {
+    // Generate variations based on the correct answer
+    const correctAnswer = q.correct;
+    const distractors = [
+      correctAnswer.replace(/had /g, 'have ').replace(/would /g, 'will '),
+      correctAnswer.replace(/I /g, 'We ').replace(/my /g, 'our '),
+      correctAnswer.replace(/had /g, 'has ').replace(/were /g, 'was '),
+    ].filter(d => d !== correctAnswer);
+
+    if (distractors.length >= 1) {
+      return shuffleArray([correctAnswer, ...distractors.slice(0, 3)]);
+    }
+  }
+  // Default: generate generic distractors to ensure at least 2 options
+  // This ensures every question has multiple choices
+  const genericDistractors = [
+    "None of the above",
+    "All of the above",
+    "Cannot be determined",
+  ];
+  // Always return at least 2 options (correct + 1-3 distractors)
+  return shuffleArray([q.correct, ...genericDistractors.slice(0, 3)]);
 }
 
 export default function Home() {
