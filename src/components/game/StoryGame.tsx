@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/Button";
 import {
@@ -11,6 +11,16 @@ import {
 } from "./GameContainer";
 
 const STORY = `Lucy wandered around the park, searching for her lost puppy, Max. Everywhere she looked, there was no sign of him. As the sun began to set, she heard a whimper near the lake. Racing over, Lucy found Max, tangled in some bushes. Tears of joy filled her eyes as she hugged him tightly, promising never to let him out of her sight again.`;
+
+// Fisher-Yates shuffle
+function shuffleArray<T>(array: T[]): T[] {
+  const shuffled = [...array];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+}
 
 const QUESTIONS = [
   {
@@ -70,6 +80,11 @@ export function StoryGame({
   const autoAdvanceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const currentQuestion = QUESTIONS[questionIndex];
+
+  // Shuffle options once per question to prevent first-answer-always-correct bug
+  const shuffledOptions = useMemo(() => {
+    return shuffleArray(currentQuestion.options);
+  }, [currentQuestion]);
 
   const advanceToNext = useCallback(() => {
     if (autoAdvanceTimeoutRef.current) {
@@ -179,7 +194,7 @@ export function StoryGame({
       </QuestionCard>
 
       <div className="grid grid-cols-2 gap-2.5 my-4 max-[480px]:grid-cols-1">
-        {currentQuestion.options.map((option) => (
+        {shuffledOptions.map((option) => (
           <OptionButton
             key={option}
             onClick={() => checkAnswer(option)}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/Button";
 import {
@@ -11,6 +11,25 @@ import {
   LearningBox,
 } from "./GameContainer";
 import { cn } from "@/lib/utils";
+
+// Fisher-Yates shuffle that returns indices mapping
+function shuffleWithIndices<T>(array: T[]): { shuffled: T[]; correctIndex: number; originalCorrectIndex: number } {
+  const indices = array.map((_, i) => i);
+  const shuffled = [...array];
+
+  // Shuffle both arrays in sync
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    [indices[i], indices[j]] = [indices[j], indices[i]];
+  }
+
+  // Find where the original correct index (0 or 1 based on answer: true) ended up
+  const originalCorrectIndex = array.findIndex(opt => opt.answer === true);
+  const correctIndex = indices.indexOf(originalCorrectIndex);
+
+  return { shuffled, correctIndex, originalCorrectIndex };
+}
 
 // Questions organized by difficulty
 const QUESTIONS = {
@@ -571,6 +590,16 @@ export function CoinQuestGame({
   const questions = difficulty ? QUESTIONS[difficulty] : [];
   const currentQuestion = questions[questionIndex];
 
+  // Shuffle options once per question to prevent first-answer-always-correct bug
+  const { shuffledOptions, shuffledCorrectIndex } = useMemo(() => {
+    if (!currentQuestion) return { shuffledOptions: [], shuffledCorrectIndex: 0 };
+    const result = shuffleWithIndices(currentQuestion.options);
+    return {
+      shuffledOptions: result.shuffled,
+      shuffledCorrectIndex: result.shuffled.findIndex(opt => opt.answer === true),
+    };
+  }, [currentQuestion]);
+
   const advanceToNext = useCallback(() => {
     if (autoAdvanceTimeoutRef.current) {
       clearTimeout(autoAdvanceTimeoutRef.current);
@@ -603,7 +632,8 @@ export function CoinQuestGame({
       setIsAnimating(true);
       setTimeout(() => setIsAnimating(false), 500);
 
-      if (answerIndex === currentQuestion.correct) {
+      // Use shuffledCorrectIndex instead of currentQuestion.correct
+      if (answerIndex === shuffledCorrectIndex) {
         setCorrect((c) => c + 1);
         setFeedback({
           type: "success",
@@ -632,12 +662,13 @@ export function CoinQuestGame({
         onWrongAnswer();
       }
     },
-    [currentQuestion, questionIndex, correct, mistakes, questions.length, onComplete, onCorrectAnswer, onWrongAnswer, selectedAnswer]
+    [currentQuestion, questionIndex, correct, mistakes, questions.length, onComplete, onCorrectAnswer, onWrongAnswer, selectedAnswer, shuffledCorrectIndex]
   );
 
   const getOptionState = (index: number) => {
     if (selectedAnswer === null) return "default";
-    if (index === currentQuestion.correct) return "correct";
+    // Use shuffledCorrectIndex for checking correct answer
+    if (index === shuffledCorrectIndex) return "correct";
     if (index === selectedAnswer) return "incorrect";
     return "default";
   };
@@ -695,9 +726,9 @@ export function CoinQuestGame({
         </div>
       </LearningBox>
 
-      {/* Answer Options */}
+      {/* Answer Options - using shuffled options */}
       <div className="space-y-3 my-4">
-        {currentQuestion.options.map((option, index) => (
+        {shuffledOptions.map((option, index) => (
           <AnswerOption
             key={index}
             option={option}

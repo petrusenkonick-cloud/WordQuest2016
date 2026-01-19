@@ -358,6 +358,16 @@ Return ONLY the JSON, no markdown, no extra text.`;
       );
     }
 
+    // Fisher-Yates shuffle function
+    function shuffleArray<T>(array: T[]): T[] {
+      const shuffled = [...array];
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      }
+      return shuffled;
+    }
+
     // Add totalPages and ensure all required fields exist for ordering
     result.totalPages = images.length;
     result.isHomework = true; // Mark as validated homework
@@ -367,15 +377,24 @@ Return ONLY the JSON, no markdown, no extra text.`;
       correct?: string;
       explanation?: string;
       originalNumber?: string;
-    }, index: number) => ({
-      ...q,
-      pageRef: q.pageRef || Math.floor(index / Math.ceil(result.questions.length / images.length)) + 1,
-      // Ensure full answer is preserved for paper writing
-      fullAnswer: q.correct,
-      answerExplanation: q.explanation,
-      // Keep original numbering for matching with paper
-      questionNumber: q.originalNumber || `${index + 1}`,
-    }));
+      options?: string[];
+    }, index: number) => {
+      // CRITICAL: Shuffle the options to prevent first-answer-always-correct bug
+      const shuffledOptions = q.options && Array.isArray(q.options)
+        ? shuffleArray(q.options)
+        : q.options;
+
+      return {
+        ...q,
+        options: shuffledOptions,
+        pageRef: q.pageRef || Math.floor(index / Math.ceil(result.questions.length / images.length)) + 1,
+        // Ensure full answer is preserved for paper writing
+        fullAnswer: q.correct,
+        answerExplanation: q.explanation,
+        // Keep original numbering for matching with paper
+        questionNumber: q.originalNumber || `${index + 1}`,
+      };
+    });
 
     console.log(`Successfully extracted ${result.questions.length} homework questions from ${images.length} pages`);
     return NextResponse.json(result);
