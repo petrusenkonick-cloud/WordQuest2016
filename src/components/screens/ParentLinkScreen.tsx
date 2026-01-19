@@ -1,9 +1,15 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { Id } from "../../../convex/_generated/dataModel";
+
+// Get device ID for IDOR protection
+function getDeviceId(): string {
+  if (typeof window === "undefined") return "server";
+  return localStorage.getItem("wordquest_device_id") || "unknown";
+}
 
 interface ParentLinkScreenProps {
   playerId: Id<"players"> | null;
@@ -16,6 +22,9 @@ export function ParentLinkScreen({ playerId, onBack }: ParentLinkScreenProps) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [copied, setCopied] = useState(false);
 
+  // SECURITY: Get device ID for ownership verification
+  const deviceId = useMemo(() => getDeviceId(), []);
+
   const generateCode = useMutation(api.parents.generateLinkCode);
   const parentLink = useQuery(
     api.parents.getParentLink,
@@ -27,9 +36,11 @@ export function ParentLinkScreen({ playerId, onBack }: ParentLinkScreenProps) {
     if (!playerId) return;
     setIsGenerating(true);
     try {
-      const result = await generateCode({ playerId });
-      setLinkCode(result.code);
-      setExpiresAt(result.expiresAt);
+      const result = await generateCode({ playerId, callerClerkId: deviceId });
+      if ('code' in result && 'expiresAt' in result) {
+        setLinkCode(result.code);
+        setExpiresAt(result.expiresAt);
+      }
     } catch (error) {
       console.error("Failed to generate code:", error);
     } finally {
@@ -48,7 +59,7 @@ export function ParentLinkScreen({ playerId, onBack }: ParentLinkScreenProps) {
   const handleUnlink = async () => {
     if (!playerId) return;
     if (confirm("Are you sure you want to unlink your parent's account?")) {
-      await unlinkParent({ playerId });
+      await unlinkParent({ playerId, callerClerkId: deviceId });
     }
   };
 

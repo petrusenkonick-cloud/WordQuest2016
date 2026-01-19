@@ -3,8 +3,21 @@ import { mutation, query } from "./_generated/server";
 
 // Generate a link code for parent to connect
 export const generateLinkCode = mutation({
-  args: { playerId: v.id("players") },
+  args: {
+    playerId: v.id("players"),
+    callerClerkId: v.string(), // SECURITY: verify ownership
+  },
   handler: async (ctx, args) => {
+    // SECURITY: Verify caller owns this player account
+    const player = await ctx.db.get(args.playerId);
+    if (!player) {
+      return { success: false, error: "Player not found" };
+    }
+    if (player.clerkId !== args.callerClerkId) {
+      console.error(`SECURITY: generateLinkCode IDOR attempt - caller ${args.callerClerkId} tried to access player ${args.playerId} owned by ${player.clerkId}`);
+      return { success: false, error: "Unauthorized: not your account" };
+    }
+
     // Delete any existing codes for this player
     const existing = await ctx.db
       .query("pendingLinkCodes")
@@ -99,6 +112,54 @@ export const linkParent = mutation({
   },
 });
 
+// Link Telegram directly to player (admin function)
+export const linkTelegramDirect = mutation({
+  args: {
+    playerId: v.id("players"),
+    telegramChatId: v.string(),
+    telegramUsername: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    // Check if player exists
+    const player = await ctx.db.get(args.playerId);
+    if (!player) {
+      return { success: false, error: "Player not found" };
+    }
+
+    // Check if already linked
+    const existingLink = await ctx.db
+      .query("parentLinks")
+      .withIndex("by_player", (q) => q.eq("playerId", args.playerId))
+      .first();
+
+    if (existingLink) {
+      // Update existing link
+      await ctx.db.patch(existingLink._id, {
+        telegramChatId: args.telegramChatId,
+        telegramUsername: args.telegramUsername,
+        linkedAt: new Date().toISOString(),
+      });
+    } else {
+      // Create new link
+      await ctx.db.insert("parentLinks", {
+        playerId: args.playerId,
+        telegramChatId: args.telegramChatId,
+        telegramUsername: args.telegramUsername,
+        linkCode: "DIRECT",
+        linkedAt: new Date().toISOString(),
+        notificationsEnabled: true,
+        dailyReportTime: "18:00",
+        weeklyReportDay: 0,
+      });
+    }
+
+    return {
+      success: true,
+      playerName: player.name,
+    };
+  },
+});
+
 // Get parent link status for player
 export const getParentLink = query({
   args: { playerId: v.id("players") },
@@ -158,8 +219,21 @@ export const updateNotificationSettings = mutation({
 
 // Unlink parent
 export const unlinkParent = mutation({
-  args: { playerId: v.id("players") },
+  args: {
+    playerId: v.id("players"),
+    callerClerkId: v.string(), // SECURITY: verify ownership
+  },
   handler: async (ctx, args) => {
+    // SECURITY: Verify caller owns this player account
+    const player = await ctx.db.get(args.playerId);
+    if (!player) {
+      return { success: false, error: "Player not found" };
+    }
+    if (player.clerkId !== args.callerClerkId) {
+      console.error(`SECURITY: unlinkParent IDOR attempt - caller ${args.callerClerkId} tried to access player ${args.playerId} owned by ${player.clerkId}`);
+      return { success: false, error: "Unauthorized: not your account" };
+    }
+
     const link = await ctx.db
       .query("parentLinks")
       .withIndex("by_player", (q) => q.eq("playerId", args.playerId))
@@ -178,8 +252,19 @@ export const saveTelegramChatId = mutation({
   args: {
     playerId: v.id("players"),
     telegramChatId: v.string(),
+    callerClerkId: v.string(), // SECURITY: verify ownership
   },
   handler: async (ctx, args) => {
+    // SECURITY: Verify caller owns this player account
+    const player = await ctx.db.get(args.playerId);
+    if (!player) {
+      return { success: false, error: "Player not found" };
+    }
+    if (player.clerkId !== args.callerClerkId) {
+      console.error(`SECURITY: saveTelegramChatId IDOR attempt - caller ${args.callerClerkId} tried to access player ${args.playerId} owned by ${player.clerkId}`);
+      return { success: false, error: "Unauthorized: not your account" };
+    }
+
     const existing = await ctx.db
       .query("parentLinks")
       .withIndex("by_player", (q) => q.eq("playerId", args.playerId))
@@ -254,8 +339,19 @@ export const updateDailyStats = mutation({
     topic: v.optional(v.string()),
     achievement: v.optional(v.string()),
     isWeakTopic: v.optional(v.boolean()),
+    callerClerkId: v.string(), // SECURITY: verify ownership
   },
   handler: async (ctx, args) => {
+    // SECURITY: Verify caller owns this player account
+    const player = await ctx.db.get(args.playerId);
+    if (!player) {
+      return { success: false, error: "Player not found" };
+    }
+    if (player.clerkId !== args.callerClerkId) {
+      console.error(`SECURITY: updateDailyStats IDOR attempt - caller ${args.callerClerkId} tried to access player ${args.playerId} owned by ${player.clerkId}`);
+      return { success: false, error: "Unauthorized: not your account" };
+    }
+
     const today = new Date().toISOString().split("T")[0];
 
     const existing = await ctx.db

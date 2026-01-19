@@ -212,8 +212,19 @@ export const purchaseItem = mutation({
     itemType: v.string(),
     price: v.number(),
     currency: v.string(),
+    callerClerkId: v.string(), // SECURITY: verify ownership
   },
   handler: async (ctx, args) => {
+    // SECURITY: Verify caller owns this player account
+    const player = await ctx.db.get(args.playerId);
+    if (!player) {
+      return { success: false, reason: "Player not found" };
+    }
+    if (player.clerkId !== args.callerClerkId) {
+      console.error(`SECURITY: purchaseItem IDOR attempt - caller ${args.callerClerkId} tried to access player ${args.playerId} owned by ${player.clerkId}`);
+      return { success: false, reason: "Unauthorized: not your account" };
+    }
+
     // Validate item exists in shop
     const shopItem = findItem(args.itemId);
     if (!shopItem) {
@@ -237,12 +248,6 @@ export const purchaseItem = mutation({
       if (existing) {
         return { success: false, reason: "Already owned" };
       }
-    }
-
-    // Check if player has enough currency
-    const player = await ctx.db.get(args.playerId);
-    if (!player) {
-      return { success: false, reason: "Player not found" };
     }
 
     const currencyField = args.currency as "diamonds" | "emeralds" | "gold";
@@ -273,8 +278,19 @@ export const equipItem = mutation({
     playerId: v.id("players"),
     itemId: v.string(),
     itemType: v.string(),
+    callerClerkId: v.string(), // SECURITY: verify ownership
   },
   handler: async (ctx, args) => {
+    // SECURITY: Verify caller owns this player account
+    const player = await ctx.db.get(args.playerId);
+    if (!player) {
+      return { success: false, reason: "Player not found" };
+    }
+    if (player.clerkId !== args.callerClerkId) {
+      console.error(`SECURITY: equipItem IDOR attempt - caller ${args.callerClerkId} tried to access player ${args.playerId} owned by ${player.clerkId}`);
+      return { success: false, reason: "Unauthorized: not your account" };
+    }
+
     // Unequip all items of same type
     const items = await ctx.db
       .query("inventory")
@@ -345,8 +361,19 @@ export const activateBoost = mutation({
     boostId: v.string(),
     boostName: v.optional(v.string()),
     durationMinutes: v.number(),
+    callerClerkId: v.string(), // SECURITY: verify ownership
   },
   handler: async (ctx, args) => {
+    // SECURITY: Verify caller owns this player account
+    const player = await ctx.db.get(args.playerId);
+    if (!player) {
+      return { success: false, reason: "Player not found" };
+    }
+    if (player.clerkId !== args.callerClerkId) {
+      console.error(`SECURITY: activateBoost IDOR attempt - caller ${args.callerClerkId} tried to access player ${args.playerId} owned by ${player.clerkId}`);
+      return { success: false, reason: "Unauthorized: not your account" };
+    }
+
     const now = new Date();
     const expiresAt = new Date(now.getTime() + args.durationMinutes * 60 * 1000);
 

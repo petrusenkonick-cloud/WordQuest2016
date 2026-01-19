@@ -154,8 +154,19 @@ export const completeLevel = mutation({
     levelId: v.string(),
     stars: v.number(),
     score: v.number(),
+    callerClerkId: v.string(), // SECURITY: verify ownership
   },
   handler: async (ctx, args) => {
+    // SECURITY: Verify caller owns this player account
+    const player = await ctx.db.get(args.playerId);
+    if (!player) {
+      return { success: false, reason: "Player not found", isNewCompletion: false, rewards: null };
+    }
+    if (player.clerkId !== args.callerClerkId) {
+      console.error(`SECURITY: completeLevel IDOR attempt - caller ${args.callerClerkId} tried to access player ${args.playerId} owned by ${player.clerkId}`);
+      return { success: false, reason: "Unauthorized: not your account", isNewCompletion: false, rewards: null };
+    }
+
     // Check if already completed
     const existing = await ctx.db
       .query("completedLevels")
@@ -187,9 +198,8 @@ export const completeLevel = mutation({
 
     // BUG FIX #3: Give rewards on the backend (single source of truth)
     const level = LEVELS.find((l) => l.id === args.levelId);
-    const player = await ctx.db.get(args.playerId);
 
-    if (level && player && level.rewards) {
+    if (level && level.rewards) {
       const rewards = level.rewards;
 
       // Apply XP with level-up logic

@@ -17,11 +17,18 @@ export const updatePlayerProfile = mutation({
     gradeLevel: v.optional(v.number()),
     nativeLanguage: v.optional(v.string()),
     competitionOptIn: v.optional(v.boolean()),
+    callerClerkId: v.optional(v.string()), // SECURITY: verify ownership
   },
   handler: async (ctx, args) => {
     const player = await ctx.db.get(args.playerId);
     if (!player) {
       throw new Error("Player not found");
+    }
+
+    // SECURITY: Verify caller owns this player account
+    if (args.callerClerkId && player.clerkId !== args.callerClerkId) {
+      console.error(`SECURITY: updatePlayerProfile IDOR attempt - caller ${args.callerClerkId} tried to access player ${args.playerId}`);
+      return { success: false, error: "Unauthorized" };
     }
 
     // Validate birth year
@@ -83,11 +90,18 @@ export const completeProfileSetup = mutation({
     gradeLevel: v.number(),
     nativeLanguage: v.string(),
     competitionOptIn: v.boolean(),
+    callerClerkId: v.optional(v.string()), // SECURITY: verify ownership
   },
   handler: async (ctx, args) => {
     const player = await ctx.db.get(args.playerId);
     if (!player) {
       throw new Error("Player not found");
+    }
+
+    // SECURITY: Verify caller owns this player account
+    if (args.callerClerkId && player.clerkId !== args.callerClerkId) {
+      console.error(`SECURITY: completeProfileSetup IDOR attempt - caller ${args.callerClerkId} tried to access player ${args.playerId}`);
+      return { success: false, error: "Unauthorized" };
     }
 
     // Validate birth year
@@ -194,11 +208,18 @@ export const updateNormalizedScore = mutation({
     accuracy: v.number(),
     questionsAnswered: v.number(),
     isPracticeMode: v.optional(v.boolean()),
+    callerClerkId: v.optional(v.string()), // SECURITY: verify ownership
   },
   handler: async (ctx, args) => {
     const player = await ctx.db.get(args.playerId);
     if (!player) {
       throw new Error("Player not found");
+    }
+
+    // SECURITY: Verify caller owns this player account
+    if (args.callerClerkId && player.clerkId !== args.callerClerkId) {
+      console.error(`SECURITY: updateNormalizedScore IDOR attempt - caller ${args.callerClerkId} tried to access player ${args.playerId}`);
+      return { success: false, error: "Unauthorized" };
     }
 
     const isPractice = args.isPracticeMode === true;
@@ -272,8 +293,20 @@ export const updateNormalizedScore = mutation({
  * Regenerate display name
  */
 export const regenerateDisplayName = mutation({
-  args: { playerId: v.id("players") },
+  args: {
+    playerId: v.id("players"),
+    callerClerkId: v.optional(v.string()), // SECURITY: verify ownership
+  },
   handler: async (ctx, args) => {
+    // SECURITY: Verify caller owns this player account
+    if (args.callerClerkId) {
+      const player = await ctx.db.get(args.playerId);
+      if (player && player.clerkId !== args.callerClerkId) {
+        console.error(`SECURITY: regenerateDisplayName IDOR attempt - caller ${args.callerClerkId} tried to access player ${args.playerId}`);
+        return { error: "Unauthorized" };
+      }
+    }
+
     const newDisplayName = generateDisplayName();
     await ctx.db.patch(args.playerId, { displayName: newDisplayName });
     return { displayName: newDisplayName };

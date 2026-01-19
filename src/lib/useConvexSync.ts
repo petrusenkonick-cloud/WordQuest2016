@@ -96,9 +96,9 @@ export function useConvexSync() {
       });
 
       // Check daily login
-      checkDailyLogin({ playerId: convexPlayer._id });
+      checkDailyLogin({ playerId: convexPlayer._id, callerClerkId: deviceId });
     }
-  }, [convexPlayer, setPlayer, checkDailyLogin]);
+  }, [convexPlayer, setPlayer, checkDailyLogin, deviceId]);
 
   // Create player if doesn't exist
   const initializePlayer = useCallback(
@@ -150,9 +150,9 @@ export function useConvexSync() {
       });
 
       // Sync to Convex
-      await addXP({ playerId: playerIdRef.current, amount });
+      await addXP({ playerId: playerIdRef.current, amount, callerClerkId: deviceId });
     },
-    [player.xp, player.xpNext, player.level, setPlayer, addXP]
+    [player.xp, player.xpNext, player.level, setPlayer, addXP, deviceId]
   );
 
   // Award currency with Convex sync
@@ -164,16 +164,16 @@ export function useConvexSync() {
       setPlayer({ [currency]: player[currency] + amount });
 
       // Sync to Convex
-      await addCurrency({ playerId: playerIdRef.current, currency, amount });
+      await addCurrency({ playerId: playerIdRef.current, currency, amount, callerClerkId: deviceId });
     },
-    [player, setPlayer, addCurrency]
+    [player, setPlayer, addCurrency, deviceId]
   );
 
   // Claim daily reward with Convex sync
   const claimDailyReward = useCallback(async () => {
     if (!playerIdRef.current) return null;
 
-    const result = await claimDailyRewardMutation({ playerId: playerIdRef.current });
+    const result = await claimDailyRewardMutation({ playerId: playerIdRef.current, callerClerkId: deviceId });
 
     if (result?.success && result.reward) {
       // Update local state
@@ -188,7 +188,7 @@ export function useConvexSync() {
     }
 
     return null;
-  }, [player, setPlayer, claimDailyRewardMutation]);
+  }, [player, setPlayer, claimDailyRewardMutation, deviceId]);
 
   // Complete level with Convex sync
   // BUG FIX #4: Removed optimistic updates and duplicate reward calls
@@ -209,6 +209,7 @@ export function useConvexSync() {
         levelId,
         stars,
         score,
+        callerClerkId: deviceId,
       });
 
       // Only update local state if rewards were given (new completion)
@@ -242,6 +243,7 @@ export function useConvexSync() {
       setPlayer,
       completeLevel,
       checkAchievements,
+      deviceId,
     ]
   );
 
@@ -266,6 +268,7 @@ export function useConvexSync() {
         itemType,
         price,
         currency,
+        callerClerkId: deviceId,
       });
 
       if (!result?.success) {
@@ -275,7 +278,7 @@ export function useConvexSync() {
 
       return result || { success: false };
     },
-    [player, setPlayer, purchaseItem]
+    [player, setPlayer, purchaseItem, deviceId]
   );
 
   // Equip item with Convex sync
@@ -287,6 +290,7 @@ export function useConvexSync() {
         playerId: playerIdRef.current,
         itemId,
         itemType,
+        callerClerkId: deviceId,
       });
 
       // Update skin in local state if it's a skin
@@ -302,7 +306,7 @@ export function useConvexSync() {
         setPlayer({ skin: skinEmojis[itemId] || "🧑" });
       }
     },
-    [setPlayer, equipItem]
+    [setPlayer, equipItem, deviceId]
   );
 
   // Update words learned with Convex sync
@@ -311,9 +315,9 @@ export function useConvexSync() {
       if (!playerIdRef.current) return;
 
       setPlayer({ wordsLearned: player.wordsLearned + count });
-      await updateWordsLearned({ playerId: playerIdRef.current, count });
+      await updateWordsLearned({ playerId: playerIdRef.current, count, callerClerkId: deviceId });
     },
-    [player.wordsLearned, setPlayer, updateWordsLearned]
+    [player.wordsLearned, setPlayer, updateWordsLearned, deviceId]
   );
 
   return {

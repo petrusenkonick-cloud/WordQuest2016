@@ -1,6 +1,12 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
+
+// Get device ID for IDOR protection
+function getDeviceId(): string {
+  if (typeof window === "undefined") return "server";
+  return localStorage.getItem("wordquest_device_id") || "unknown";
+}
 import { useAppStore } from "@/lib/store";
 import { useConvexSync } from "@/components/providers/ConvexSyncProvider";
 import { useMutation, useQuery } from "convex/react";
@@ -366,6 +372,9 @@ function generateOptionsForQuestion(q: { text: string; correct: string; type?: s
 }
 
 export default function Home() {
+  // SECURITY: Get device ID for ownership verification
+  const deviceId = useMemo(() => getDeviceId(), []);
+
   // Convex sync
   const {
     isLoading: convexLoading,
@@ -784,7 +793,7 @@ export default function Home() {
     if (!playerId || !milestoneLevel) return;
 
     try {
-      const result = await claimMilestoneReward({ playerId, milestoneLevel });
+      const result = await claimMilestoneReward({ playerId, milestoneLevel, callerClerkId: deviceId });
       if (result?.success && result.rewards) {
         // Spawn celebration particles
         spawnParticles(["🎉", "⭐", "✨", "🏆"]);
@@ -804,7 +813,7 @@ export default function Home() {
       console.error("Failed to claim milestone:", error);
       hideMilestoneModalFn();
     }
-  }, [playerId, milestoneLevel, claimMilestoneReward, spawnParticles, setPlayer, player, hideMilestoneModalFn]);
+  }, [playerId, milestoneLevel, claimMilestoneReward, spawnParticles, setPlayer, player, hideMilestoneModalFn, deviceId]);
 
   // Play a saved homework session from WEEKLY QUESTS
   const handlePlayHomework = useCallback((homework: {

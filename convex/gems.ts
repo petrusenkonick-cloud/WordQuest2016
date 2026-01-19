@@ -279,8 +279,18 @@ export const addGem = mutation({
     isWhole: v.boolean(),
     source: v.string(),
     levelId: v.optional(v.string()),
+    callerClerkId: v.optional(v.string()), // SECURITY: verify ownership
   },
   handler: async (ctx, args) => {
+    // SECURITY: Verify caller owns this player account
+    if (args.callerClerkId) {
+      const player = await ctx.db.get(args.playerId);
+      if (player && player.clerkId !== args.callerClerkId) {
+        console.error(`SECURITY: addGem IDOR attempt - caller ${args.callerClerkId} tried to access player ${args.playerId}`);
+        return { error: "Unauthorized" };
+      }
+    }
+
     const gemType = args.gemType as GemType;
     const rarity = GEM_RARITY[gemType];
     const shardsNeeded = RARITY_SHARDS[rarity];
@@ -399,8 +409,21 @@ async function checkCollections(
 
 // Claim collection bonus
 export const claimCollectionBonus = mutation({
-  args: { playerId: v.id("players"), setId: v.string() },
+  args: {
+    playerId: v.id("players"),
+    setId: v.string(),
+    callerClerkId: v.optional(v.string()), // SECURITY: verify ownership
+  },
   handler: async (ctx, args) => {
+    // SECURITY: Verify caller owns this player account
+    if (args.callerClerkId) {
+      const player = await ctx.db.get(args.playerId);
+      if (player && player.clerkId !== args.callerClerkId) {
+        console.error(`SECURITY: claimCollectionBonus IDOR attempt - caller ${args.callerClerkId} tried to access player ${args.playerId}`);
+        return { success: false, error: "Unauthorized" };
+      }
+    }
+
     const collection = await ctx.db
       .query("gemCollections")
       .withIndex("by_player_set", (q) =>
@@ -424,8 +447,21 @@ export const claimCollectionBonus = mutation({
 
 // Craft an item
 export const craftItem = mutation({
-  args: { playerId: v.id("players"), recipeId: v.string() },
+  args: {
+    playerId: v.id("players"),
+    recipeId: v.string(),
+    callerClerkId: v.optional(v.string()), // SECURITY: verify ownership
+  },
   handler: async (ctx, args) => {
+    // SECURITY: Verify caller owns this player account
+    if (args.callerClerkId) {
+      const player = await ctx.db.get(args.playerId);
+      if (player && player.clerkId !== args.callerClerkId) {
+        console.error(`SECURITY: craftItem IDOR attempt - caller ${args.callerClerkId} tried to access player ${args.playerId}`);
+        return { success: false, error: "Unauthorized" };
+      }
+    }
+
     const recipe = RECIPES[args.recipeId];
     if (!recipe) {
       return { success: false, error: "Recipe not found" };
@@ -494,8 +530,21 @@ export const craftItem = mutation({
 
 // Use a boost (decrement uses)
 export const useBoost = mutation({
-  args: { playerId: v.id("players"), boostType: v.string() },
+  args: {
+    playerId: v.id("players"),
+    boostType: v.string(),
+    callerClerkId: v.optional(v.string()), // SECURITY: verify ownership
+  },
   handler: async (ctx, args) => {
+    // SECURITY: Verify caller owns this player account
+    if (args.callerClerkId) {
+      const player = await ctx.db.get(args.playerId);
+      if (player && player.clerkId !== args.callerClerkId) {
+        console.error(`SECURITY: useBoost IDOR attempt - caller ${args.callerClerkId} tried to access player ${args.playerId}`);
+        return { success: false, error: "Unauthorized" };
+      }
+    }
+
     const boost = await ctx.db
       .query("activeBoosts")
       .withIndex("by_player_type", (q) =>
@@ -538,8 +587,20 @@ export const useBoost = mutation({
 
 // Start a mining session
 export const startMiningSession = mutation({
-  args: { playerId: v.id("players") },
+  args: {
+    playerId: v.id("players"),
+    callerClerkId: v.optional(v.string()), // SECURITY: verify ownership
+  },
   handler: async (ctx, args) => {
+    // SECURITY: Verify caller owns this player account
+    if (args.callerClerkId) {
+      const player = await ctx.db.get(args.playerId);
+      if (player && player.clerkId !== args.callerClerkId) {
+        console.error(`SECURITY: startMiningSession IDOR attempt - caller ${args.callerClerkId} tried to access player ${args.playerId}`);
+        return { success: false, error: "Unauthorized" };
+      }
+    }
+
     // Check for existing active session
     const existing = await ctx.db
       .query("miningSessions")
@@ -572,11 +633,21 @@ export const mineDig = mutation({
     sessionId: v.id("miningSessions"),
     isCorrect: v.boolean(),
     luckBonus: v.optional(v.number()),
+    callerClerkId: v.optional(v.string()), // SECURITY: verify ownership
   },
   handler: async (ctx, args) => {
     const session = await ctx.db.get(args.sessionId);
     if (!session || session.status !== "active") {
       return { success: false, error: "Session not active" };
+    }
+
+    // SECURITY: Verify caller owns this session's player account
+    if (args.callerClerkId && session.playerId) {
+      const player = await ctx.db.get(session.playerId);
+      if (player && player.clerkId !== args.callerClerkId) {
+        console.error(`SECURITY: mineDig IDOR attempt - caller ${args.callerClerkId} tried to access session for player ${session.playerId}`);
+        return { success: false, error: "Unauthorized" };
+      }
     }
 
     const newDepth = session.depth + (args.isCorrect ? 1 : 0);
@@ -633,11 +704,23 @@ export const mineDig = mutation({
 
 // End mining session and collect gems
 export const endMiningSession = mutation({
-  args: { sessionId: v.id("miningSessions") },
+  args: {
+    sessionId: v.id("miningSessions"),
+    callerClerkId: v.optional(v.string()), // SECURITY: verify ownership
+  },
   handler: async (ctx, args) => {
     const session = await ctx.db.get(args.sessionId);
     if (!session) {
       return { success: false, error: "Session not found" };
+    }
+
+    // SECURITY: Verify caller owns this session's player account
+    if (args.callerClerkId && session.playerId) {
+      const player = await ctx.db.get(session.playerId);
+      if (player && player.clerkId !== args.callerClerkId) {
+        console.error(`SECURITY: endMiningSession IDOR attempt - caller ${args.callerClerkId} tried to end session for player ${session.playerId}`);
+        return { success: false, error: "Unauthorized" };
+      }
     }
 
     if (session.status !== "active") {
@@ -773,8 +856,18 @@ export const calculateGemDrop = mutation({
     streak: v.number(),
     difficulty: v.optional(v.number()), // 1-3
     levelId: v.optional(v.string()),
+    callerClerkId: v.optional(v.string()), // SECURITY: verify ownership
   },
   handler: async (ctx, args) => {
+    // SECURITY: Verify caller owns this player account
+    if (args.callerClerkId) {
+      const player = await ctx.db.get(args.playerId);
+      if (player && player.clerkId !== args.callerClerkId) {
+        console.error(`SECURITY: calculateGemDrop IDOR attempt - caller ${args.callerClerkId} tried to access player ${args.playerId}`);
+        return { dropped: false, error: "Unauthorized" };
+      }
+    }
+
     // Get player's luck bonus from collections
     const collections = await ctx.db
       .query("gemCollections")
@@ -879,8 +972,18 @@ export const awardLevelCompletionGem = mutation({
     playerId: v.id("players"),
     levelId: v.string(),
     stars: v.number(),
+    callerClerkId: v.optional(v.string()), // SECURITY: verify ownership
   },
   handler: async (ctx, args) => {
+    // SECURITY: Verify caller owns this player account
+    if (args.callerClerkId) {
+      const player = await ctx.db.get(args.playerId);
+      if (player && player.clerkId !== args.callerClerkId) {
+        console.error(`SECURITY: awardLevelCompletionGem IDOR attempt - caller ${args.callerClerkId} tried to access player ${args.playerId}`);
+        return { error: "Unauthorized" };
+      }
+    }
+
     // Better gems for more stars
     let availableRarities: GemRarity[] = ["common", "uncommon"];
     if (args.stars >= 2) availableRarities.push("rare");

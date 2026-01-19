@@ -71,8 +71,20 @@ export const getTodayChallenge = query({
 
 // Generate a new daily challenge
 export const generateDailyChallenge = mutation({
-  args: { playerId: v.id("players") },
+  args: {
+    playerId: v.id("players"),
+    callerClerkId: v.optional(v.string()), // SECURITY: verify ownership
+  },
   handler: async (ctx, args) => {
+    // SECURITY: Verify caller owns this player account
+    if (args.callerClerkId) {
+      const player = await ctx.db.get(args.playerId);
+      if (player && player.clerkId !== args.callerClerkId) {
+        console.error(`SECURITY: generateDailyChallenge IDOR attempt - caller ${args.callerClerkId} tried to access player ${args.playerId}`);
+        return null;
+      }
+    }
+
     const today = new Date().toISOString().split("T")[0];
 
     // Check if challenge already exists
@@ -134,8 +146,18 @@ export const updateChallengeProgress = mutation({
     challengeType: v.string(),
     incrementBy: v.number(),
     setValue: v.optional(v.number()), // For accuracy-type challenges
+    callerClerkId: v.optional(v.string()), // SECURITY: verify ownership
   },
   handler: async (ctx, args) => {
+    // SECURITY: Verify caller owns this player account
+    if (args.callerClerkId) {
+      const player = await ctx.db.get(args.playerId);
+      if (player && player.clerkId !== args.callerClerkId) {
+        console.error(`SECURITY: updateChallengeProgress IDOR attempt - caller ${args.callerClerkId} tried to access player ${args.playerId}`);
+        return null;
+      }
+    }
+
     const today = new Date().toISOString().split("T")[0];
 
     const challenge = await ctx.db
@@ -219,8 +241,20 @@ export const getPlayerStreak = query({
 
 // Initialize or update player streak on activity
 export const recordActivity = mutation({
-  args: { playerId: v.id("players") },
+  args: {
+    playerId: v.id("players"),
+    callerClerkId: v.optional(v.string()), // SECURITY: verify ownership
+  },
   handler: async (ctx, args) => {
+    // SECURITY: Verify caller owns this player account
+    if (args.callerClerkId) {
+      const player = await ctx.db.get(args.playerId);
+      if (player && player.clerkId !== args.callerClerkId) {
+        console.error(`SECURITY: recordActivity IDOR attempt - caller ${args.callerClerkId} tried to access player ${args.playerId}`);
+        return null;
+      }
+    }
+
     const today = new Date().toISOString().split("T")[0];
     const yesterday = new Date(Date.now() - 86400000).toISOString().split("T")[0];
 
@@ -306,8 +340,21 @@ export const recordActivity = mutation({
 
 // Add streak freeze (earned through achievements or purchases)
 export const addStreakFreeze = mutation({
-  args: { playerId: v.id("players"), count: v.number() },
+  args: {
+    playerId: v.id("players"),
+    count: v.number(),
+    callerClerkId: v.optional(v.string()), // SECURITY: verify ownership
+  },
   handler: async (ctx, args) => {
+    // SECURITY: Verify caller owns this player account
+    if (args.callerClerkId) {
+      const player = await ctx.db.get(args.playerId);
+      if (player && player.clerkId !== args.callerClerkId) {
+        console.error(`SECURITY: addStreakFreeze IDOR attempt - caller ${args.callerClerkId} tried to access player ${args.playerId}`);
+        return null;
+      }
+    }
+
     const streak = await ctx.db
       .query("playerStreaks")
       .withIndex("by_player", (q) => q.eq("playerId", args.playerId))

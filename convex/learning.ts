@@ -211,8 +211,18 @@ export const updateTopicProgress = mutation({
     topic: v.string(),
     subject: v.string(),
     isCorrect: v.boolean(),
+    callerClerkId: v.optional(v.string()), // SECURITY: verify ownership
   },
   handler: async (ctx, args) => {
+    // SECURITY: Verify caller owns this player account
+    if (args.callerClerkId) {
+      const player = await ctx.db.get(args.playerId);
+      if (player && player.clerkId !== args.callerClerkId) {
+        console.error(`SECURITY: updateTopicProgress IDOR attempt - caller ${args.callerClerkId} tried to access player ${args.playerId}`);
+        return;
+      }
+    }
+
     const existing = await ctx.db
       .query("topicProgress")
       .withIndex("by_player_topic", (q) =>
@@ -253,8 +263,18 @@ export const setPreferredExplanationStyle = mutation({
     playerId: v.id("players"),
     topic: v.string(),
     style: v.string(),
+    callerClerkId: v.optional(v.string()), // SECURITY: verify ownership
   },
   handler: async (ctx, args) => {
+    // SECURITY: Verify caller owns this player account
+    if (args.callerClerkId) {
+      const player = await ctx.db.get(args.playerId);
+      if (player && player.clerkId !== args.callerClerkId) {
+        console.error(`SECURITY: setPreferredExplanationStyle IDOR attempt - caller ${args.callerClerkId} tried to access player ${args.playerId}`);
+        return;
+      }
+    }
+
     const existing = await ctx.db
       .query("topicProgress")
       .withIndex("by_player_topic", (q) =>
@@ -313,8 +333,18 @@ export const updateLearningProfile = mutation({
     explanationPreference: v.optional(v.string()),
     hintsEnabled: v.optional(v.boolean()),
     voiceEnabled: v.optional(v.boolean()),
+    callerClerkId: v.optional(v.string()), // SECURITY: verify ownership
   },
   handler: async (ctx, args) => {
+    // SECURITY: Verify caller owns this player account
+    if (args.callerClerkId) {
+      const player = await ctx.db.get(args.playerId);
+      if (player && player.clerkId !== args.callerClerkId) {
+        console.error(`SECURITY: updateLearningProfile IDOR attempt - caller ${args.callerClerkId} tried to access player ${args.playerId}`);
+        return;
+      }
+    }
+
     const existing = await ctx.db
       .query("learningProfile")
       .withIndex("by_player", (q) => q.eq("playerId", args.playerId))
@@ -401,8 +431,18 @@ export const updateSpacedRepetition = mutation({
     topic: v.string(),
     subject: v.string(),
     quality: v.number(), // 0-5
+    callerClerkId: v.optional(v.string()), // SECURITY: verify ownership
   },
   handler: async (ctx, args) => {
+    // SECURITY: Verify caller owns this player account
+    if (args.callerClerkId) {
+      const player = await ctx.db.get(args.playerId);
+      if (player && player.clerkId !== args.callerClerkId) {
+        console.error(`SECURITY: updateSpacedRepetition IDOR attempt - caller ${args.callerClerkId} tried to access player ${args.playerId}`);
+        return;
+      }
+    }
+
     const existing = await ctx.db
       .query("spacedRepetition")
       .withIndex("by_player_topic", (q) =>
@@ -486,8 +526,21 @@ export const updateSpacedRepetition = mutation({
 export const resolveError = mutation({
   args: {
     errorId: v.id("errorTracking"),
+    callerClerkId: v.optional(v.string()), // SECURITY: verify ownership
   },
   handler: async (ctx, args) => {
+    // SECURITY: Verify caller owns this error's player account
+    if (args.callerClerkId) {
+      const error = await ctx.db.get(args.errorId);
+      if (error?.playerId) {
+        const player = await ctx.db.get(error.playerId);
+        if (player && player.clerkId !== args.callerClerkId) {
+          console.error(`SECURITY: resolveError IDOR attempt - caller ${args.callerClerkId} tried to resolve error for player ${error.playerId}`);
+          return;
+        }
+      }
+    }
+
     await ctx.db.patch(args.errorId, {
       resolved: true,
       resolvedAt: new Date().toISOString(),
@@ -566,8 +619,20 @@ export const getDailyChallenge = query({
  * Create daily challenge based on weak topics
  */
 export const createDailyChallenge = mutation({
-  args: { playerId: v.id("players") },
+  args: {
+    playerId: v.id("players"),
+    callerClerkId: v.optional(v.string()), // SECURITY: verify ownership
+  },
   handler: async (ctx, args) => {
+    // SECURITY: Verify caller owns this player account
+    if (args.callerClerkId) {
+      const player = await ctx.db.get(args.playerId);
+      if (player && player.clerkId !== args.callerClerkId) {
+        console.error(`SECURITY: createDailyChallenge IDOR attempt - caller ${args.callerClerkId} tried to access player ${args.playerId}`);
+        return null;
+      }
+    }
+
     const today = new Date().toISOString().split("T")[0];
 
     // Check if already exists
@@ -644,8 +709,18 @@ export const updateDailyChallengeProgress = mutation({
   args: {
     playerId: v.id("players"),
     correct: v.boolean(),
+    callerClerkId: v.optional(v.string()), // SECURITY: verify ownership
   },
   handler: async (ctx, args) => {
+    // SECURITY: Verify caller owns this player account
+    if (args.callerClerkId) {
+      const player = await ctx.db.get(args.playerId);
+      if (player && player.clerkId !== args.callerClerkId) {
+        console.error(`SECURITY: updateDailyChallengeProgress IDOR attempt - caller ${args.callerClerkId} tried to access player ${args.playerId}`);
+        return null;
+      }
+    }
+
     const today = new Date().toISOString().split("T")[0];
 
     const challenge = await ctx.db
@@ -688,8 +763,18 @@ export const recordExplanationFeedback = mutation({
     topic: v.string(),
     explanationStyle: v.string(),
     understood: v.boolean(),
+    callerClerkId: v.optional(v.string()), // SECURITY: verify ownership
   },
   handler: async (ctx, args) => {
+    // SECURITY: Verify caller owns this player account
+    if (args.callerClerkId) {
+      const player = await ctx.db.get(args.playerId);
+      if (player && player.clerkId !== args.callerClerkId) {
+        console.error(`SECURITY: recordExplanationFeedback IDOR attempt - caller ${args.callerClerkId} tried to access player ${args.playerId}`);
+        return;
+      }
+    }
+
     // If understood, update preferred style for this topic
     if (args.understood) {
       const existing = await ctx.db

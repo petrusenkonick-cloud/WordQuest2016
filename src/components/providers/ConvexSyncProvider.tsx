@@ -151,10 +151,10 @@ export function ConvexSyncProvider({ children }: { children: ReactNode }) {
       });
 
       // Check daily login
-      checkDailyLoginMutation({ playerId: convexPlayer._id });
+      checkDailyLoginMutation({ playerId: convexPlayer._id, callerClerkId: effectiveUserId });
 
       // Cleanup duplicate homework sessions (one-time on login)
-      cleanupDuplicatesMutation({ playerId: convexPlayer._id }).catch(() => {
+      cleanupDuplicatesMutation({ playerId: convexPlayer._id, callerClerkId: effectiveUserId }).catch(() => {
         // Silently ignore errors - cleanup is optional
       });
     }
@@ -209,7 +209,7 @@ export function ConvexSyncProvider({ children }: { children: ReactNode }) {
     setPlayer({ xp: newXP, level: newLevel, xpNext: newXpNext });
 
     // Sync to Convex
-    await addXPMutation({ playerId, amount });
+    await addXPMutation({ playerId, amount, callerClerkId: effectiveUserId });
   };
 
   // Award currency
@@ -217,14 +217,14 @@ export function ConvexSyncProvider({ children }: { children: ReactNode }) {
     if (!playerId) return;
 
     setPlayer({ [currency]: player[currency] + amount });
-    await addCurrencyMutation({ playerId, currency, amount });
+    await addCurrencyMutation({ playerId, currency, amount, callerClerkId: effectiveUserId });
   };
 
   // Claim daily reward
   const claimDailyReward = async () => {
     if (!playerId) return null;
 
-    const result = await claimDailyRewardMutation({ playerId });
+    const result = await claimDailyRewardMutation({ playerId, callerClerkId: effectiveUserId });
 
     if (result?.success && result.reward) {
       setPlayer({
@@ -260,12 +260,12 @@ export function ConvexSyncProvider({ children }: { children: ReactNode }) {
     });
 
     // Sync to Convex
-    await completeLevelMutation({ playerId, levelId, stars, score });
-    await addXPMutation({ playerId, amount: rewards.xp });
-    await addCurrencyMutation({ playerId, currency: "diamonds", amount: rewards.diamonds });
-    await addCurrencyMutation({ playerId, currency: "emeralds", amount: rewards.emeralds });
-    await updateQuestsCompletedMutation({ playerId });
-    await updateTotalStarsMutation({ playerId, stars });
+    await completeLevelMutation({ playerId, levelId, stars, score, callerClerkId: effectiveUserId });
+    await addXPMutation({ playerId, amount: rewards.xp, callerClerkId: effectiveUserId });
+    await addCurrencyMutation({ playerId, currency: "diamonds", amount: rewards.diamonds, callerClerkId: effectiveUserId });
+    await addCurrencyMutation({ playerId, currency: "emeralds", amount: rewards.emeralds, callerClerkId: effectiveUserId });
+    await updateQuestsCompletedMutation({ playerId, callerClerkId: effectiveUserId });
+    await updateTotalStarsMutation({ playerId, stars, callerClerkId: effectiveUserId });
 
     // Update normalized score for leaderboard (if session stats provided)
     if (sessionStats && sessionStats.questionsAnswered > 0) {
@@ -288,7 +288,7 @@ export function ConvexSyncProvider({ children }: { children: ReactNode }) {
     }
 
     // Check achievements
-    return await checkAchievementsMutation({ playerId });
+    return await checkAchievementsMutation({ playerId, callerClerkId: effectiveUserId });
   };
 
   // Purchase item
@@ -315,6 +315,7 @@ export function ConvexSyncProvider({ children }: { children: ReactNode }) {
       itemType,
       price,
       currency,
+      callerClerkId: effectiveUserId,
     });
 
     if (!result?.success) {
@@ -329,7 +330,7 @@ export function ConvexSyncProvider({ children }: { children: ReactNode }) {
   const equipItemSync = async (itemId: string, itemType: string) => {
     if (!playerId) return;
 
-    await equipItemMutation({ playerId, itemId, itemType });
+    await equipItemMutation({ playerId, itemId, itemType, callerClerkId: effectiveUserId });
 
     if (itemType === "skin") {
       const skinEmojis: Record<string, string> = {
@@ -349,7 +350,7 @@ export function ConvexSyncProvider({ children }: { children: ReactNode }) {
     if (!playerId) return;
 
     setPlayer({ wordsLearned: player.wordsLearned + count });
-    await updateWordsLearnedMutation({ playerId, count });
+    await updateWordsLearnedMutation({ playerId, count, callerClerkId: effectiveUserId });
   };
 
   // Compute owned items from inventory

@@ -337,10 +337,19 @@ export const getAchievements = query({
 
 // Check and unlock achievements
 export const checkAchievements = mutation({
-  args: { playerId: v.id("players") },
+  args: {
+    playerId: v.id("players"),
+    callerClerkId: v.optional(v.string()), // SECURITY: verify ownership
+  },
   handler: async (ctx, args) => {
     const player = await ctx.db.get(args.playerId);
     if (!player) return [];
+
+    // SECURITY: Verify caller owns this player account
+    if (args.callerClerkId && player.clerkId !== args.callerClerkId) {
+      console.error(`SECURITY: checkAchievements IDOR attempt - caller ${args.callerClerkId} tried to access player ${args.playerId}`);
+      return [];
+    }
 
     const unlockedAchievements = await ctx.db
       .query("playerAchievements")

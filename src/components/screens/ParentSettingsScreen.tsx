@@ -1,10 +1,16 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { Id } from "../../../convex/_generated/dataModel";
 import { AudioSettingsPanel } from "../ui/AudioControls";
+
+// Get device ID for IDOR protection
+function getDeviceId(): string {
+  if (typeof window === "undefined") return "server";
+  return localStorage.getItem("wordquest_device_id") || "unknown";
+}
 
 // Time options for daily reports (UTC hours displayed as local approximation)
 const DAILY_REPORT_TIMES = [
@@ -43,6 +49,9 @@ export function ParentSettingsScreen({ playerId, onBack }: ParentSettingsScreenP
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const [saved, setSaved] = useState(false);
 
+  // SECURITY: Get device ID for ownership verification
+  const deviceId = useMemo(() => getDeviceId(), []);
+
   const parentLink = useQuery(
     api.parents.getParentLink,
     playerId ? { playerId } : "skip"
@@ -76,6 +85,7 @@ export function ParentSettingsScreen({ playerId, onBack }: ParentSettingsScreenP
       await saveTelegramId({
         playerId,
         telegramChatId: telegramChatId.trim(),
+        callerClerkId: deviceId,
       });
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
@@ -137,7 +147,7 @@ export function ParentSettingsScreen({ playerId, onBack }: ParentSettingsScreenP
   const handleUnlink = async () => {
     if (!playerId) return;
     if (confirm("Disconnect parent notifications?")) {
-      await unlinkParent({ playerId });
+      await unlinkParent({ playerId, callerClerkId: deviceId });
       setTelegramChatId("");
     }
   };

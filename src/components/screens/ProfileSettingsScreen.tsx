@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
@@ -14,6 +14,12 @@ import {
   getProfileBackgroundStyle,
   getShopDiscount,
 } from "@/lib/tierSystem";
+
+// Get device ID for IDOR protection
+function getDeviceId(): string {
+  if (typeof window === "undefined") return "server";
+  return localStorage.getItem("wordquest_device_id") || "unknown";
+}
 
 // Available skins - can be expanded with shop purchases
 const AVAILABLE_SKINS = [
@@ -119,6 +125,9 @@ export function ProfileSettingsScreen({ playerId, onBack, onLogout }: ProfileSet
   const [showSaved, setShowSaved] = useState(false);
   const [activeTab, setActiveTab] = useState<"skin" | "profile">("skin");
 
+  // SECURITY: Get device ID for ownership verification
+  const deviceId = useMemo(() => getDeviceId(), []);
+
   const updatePlayer = useMutation(api.players.updatePlayer);
 
   // Sync with player data
@@ -137,6 +146,7 @@ export function ProfileSettingsScreen({ playerId, onBack, onLogout }: ProfileSet
         await updatePlayer({
           playerId,
           updates: { skin: skinId },
+          callerClerkId: deviceId,
         });
         setPlayer({ skin: skinId });
         setShowSaved(true);
@@ -162,6 +172,7 @@ export function ProfileSettingsScreen({ playerId, onBack, onLogout }: ProfileSet
         await updatePlayer({
           playerId,
           updates: { name: name.trim() },
+          callerClerkId: deviceId,
         });
         setPlayer({ name: name.trim() });
         setShowSaved(true);

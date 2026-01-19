@@ -25,8 +25,20 @@ const CHAPTER_LESSONS: Record<string, number> = {
 
 // Initialize life skills progress for a player
 export const initializeLifeSkills = mutation({
-  args: { playerId: v.id("players") },
-  handler: async (ctx, { playerId }) => {
+  args: {
+    playerId: v.id("players"),
+    callerClerkId: v.optional(v.string()), // SECURITY: verify ownership
+  },
+  handler: async (ctx, { playerId, callerClerkId }) => {
+    // SECURITY: Verify caller owns this player account
+    if (callerClerkId) {
+      const player = await ctx.db.get(playerId);
+      if (player && player.clerkId !== callerClerkId) {
+        console.error(`SECURITY: initializeLifeSkills IDOR attempt - caller ${callerClerkId} tried to access player ${playerId}`);
+        return { error: "Unauthorized" };
+      }
+    }
+
     // Check if already initialized
     const existing = await ctx.db
       .query("lifeSkillsWizard")
@@ -128,8 +140,18 @@ export const completeLesson = mutation({
     score: v.number(),
     correctAnswers: v.number(),
     totalQuestions: v.number(),
+    callerClerkId: v.optional(v.string()), // SECURITY: verify ownership
   },
-  handler: async (ctx, { playerId, chapterId, lessonId, stars, score, correctAnswers, totalQuestions }) => {
+  handler: async (ctx, { playerId, chapterId, lessonId, stars, score, correctAnswers, totalQuestions, callerClerkId }) => {
+    // SECURITY: Verify caller owns this player account
+    if (callerClerkId) {
+      const player = await ctx.db.get(playerId);
+      if (player && player.clerkId !== callerClerkId) {
+        console.error(`SECURITY: completeLesson IDOR attempt - caller ${callerClerkId} tried to access player ${playerId}`);
+        return { success: false, error: "Unauthorized" };
+      }
+    }
+
     // Check if lesson already exists
     const existingLesson = await ctx.db
       .query("lifeSkillsLessons")
@@ -200,8 +222,18 @@ export const completeBossBattle = mutation({
     playerId: v.id("players"),
     chapterId: v.string(),
     victory: v.boolean(),
+    callerClerkId: v.optional(v.string()), // SECURITY: verify ownership
   },
-  handler: async (ctx, { playerId, chapterId, victory }) => {
+  handler: async (ctx, { playerId, chapterId, victory, callerClerkId }) => {
+    // SECURITY: Verify caller owns this player account
+    if (callerClerkId) {
+      const player = await ctx.db.get(playerId);
+      if (player && player.clerkId !== callerClerkId) {
+        console.error(`SECURITY: completeBossBattle IDOR attempt - caller ${callerClerkId} tried to access player ${playerId}`);
+        return { success: false, error: "Unauthorized" };
+      }
+    }
+
     if (!victory) return { success: true, victory: false };
 
     // Update chapter

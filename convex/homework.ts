@@ -102,8 +102,21 @@ export const createHomeworkSession = mutation({
     // Practice mode flag for repeated homework
     isPracticeMode: v.optional(v.boolean()),
     originalSessionId: v.optional(v.id("homeworkSessions")),
+    callerClerkId: v.optional(v.string()), // SECURITY: verify ownership for logged-in users
   },
   handler: async (ctx, args) => {
+    // SECURITY: If playerId provided, verify caller owns this account
+    if (args.playerId && args.callerClerkId) {
+      const player = await ctx.db.get(args.playerId);
+      if (!player) {
+        return { sessionId: null, isDuplicate: false, error: "Player not found" };
+      }
+      if (player.clerkId !== args.callerClerkId) {
+        console.error(`SECURITY: createHomeworkSession IDOR attempt - caller ${args.callerClerkId} tried to access player ${args.playerId}`);
+        return { sessionId: null, isDuplicate: false, error: "Unauthorized" };
+      }
+    }
+
     const newContentHash = generateContentHash(args.questions);
 
     // Get ALL sessions (active and completed) for duplicate checking
@@ -250,11 +263,21 @@ export const completeHomeworkSession = mutation({
       averageResponseTimeMs: v.number(),
       totalTimeMs: v.number(),
     })),
+    callerClerkId: v.optional(v.string()), // SECURITY: verify ownership
   },
   handler: async (ctx, args) => {
     const session = await ctx.db.get(args.sessionId);
     if (!session) {
-      throw new Error("Homework session not found");
+      return { success: false, error: "Homework session not found" };
+    }
+
+    // SECURITY: If session has playerId and caller provided clerkId, verify ownership
+    if (session.playerId && args.callerClerkId) {
+      const player = await ctx.db.get(session.playerId);
+      if (player && player.clerkId !== args.callerClerkId) {
+        console.error(`SECURITY: completeHomeworkSession IDOR attempt - caller ${args.callerClerkId} tried to complete session for player ${session.playerId}`);
+        return { success: false, error: "Unauthorized" };
+      }
     }
 
     await ctx.db.patch(args.sessionId, {
@@ -274,11 +297,21 @@ export const completeHomeworkSession = mutation({
 export const deleteHomeworkSession = mutation({
   args: {
     sessionId: v.id("homeworkSessions"),
+    callerClerkId: v.optional(v.string()), // SECURITY: verify ownership
   },
   handler: async (ctx, args) => {
     const session = await ctx.db.get(args.sessionId);
     if (!session) {
-      throw new Error("Homework session not found");
+      return { success: false, error: "Homework session not found" };
+    }
+
+    // SECURITY: If session has playerId and caller provided clerkId, verify ownership
+    if (session.playerId && args.callerClerkId) {
+      const player = await ctx.db.get(session.playerId);
+      if (player && player.clerkId !== args.callerClerkId) {
+        console.error(`SECURITY: deleteHomeworkSession IDOR attempt - caller ${args.callerClerkId} tried to delete session for player ${session.playerId}`);
+        return { success: false, error: "Unauthorized" };
+      }
     }
 
     await ctx.db.delete(args.sessionId);
@@ -290,8 +323,21 @@ export const deleteHomeworkSession = mutation({
 export const cleanupDuplicateSessions = mutation({
   args: {
     playerId: v.id("players"),
+    callerClerkId: v.optional(v.string()), // SECURITY: verify ownership
   },
   handler: async (ctx, args) => {
+    // SECURITY: Verify caller owns this player account
+    if (args.callerClerkId) {
+      const player = await ctx.db.get(args.playerId);
+      if (!player) {
+        return { removed: 0, error: "Player not found" };
+      }
+      if (player.clerkId !== args.callerClerkId) {
+        console.error(`SECURITY: cleanupDuplicateSessions IDOR attempt - caller ${args.callerClerkId} tried to access player ${args.playerId}`);
+        return { removed: 0, error: "Unauthorized" };
+      }
+    }
+
     // Get all active sessions for player
     const sessions = await ctx.db
       .query("homeworkSessions")

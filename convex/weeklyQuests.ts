@@ -92,8 +92,18 @@ export const getWeeklyQuests = query({
 export const generateWeeklyQuests = mutation({
   args: {
     playerId: v.id("players"),
+    callerClerkId: v.optional(v.string()), // SECURITY: verify ownership
   },
   handler: async (ctx, args) => {
+    // SECURITY: Verify caller owns this player account
+    if (args.callerClerkId) {
+      const player = await ctx.db.get(args.playerId);
+      if (player && player.clerkId !== args.callerClerkId) {
+        console.error(`SECURITY: generateWeeklyQuests IDOR attempt - caller ${args.callerClerkId} tried to access player ${args.playerId}`);
+        return { created: 0, error: "Unauthorized" };
+      }
+    }
+
     const weekStart = getWeekStartString(new Date());
 
     // Check if quests already exist for this week
@@ -259,11 +269,21 @@ export const answerPracticeQuestion = mutation({
     questionIndex: v.number(),
     answer: v.string(),
     isCorrect: v.boolean(),
+    callerClerkId: v.optional(v.string()), // SECURITY: verify ownership
   },
   handler: async (ctx, args) => {
     const quest = await ctx.db.get(args.questId);
     if (!quest) {
       throw new Error("Quest not found");
+    }
+
+    // SECURITY: Verify caller owns this quest's player account
+    if (args.callerClerkId && quest.playerId) {
+      const player = await ctx.db.get(quest.playerId);
+      if (player && player.clerkId !== args.callerClerkId) {
+        console.error(`SECURITY: answerPracticeQuestion IDOR attempt - caller ${args.callerClerkId} tried to access quest for player ${quest.playerId}`);
+        return { error: "Unauthorized" };
+      }
     }
 
     if (quest.isCompleted) {
@@ -349,8 +369,18 @@ export const getChampionTierInfo = query({
 export const claimWeeklyBonus = mutation({
   args: {
     playerId: v.id("players"),
+    callerClerkId: v.optional(v.string()), // SECURITY: verify ownership
   },
   handler: async (ctx, args) => {
+    // SECURITY: Verify caller owns this player account
+    if (args.callerClerkId) {
+      const player = await ctx.db.get(args.playerId);
+      if (player && player.clerkId !== args.callerClerkId) {
+        console.error(`SECURITY: claimWeeklyBonus IDOR attempt - caller ${args.callerClerkId} tried to access player ${args.playerId}`);
+        return { success: false, reason: "Unauthorized" };
+      }
+    }
+
     const weekStart = getWeekStartString(new Date());
 
     const champion = await ctx.db
@@ -413,8 +443,18 @@ export const claimWeeklyBonus = mutation({
 export const openMysteryChest = mutation({
   args: {
     playerId: v.id("players"),
+    callerClerkId: v.optional(v.string()), // SECURITY: verify ownership
   },
   handler: async (ctx, args) => {
+    // SECURITY: Verify caller owns this player account
+    if (args.callerClerkId) {
+      const player = await ctx.db.get(args.playerId);
+      if (player && player.clerkId !== args.callerClerkId) {
+        console.error(`SECURITY: openMysteryChest IDOR attempt - caller ${args.callerClerkId} tried to access player ${args.playerId}`);
+        return { success: false, reason: "Unauthorized" };
+      }
+    }
+
     const weekStart = getWeekStartString(new Date());
 
     const champion = await ctx.db

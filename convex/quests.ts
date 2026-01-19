@@ -33,8 +33,20 @@ function getWizardTitle(level: number): string {
 
 // Initialize wizard profile for new player
 export const initializeWizardProfile = mutation({
-  args: { playerId: v.id("players") },
-  handler: async (ctx, { playerId }) => {
+  args: {
+    playerId: v.id("players"),
+    callerClerkId: v.optional(v.string()), // SECURITY: verify ownership
+  },
+  handler: async (ctx, { playerId, callerClerkId }) => {
+    // SECURITY: Verify caller owns this player account
+    if (callerClerkId) {
+      const player = await ctx.db.get(playerId);
+      if (player && player.clerkId !== callerClerkId) {
+        console.error(`SECURITY: initializeWizardProfile IDOR attempt - caller ${callerClerkId} tried to access player ${playerId}`);
+        return null;
+      }
+    }
+
     // Check if profile already exists
     const existing = await ctx.db
       .query("wizardProfile")
@@ -143,8 +155,18 @@ export const completeQuest = mutation({
     questId: v.string(),
     score: v.number(),
     stars: v.number(),
+    callerClerkId: v.optional(v.string()), // SECURITY: verify ownership
   },
-  handler: async (ctx, { playerId, questId, score, stars }) => {
+  handler: async (ctx, { playerId, questId, score, stars, callerClerkId }) => {
+    // SECURITY: Verify caller owns this player account
+    if (callerClerkId) {
+      const player = await ctx.db.get(playerId);
+      if (player && player.clerkId !== callerClerkId) {
+        console.error(`SECURITY: completeQuest IDOR attempt - caller ${callerClerkId} tried to access player ${playerId}`);
+        return { success: false, error: "Unauthorized" };
+      }
+    }
+
     // Find the quest
     const quest = await ctx.db
       .query("quests")
@@ -295,8 +317,20 @@ export const getDailyQuests = query({
 
 // Generate daily quests
 export const generateDailyQuests = mutation({
-  args: { playerId: v.id("players") },
-  handler: async (ctx, { playerId }) => {
+  args: {
+    playerId: v.id("players"),
+    callerClerkId: v.optional(v.string()), // SECURITY: verify ownership
+  },
+  handler: async (ctx, { playerId, callerClerkId }) => {
+    // SECURITY: Verify caller owns this player account
+    if (callerClerkId) {
+      const player = await ctx.db.get(playerId);
+      if (player && player.clerkId !== callerClerkId) {
+        console.error(`SECURITY: generateDailyQuests IDOR attempt - caller ${callerClerkId} tried to access player ${playerId}`);
+        return { alreadyGenerated: false, error: "Unauthorized" };
+      }
+    }
+
     const today = now().split("T")[0];
 
     // Check if already generated
@@ -365,8 +399,18 @@ export const updateDailyQuestProgress = mutation({
     playerId: v.id("players"),
     questType: v.string(),
     increment: v.number(),
+    callerClerkId: v.optional(v.string()), // SECURITY: verify ownership
   },
-  handler: async (ctx, { playerId, questType, increment }) => {
+  handler: async (ctx, { playerId, questType, increment, callerClerkId }) => {
+    // SECURITY: Verify caller owns this player account
+    if (callerClerkId) {
+      const player = await ctx.db.get(playerId);
+      if (player && player.clerkId !== callerClerkId) {
+        console.error(`SECURITY: updateDailyQuestProgress IDOR attempt - caller ${callerClerkId} tried to access player ${playerId}`);
+        return { success: false, error: "Unauthorized" };
+      }
+    }
+
     const today = now().split("T")[0];
 
     const quest = await ctx.db
@@ -404,8 +448,18 @@ export const addToSpellBook = mutation({
     category: v.string(),
     definition: v.string(),
     exampleSentence: v.optional(v.string()),
+    callerClerkId: v.optional(v.string()), // SECURITY: verify ownership
   },
-  handler: async (ctx, { playerId, word, category, definition, exampleSentence }) => {
+  handler: async (ctx, { playerId, word, category, definition, exampleSentence, callerClerkId }) => {
+    // SECURITY: Verify caller owns this player account
+    if (callerClerkId) {
+      const player = await ctx.db.get(playerId);
+      if (player && player.clerkId !== callerClerkId) {
+        console.error(`SECURITY: addToSpellBook IDOR attempt - caller ${callerClerkId} tried to access player ${playerId}`);
+        return { success: false, error: "Unauthorized" };
+      }
+    }
+
     // Check if word already exists
     const existing = await ctx.db
       .query("spellBook")

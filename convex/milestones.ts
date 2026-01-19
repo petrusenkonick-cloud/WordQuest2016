@@ -105,11 +105,17 @@ export const claimMilestoneReward = mutation({
   args: {
     playerId: v.id("players"),
     milestoneLevel: v.number(),
+    callerClerkId: v.string(), // SECURITY: verify ownership
   },
   handler: async (ctx, args) => {
+    // SECURITY: Verify caller owns this player account
     const player = await ctx.db.get(args.playerId);
     if (!player) {
       return { success: false, reason: "Player not found" };
+    }
+    if (player.clerkId !== args.callerClerkId) {
+      console.error(`SECURITY: claimMilestoneReward IDOR attempt - caller ${args.callerClerkId} tried to access player ${args.playerId} owned by ${player.clerkId}`);
+      return { success: false, reason: "Unauthorized: not your account" };
     }
 
     // Validate milestone level
@@ -174,10 +180,18 @@ export const claimMilestoneReward = mutation({
 
 // Update player tier (call after level up to sync tier)
 export const updatePlayerTier = mutation({
-  args: { playerId: v.id("players") },
+  args: {
+    playerId: v.id("players"),
+    callerClerkId: v.string(), // SECURITY: verify ownership
+  },
   handler: async (ctx, args) => {
+    // SECURITY: Verify caller owns this player account
     const player = await ctx.db.get(args.playerId);
-    if (!player) return { success: false };
+    if (!player) return { success: false, reason: "Player not found" };
+    if (player.clerkId !== args.callerClerkId) {
+      console.error(`SECURITY: updatePlayerTier IDOR attempt - caller ${args.callerClerkId} tried to access player ${args.playerId} owned by ${player.clerkId}`);
+      return { success: false, reason: "Unauthorized: not your account" };
+    }
 
     const newTier = getTierForLevel(player.level);
     const newShopDiscount = calculateShopDiscount(player.level);
@@ -207,13 +221,22 @@ export const updatePlayerTier = mutation({
 });
 
 // TEST ONLY: Set player level directly for testing milestones
+// SECURITY: Requires admin secret
 export const setPlayerLevel = mutation({
   args: {
     clerkId: v.string(),
     level: v.number(),
     xp: v.optional(v.number()),
+    adminSecret: v.string(), // SECURITY: require admin auth
   },
   handler: async (ctx, args) => {
+    // SECURITY: Verify admin secret
+    const ADMIN_SECRET = process.env.ADMIN_SECRET || "CHANGE_THIS_SECRET_IN_ENV";
+    if (args.adminSecret !== ADMIN_SECRET) {
+      console.error("setPlayerLevel: UNAUTHORIZED attempt with wrong admin secret");
+      return { success: false, reason: "Unauthorized: invalid admin secret" };
+    }
+
     // Find player by clerkId
     const player = await ctx.db
       .query("players")

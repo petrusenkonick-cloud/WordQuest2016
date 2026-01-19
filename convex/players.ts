@@ -1,5 +1,28 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { Id } from "./_generated/dataModel";
+
+// ========== SECURITY HELPER ==========
+// Verify that the caller owns the player account
+async function verifyPlayerOwnership(
+  ctx: any,
+  playerId: Id<"players">,
+  callerClerkId: string
+): Promise<{ valid: boolean; player: any; error?: string }> {
+  const player = await ctx.db.get(playerId);
+
+  if (!player) {
+    return { valid: false, player: null, error: "Player not found" };
+  }
+
+  if (player.clerkId !== callerClerkId) {
+    return { valid: false, player: null, error: "Unauthorized: not your account" };
+  }
+
+  return { valid: true, player };
+}
+
+// ========== QUERIES ==========
 
 // Get player by Clerk ID
 export const getPlayer = query({
@@ -9,6 +32,17 @@ export const getPlayer = query({
       .query("players")
       .withIndex("by_clerk_id", (q) => q.eq("clerkId", args.clerkId))
       .first();
+  },
+});
+
+// Get player by name (case-insensitive)
+export const getPlayerByName = query({
+  args: { name: v.string() },
+  handler: async (ctx, args) => {
+    const allPlayers = await ctx.db.query("players").collect();
+    return allPlayers.find(
+      (p) => p.name.toLowerCase() === args.name.toLowerCase()
+    ) || null;
   },
 });
 
@@ -162,9 +196,21 @@ export const updatePlayer = mutation({
       name: v.optional(v.string()),
       skin: v.optional(v.string()),
     }),
+    callerClerkId: v.string(), // SECURITY: verify ownership
   },
   handler: async (ctx, args) => {
+    // SECURITY: Verify caller owns this player account
+    const player = await ctx.db.get(args.playerId);
+    if (!player) {
+      return { success: false, reason: "Player not found" };
+    }
+    if (player.clerkId !== args.callerClerkId) {
+      console.error(`SECURITY: updatePlayer IDOR attempt - caller ${args.callerClerkId} tried to access player ${args.playerId} owned by ${player.clerkId}`);
+      return { success: false, reason: "Unauthorized: not your account" };
+    }
+
     await ctx.db.patch(args.playerId, args.updates);
+    return { success: true };
   },
 });
 
@@ -198,10 +244,15 @@ export const addXP = mutation({
   args: {
     playerId: v.id("players"),
     amount: v.number(),
+    callerClerkId: v.string(), // Security: verify ownership
   },
   handler: async (ctx, args) => {
-    const player = await ctx.db.get(args.playerId);
-    if (!player) return;
+    // Security check: verify caller owns this player
+    const { valid, player, error } = await verifyPlayerOwnership(ctx, args.playerId, args.callerClerkId);
+    if (!valid || !player) {
+      console.error("addXP security violation:", error);
+      return null;
+    }
 
     // Apply permanent XP boost if player has one
     const xpBoost = player.permanentXpBoost || 0;
@@ -266,16 +317,21 @@ export const addCurrency = mutation({
       v.literal("gold")
     ),
     amount: v.number(),
+    callerClerkId: v.string(), // Security: verify ownership
   },
   handler: async (ctx, args) => {
+    // Security check: verify caller owns this player
+    const { valid, player, error } = await verifyPlayerOwnership(ctx, args.playerId, args.callerClerkId);
+    if (!valid || !player) {
+      console.error("addCurrency security violation:", error);
+      return { success: false, reason: error || "Unauthorized" };
+    }
+
     // BUG FIX #1: Validate amount is positive
     if (args.amount <= 0) {
       console.warn(`Invalid currency amount: ${args.amount}`);
       return { success: false, reason: "Amount must be positive" };
     }
-
-    const player = await ctx.db.get(args.playerId);
-    if (!player) return { success: false, reason: "Player not found" };
 
     const currentAmount = player[args.currency];
     await ctx.db.patch(args.playerId, {
@@ -296,10 +352,15 @@ export const spendCurrency = mutation({
       v.literal("gold")
     ),
     amount: v.number(),
+    callerClerkId: v.string(), // Security: verify ownership
   },
   handler: async (ctx, args) => {
-    const player = await ctx.db.get(args.playerId);
-    if (!player) return { success: false, reason: "Player not found" };
+    // Security check: verify caller owns this player
+    const { valid, player, error } = await verifyPlayerOwnership(ctx, args.playerId, args.callerClerkId);
+    if (!valid || !player) {
+      console.error("spendCurrency security violation:", error);
+      return { success: false, reason: error || "Unauthorized" };
+    }
 
     const currentAmount = player[args.currency];
     if (currentAmount < args.amount) {
@@ -316,10 +377,19 @@ export const spendCurrency = mutation({
 
 // Check and update daily login
 export const checkDailyLogin = mutation({
-  args: { playerId: v.id("players") },
+  args: {
+    playerId: v.id("players"),
+    callerClerkId: v.optional(v.string()), // Optional for backwards compatibility
+  },
   handler: async (ctx, args) => {
     const player = await ctx.db.get(args.playerId);
     if (!player) return;
+
+    // Security check if callerClerkId provided
+    if (args.callerClerkId && player.clerkId !== args.callerClerkId) {
+      console.error("checkDailyLogin security violation: clerkId mismatch");
+      return null;
+    }
 
     const today = new Date().toDateString();
 
@@ -368,10 +438,17 @@ function getStreakBonus(streak: number): number {
 
 // Claim daily reward
 export const claimDailyReward = mutation({
-  args: { playerId: v.id("players") },
+  args: {
+    playerId: v.id("players"),
+    callerClerkId: v.string(), // Security: verify ownership
+  },
   handler: async (ctx, args) => {
-    const player = await ctx.db.get(args.playerId);
-    if (!player) return { success: false };
+    // Security check: verify caller owns this player
+    const { valid, player, error } = await verifyPlayerOwnership(ctx, args.playerId, args.callerClerkId);
+    if (!valid || !player) {
+      console.error("claimDailyReward security violation:", error);
+      return { success: false, reason: error || "Unauthorized" };
+    }
     if (player.dailyClaimed) return { success: false, reason: "Already claimed" };
 
     // Base daily rewards (escalating over 7 days)
@@ -430,10 +507,15 @@ export const updateWordsLearned = mutation({
   args: {
     playerId: v.id("players"),
     count: v.number(),
+    callerClerkId: v.string(), // Security: verify ownership
   },
   handler: async (ctx, args) => {
-    const player = await ctx.db.get(args.playerId);
-    if (!player) return;
+    // Security check: verify caller owns this player
+    const { valid, player, error } = await verifyPlayerOwnership(ctx, args.playerId, args.callerClerkId);
+    if (!valid || !player) {
+      console.error("updateWordsLearned security violation:", error);
+      return;
+    }
 
     await ctx.db.patch(args.playerId, {
       wordsLearned: player.wordsLearned + args.count,
@@ -443,10 +525,17 @@ export const updateWordsLearned = mutation({
 
 // Update quests completed
 export const updateQuestsCompleted = mutation({
-  args: { playerId: v.id("players") },
+  args: {
+    playerId: v.id("players"),
+    callerClerkId: v.string(), // Security: verify ownership
+  },
   handler: async (ctx, args) => {
-    const player = await ctx.db.get(args.playerId);
-    if (!player) return;
+    // Security check: verify caller owns this player
+    const { valid, player, error } = await verifyPlayerOwnership(ctx, args.playerId, args.callerClerkId);
+    if (!valid || !player) {
+      console.error("updateQuestsCompleted security violation:", error);
+      return;
+    }
 
     await ctx.db.patch(args.playerId, {
       questsCompleted: player.questsCompleted + 1,
@@ -459,10 +548,15 @@ export const updateTotalStars = mutation({
   args: {
     playerId: v.id("players"),
     stars: v.number(),
+    callerClerkId: v.string(), // Security: verify ownership
   },
   handler: async (ctx, args) => {
-    const player = await ctx.db.get(args.playerId);
-    if (!player) return;
+    // Security check: verify caller owns this player
+    const { valid, player, error } = await verifyPlayerOwnership(ctx, args.playerId, args.callerClerkId);
+    if (!valid || !player) {
+      console.error("updateTotalStars security violation:", error);
+      return;
+    }
 
     await ctx.db.patch(args.playerId, {
       totalStars: player.totalStars + args.stars,
@@ -472,10 +566,33 @@ export const updateTotalStars = mutation({
 
 // ========== ADMIN FUNCTIONS ==========
 
-// Delete all players (DANGER: for testing only)
-export const deleteAllPlayers = mutation({
+// List all players (for admin)
+export const getAllPlayers = query({
   args: {},
   handler: async (ctx) => {
+    const players = await ctx.db.query("players").collect();
+    return players.map(p => ({
+      _id: p._id,
+      name: p.name,
+      level: p.level,
+      clerkId: p.clerkId,
+    }));
+  },
+});
+
+// Delete all players (PROTECTED: requires admin secret)
+export const deleteAllPlayers = mutation({
+  args: {
+    adminSecret: v.string(), // Security: require admin secret
+  },
+  handler: async (ctx, args) => {
+    // Security check: require correct admin secret
+    const ADMIN_SECRET = process.env.ADMIN_SECRET || "CHANGE_THIS_SECRET_IN_ENV";
+    if (args.adminSecret !== ADMIN_SECRET) {
+      console.error("deleteAllPlayers: UNAUTHORIZED attempt with wrong secret");
+      return { success: false, reason: "Unauthorized: invalid admin secret" };
+    }
+
     const players = await ctx.db.query("players").collect();
 
     let deletedCount = 0;
