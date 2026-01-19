@@ -124,6 +124,22 @@ Return this JSON structure:
 7. For math problems, show the answer AND brief solution steps in explanation
 8. Explanations should help the child UNDERSTAND, not just copy
 
+## MANDATORY: ALWAYS PROVIDE 4 OPTIONS FOR EVERY QUESTION!
+
+CRITICAL: Every question MUST have exactly 4 "options" - realistic answers that could confuse a student:
+
+- "opposite of X" → [correct opposite, word with different prefix, similar word, related word]
+  Example: "opposite of unload" → ["load", "reload", "upload", "download"]
+
+- "fill in blank" → [correct word, similar grammar form, common mistake, related word]
+  Example: "She ___ to school" → ["walks", "walk", "walking", "walked"]
+
+- "math problem" → [correct answer, common calculation error, off-by-one, reversed digits]
+  Example: "7 × 8 = ?" → ["56", "54", "48", "65"]
+
+NEVER use generic options like "None of the above", "All of the above", "Cannot be determined"!
+Options must be REALISTIC wrong answers that test the child's knowledge.
+
 ## DIFFICULTY ANALYSIS (REQUIRED):
 
 You MUST include a "difficulty" object in your response:

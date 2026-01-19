@@ -323,11 +323,65 @@ function shuffleArray<T>(array: T[]): T[] {
   return shuffled;
 }
 
+// Common English prefixes for generating word variants
+const PREFIXES = ['un', 're', 'dis', 'pre', 'mis', 'over', 'under', 'out', 'up', 'down', 'de', 'non', 'anti', 'sub', 'super'];
+
+// Generate word variants by adding/removing prefixes
+function generateWordVariants(word: string): string[] {
+  const variants: string[] = [];
+  const lowerWord = word.toLowerCase();
+
+  // Try removing existing prefix
+  for (const prefix of PREFIXES) {
+    if (lowerWord.startsWith(prefix)) {
+      const base = word.slice(prefix.length);
+      if (base.length >= 2) {
+        variants.push(base); // Base word without prefix
+        // Add other prefixes to base
+        for (const otherPrefix of PREFIXES) {
+          if (otherPrefix !== prefix) {
+            variants.push(otherPrefix + base);
+          }
+        }
+      }
+      break;
+    }
+  }
+
+  // If no prefix found, try adding common prefixes
+  if (variants.length === 0) {
+    for (const prefix of PREFIXES) {
+      variants.push(prefix + lowerWord);
+    }
+  }
+
+  // Filter out duplicates and the original word
+  return [...new Set(variants)]
+    .filter(v => v.toLowerCase() !== lowerWord && v.length > 2)
+    .slice(0, 5);
+}
+
 // Helper function to generate options for questions that don't have them
 function generateOptionsForQuestion(q: { text: string; correct: string; type?: string; options?: string[] }): string[] {
-  // If already has valid options, use them
+  // If already has valid options (not generic), use them
   if (q.options && q.options.length >= 2) {
-    return q.options;
+    const hasGeneric = q.options.some(opt =>
+      opt.toLowerCase().includes('none of the above') ||
+      opt.toLowerCase().includes('all of the above') ||
+      opt.toLowerCase().includes('cannot be determined')
+    );
+    if (!hasGeneric) {
+      return q.options;
+    }
+    // Filter out generic options and regenerate
+    const goodOptions = q.options.filter(opt =>
+      !opt.toLowerCase().includes('none of the above') &&
+      !opt.toLowerCase().includes('all of the above') &&
+      !opt.toLowerCase().includes('cannot be determined')
+    );
+    if (goodOptions.length >= 2) {
+      return goodOptions;
+    }
   }
 
   const correct = q.correct.toLowerCase().trim();
@@ -367,9 +421,21 @@ function generateOptionsForQuestion(q: { text: string; correct: string; type?: s
   if (text.includes('subject') && text.includes('object')) {
     return ['Subject', 'Object'];
   }
+
+  // OPPOSITE/ANTONYM questions - use prefix manipulation
+  if (text.includes('opposite') || text.includes('antonym')) {
+    const variants = generateWordVariants(q.correct);
+    if (variants.length >= 3) {
+      // Capitalize first letter to match the correct answer style
+      const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
+      const correctCapitalized = capitalize(q.correct);
+      const distractors = variants.slice(0, 3).map(capitalize);
+      return shuffleArray([correctCapitalized, ...distractors]);
+    }
+  }
+
   // Conditional/If only sentences - generate plausible alternatives
   if (text.includes('if only') || text.includes('conditional') || text.includes('wish')) {
-    // Generate variations based on the correct answer
     const correctAnswer = q.correct;
     const distractors = [
       correctAnswer.replace(/had /g, 'have ').replace(/would /g, 'will '),
@@ -381,15 +447,25 @@ function generateOptionsForQuestion(q: { text: string; correct: string; type?: s
       return shuffleArray([correctAnswer, ...distractors.slice(0, 3)]);
     }
   }
-  // Default: generate generic distractors to ensure at least 2 options
-  // This ensures every question has multiple choices
-  const genericDistractors = [
-    "None of the above",
-    "All of the above",
-    "Cannot be determined",
-  ];
-  // Always return at least 2 options (correct + 1-3 distractors)
-  return shuffleArray([q.correct, ...genericDistractors.slice(0, 3)]);
+
+  // Single word answer - try to generate variants using prefixes
+  if (q.correct.split(' ').length === 1 && q.correct.length >= 3) {
+    const variants = generateWordVariants(q.correct);
+    if (variants.length >= 3) {
+      const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
+      const correctCapitalized = capitalize(q.correct);
+      const distractors = variants.slice(0, 3).map(capitalize);
+      return shuffleArray([correctCapitalized, ...distractors]);
+    }
+  }
+
+  // Fill-in-blank or short answer without good options - return empty to trigger text input
+  if ((q.type === 'fill_blank' || q.type === 'short_answer') && (!q.options || q.options.length < 2)) {
+    return []; // Empty array signals: use text input instead
+  }
+
+  // Last resort: return just the correct answer (will show text input)
+  return [q.correct];
 }
 
 export default function Home() {
