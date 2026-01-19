@@ -9,9 +9,10 @@ import { AudioControls } from "./AudioControls";
 interface HUDProps {
   playerId?: Id<"players"> | null;
   onProfileSettings?: () => void;
+  onLevelClick?: () => void;
 }
 
-export function HUD({ playerId, onProfileSettings }: HUDProps = {}) {
+export function HUD({ playerId, onProfileSettings, onLevelClick }: HUDProps = {}) {
   const player = useAppStore((state) => state.player);
   const toggleGemInventory = useAppStore((state) => state.toggleGemInventory);
   const xpPercent = (player.xp / player.xpNext) * 100;
@@ -47,7 +48,17 @@ export function HUD({ playerId, onProfileSettings }: HUDProps = {}) {
           <div className="player-avatar">{player.skin}</div>
           <div className="player-details">
             <h3>{player.name}</h3>
-            <div className="player-level">
+            <div
+              className="player-level"
+              onClick={(e) => {
+                if (onLevelClick) {
+                  e.stopPropagation();
+                  onLevelClick();
+                }
+              }}
+              style={{ cursor: onLevelClick ? "pointer" : "default" }}
+              title={onLevelClick ? "View Milestones" : undefined}
+            >
               <span className="level-badge">
                 LVL <span>{player.level}</span>
               </span>

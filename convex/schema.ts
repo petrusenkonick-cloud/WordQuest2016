@@ -41,6 +41,11 @@ export default defineSchema({
     // Tutorial state
     tutorialCompleted: v.optional(v.boolean()), // Has completed onboarding tutorial
     tutorialStep: v.optional(v.number()), // Current tutorial step (for resuming)
+    // Tier/Milestone system
+    currentTier: v.optional(v.number()), // 1-9 tier based on level
+    milestonesClaimed: v.optional(v.array(v.number())), // [10, 20, 30...] claimed milestones
+    permanentXpBoost: v.optional(v.number()), // 0-25% permanent XP boost
+    shopDiscount: v.optional(v.number()), // 0-35% shop discount
   })
     .index("by_clerk_id", ["clerkId"])
     .index("by_name", ["name"])

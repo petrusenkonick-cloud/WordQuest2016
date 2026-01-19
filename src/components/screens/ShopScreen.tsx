@@ -185,6 +185,7 @@ interface ShopScreenProps {
   diamonds: number;
   emeralds: number;
   gold: number;
+  shopDiscount?: number; // 0-35% discount from tier system
   onPurchase: (
     itemId: string,
     itemType: string,
@@ -193,7 +194,7 @@ interface ShopScreenProps {
   ) => void;
 }
 
-export function ShopScreen({ ownedItems, diamonds, emeralds, gold, onPurchase }: ShopScreenProps) {
+export function ShopScreen({ ownedItems, diamonds, emeralds, gold, shopDiscount = 0, onPurchase }: ShopScreenProps) {
   const [activeTab, setActiveTab] = useState<ShopCategory>("skins");
   const [selectedItem, setSelectedItem] = useState<ShopItem | null>(null);
   const [filterRarity, setFilterRarity] = useState<Rarity | "all">("all");
@@ -208,8 +209,15 @@ export function ShopScreen({ ownedItems, diamonds, emeralds, gold, onPurchase }:
     }
   };
 
+  // Calculate discounted price
+  const getDiscountedPrice = (originalPrice: number): number => {
+    if (shopDiscount <= 0 || originalPrice === 0) return originalPrice;
+    return Math.floor(originalPrice * (1 - shopDiscount / 100));
+  };
+
   const canAfford = (item: ShopItem): boolean => {
-    return getBalance(item.currency) >= item.price;
+    const price = getDiscountedPrice(item.price);
+    return getBalance(item.currency) >= price;
   };
 
   const tabs: { id: ShopCategory; label: string; icon: string }[] = [
@@ -250,7 +258,8 @@ export function ShopScreen({ ownedItems, diamonds, emeralds, gold, onPurchase }:
         alignItems: "center",
         justifyContent: "center",
         marginBottom: "15px",
-        gap: "10px"
+        gap: "10px",
+        flexWrap: "wrap",
       }}>
         <span style={{ fontSize: "2em" }}>🏪</span>
         <h2 style={{
@@ -263,6 +272,22 @@ export function ShopScreen({ ownedItems, diamonds, emeralds, gold, onPurchase }:
         }}>
           VILLAGE SHOP
         </h2>
+        {shopDiscount > 0 && (
+          <div style={{
+            background: "linear-gradient(135deg, #22C55E 0%, #16A34A 100%)",
+            borderRadius: "12px",
+            padding: "4px 12px",
+            fontSize: "0.85em",
+            fontWeight: "bold",
+            color: "white",
+            boxShadow: "0 2px 10px rgba(34, 197, 94, 0.4)",
+            display: "flex",
+            alignItems: "center",
+            gap: "4px",
+          }}>
+            🏷️ {shopDiscount}% OFF
+          </div>
+        )}
       </div>
 
       {/* Category Tabs */}
@@ -430,7 +455,18 @@ export function ShopScreen({ ownedItems, diamonds, emeralds, gold, onPurchase }:
                   {owned ? "✓ OWNED" : (
                     <>
                       {getCurrencyIcon(item.currency)}
-                      <span>{item.price.toLocaleString()}</span>
+                      {shopDiscount > 0 && item.price > 0 ? (
+                        <span style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                          <span style={{ textDecoration: "line-through", color: "#888", fontSize: "0.9em" }}>
+                            {item.price.toLocaleString()}
+                          </span>
+                          <span style={{ color: "#22C55E" }}>
+                            {getDiscountedPrice(item.price).toLocaleString()}
+                          </span>
+                        </span>
+                      ) : (
+                        <span>{item.price.toLocaleString()}</span>
+                      )}
                     </>
                   )}
                 </div>
@@ -543,87 +579,122 @@ export function ShopScreen({ ownedItems, diamonds, emeralds, gold, onPurchase }:
               )}
 
               {/* Price & Buy Button */}
-              {ownedItems.includes(selectedItem.id) ? (
-                <div style={{
-                  textAlign: "center",
-                  padding: "15px",
-                  background: "linear-gradient(135deg, #22C55E, #16A34A)",
-                  borderRadius: "12px",
-                  fontWeight: "bold",
-                  fontSize: "1.1em",
-                }}>
-                  ✓ YOU OWN THIS!
-                </div>
-              ) : !canAfford(selectedItem) ? (
-                <>
-                  <div style={{
-                    textAlign: "center",
-                    padding: "15px",
-                    background: "linear-gradient(135deg, #991B1B, #7F1D1D)",
-                    borderRadius: "12px",
-                    fontWeight: "bold",
-                    fontSize: "1em",
-                    marginBottom: "10px",
-                  }}>
-                    ❌ NOT ENOUGH {selectedItem.currency.toUpperCase()}!
-                  </div>
-                  <div style={{
-                    textAlign: "center",
-                    padding: "10px",
-                    background: "rgba(0,0,0,0.3)",
-                    borderRadius: "8px",
-                    fontSize: "0.9em",
-                  }}>
-                    You have: {getCurrencyIcon(selectedItem.currency)} {getBalance(selectedItem.currency).toLocaleString()}
-                    <br />
-                    Need: {getCurrencyIcon(selectedItem.currency)} {selectedItem.price.toLocaleString()}
-                    <br />
-                    <span style={{ color: "#EF4444" }}>
-                      Missing: {getCurrencyIcon(selectedItem.currency)} {(selectedItem.price - getBalance(selectedItem.currency)).toLocaleString()}
-                    </span>
-                  </div>
-                </>
-              ) : (
-                <>
-                  {purchaseError && (
+              {(() => {
+                const discountedPrice = getDiscountedPrice(selectedItem.price);
+                const hasDiscount = shopDiscount > 0 && selectedItem.price > 0;
+
+                if (ownedItems.includes(selectedItem.id)) {
+                  return (
                     <div style={{
                       textAlign: "center",
-                      padding: "10px",
-                      background: "linear-gradient(135deg, #991B1B, #7F1D1D)",
-                      borderRadius: "8px",
-                      fontWeight: "bold",
-                      fontSize: "0.9em",
-                      marginBottom: "10px",
-                    }}>
-                      ❌ {purchaseError}
-                    </div>
-                  )}
-                  <button
-                    onClick={() => {
-                      setPurchaseError(null);
-                      onPurchase(selectedItem.id, activeTab, selectedItem.price, selectedItem.currency);
-                      setSelectedItem(null);
-                    }}
-                    style={{
-                      width: "100%",
                       padding: "15px",
+                      background: "linear-gradient(135deg, #22C55E, #16A34A)",
                       borderRadius: "12px",
-                      border: "none",
-                      cursor: "pointer",
                       fontWeight: "bold",
                       fontSize: "1.1em",
-                      background: "linear-gradient(135deg, #FFD700, #FFA500)",
-                      color: "#000",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: "8px",
-                    }}
-                  >
-                    BUY FOR {getCurrencyIcon(selectedItem.currency)} {selectedItem.price.toLocaleString()}
-                  </button>
-                </>
-              )}
+                    }}>
+                      ✓ YOU OWN THIS!
+                    </div>
+                  );
+                }
+
+                if (!canAfford(selectedItem)) {
+                  return (
+                    <>
+                      <div style={{
+                        textAlign: "center",
+                        padding: "15px",
+                        background: "linear-gradient(135deg, #991B1B, #7F1D1D)",
+                        borderRadius: "12px",
+                        fontWeight: "bold",
+                        fontSize: "1em",
+                        marginBottom: "10px",
+                      }}>
+                        ❌ NOT ENOUGH {selectedItem.currency.toUpperCase()}!
+                      </div>
+                      <div style={{
+                        textAlign: "center",
+                        padding: "10px",
+                        background: "rgba(0,0,0,0.3)",
+                        borderRadius: "8px",
+                        fontSize: "0.9em",
+                      }}>
+                        You have: {getCurrencyIcon(selectedItem.currency)} {getBalance(selectedItem.currency).toLocaleString()}
+                        <br />
+                        Need: {getCurrencyIcon(selectedItem.currency)} {discountedPrice.toLocaleString()}
+                        {hasDiscount && (
+                          <span style={{ color: "#22C55E", marginLeft: "5px" }}>
+                            (was {selectedItem.price.toLocaleString()})
+                          </span>
+                        )}
+                        <br />
+                        <span style={{ color: "#EF4444" }}>
+                          Missing: {getCurrencyIcon(selectedItem.currency)} {(discountedPrice - getBalance(selectedItem.currency)).toLocaleString()}
+                        </span>
+                      </div>
+                    </>
+                  );
+                }
+
+                return (
+                  <>
+                    {purchaseError && (
+                      <div style={{
+                        textAlign: "center",
+                        padding: "10px",
+                        background: "linear-gradient(135deg, #991B1B, #7F1D1D)",
+                        borderRadius: "8px",
+                        fontWeight: "bold",
+                        fontSize: "0.9em",
+                        marginBottom: "10px",
+                      }}>
+                        ❌ {purchaseError}
+                      </div>
+                    )}
+                    {hasDiscount && (
+                      <div style={{
+                        textAlign: "center",
+                        marginBottom: "10px",
+                        padding: "8px",
+                        background: "rgba(34, 197, 94, 0.1)",
+                        borderRadius: "8px",
+                        border: "1px solid rgba(34, 197, 94, 0.3)",
+                      }}>
+                        <span style={{ color: "#22C55E", fontWeight: "bold" }}>
+                          🏷️ {shopDiscount}% discount applied!
+                        </span>
+                        <span style={{ color: "#888", marginLeft: "8px", textDecoration: "line-through" }}>
+                          {selectedItem.price.toLocaleString()}
+                        </span>
+                      </div>
+                    )}
+                    <button
+                      onClick={() => {
+                        setPurchaseError(null);
+                        onPurchase(selectedItem.id, activeTab, discountedPrice, selectedItem.currency);
+                        setSelectedItem(null);
+                      }}
+                      style={{
+                        width: "100%",
+                        padding: "15px",
+                        borderRadius: "12px",
+                        border: "none",
+                        cursor: "pointer",
+                        fontWeight: "bold",
+                        fontSize: "1.1em",
+                        background: "linear-gradient(135deg, #FFD700, #FFA500)",
+                        color: "#000",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: "8px",
+                      }}
+                    >
+                      BUY FOR {getCurrencyIcon(selectedItem.currency)} {discountedPrice.toLocaleString()}
+                    </button>
+                  </>
+                );
+              })()}
 
               {/* Close hint */}
               <p style={{

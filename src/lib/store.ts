@@ -19,6 +19,11 @@ export interface PlayerState {
   perfectLevels: number;
   dailyDay: number;
   dailyClaimed: boolean;
+  // Tier/Milestone system
+  currentTier: number;
+  milestonesClaimed: number[];
+  permanentXpBoost: number;
+  shopDiscount: number;
 }
 
 // Game session state (local)
@@ -71,6 +76,9 @@ export interface UIState {
     stars: number;
     rewards: { diamonds: number; emeralds: number; xp: number };
   } | null;
+  // Milestone modal
+  showMilestoneModal: boolean;
+  milestoneLevel: number | null;
 }
 
 // Floating rewards for animations
@@ -137,6 +145,8 @@ interface AppStore {
   hideLevelCompleteModal: () => void;
   showAchievementModal: (achievement: UIState["achievementToShow"]) => void;
   hideAchievementModal: () => void;
+  showMilestoneModal: (level: number) => void;
+  hideMilestoneModal: () => void;
 
   // Floating rewards
   floatingRewards: FloatingReward[];
@@ -188,6 +198,11 @@ const initialPlayerState: PlayerState = {
   perfectLevels: 0,
   dailyDay: 1,
   dailyClaimed: false,
+  // Tier/Milestone system
+  currentTier: 1,
+  milestonesClaimed: [],
+  permanentXpBoost: 0,
+  shopDiscount: 0,
 };
 
 const initialGameState: GameState = {
@@ -206,6 +221,8 @@ const initialUIState: UIState = {
   showAchievement: false,
   achievementToShow: null,
   levelCompleteData: null,
+  showMilestoneModal: false,
+  milestoneLevel: null,
 };
 
 const initialAudioState: AudioState = {
@@ -278,6 +295,14 @@ export const useAppStore = create<AppStore>((set, get) => ({
   hideAchievementModal: () =>
     set((state) => ({
       ui: { ...state.ui, showAchievement: false, achievementToShow: null },
+    })),
+  showMilestoneModal: (level) =>
+    set((state) => ({
+      ui: { ...state.ui, showMilestoneModal: true, milestoneLevel: level },
+    })),
+  hideMilestoneModal: () =>
+    set((state) => ({
+      ui: { ...state.ui, showMilestoneModal: false, milestoneLevel: null },
     })),
 
   // Floating rewards

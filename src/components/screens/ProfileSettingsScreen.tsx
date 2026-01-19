@@ -7,6 +7,13 @@ import { api } from "../../../convex/_generated/api";
 import { Id } from "../../../convex/_generated/dataModel";
 import { useAppStore } from "@/lib/store";
 import { UserButton, useAuth } from "@clerk/nextjs";
+import { AvatarFrame } from "@/components/ui/AvatarFrame";
+import {
+  getTierForLevel,
+  getTitleBadge,
+  getProfileBackgroundStyle,
+  getShopDiscount,
+} from "@/lib/tierSystem";
 
 // Available skins - can be expanded with shop purchases
 const AVAILABLE_SKINS = [
@@ -204,60 +211,119 @@ export function ProfileSettingsScreen({ playerId, onBack, onLogout }: ProfileSet
       </div>
 
       {/* Current Profile Preview */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        style={{
-          background: "linear-gradient(135deg, rgba(99, 102, 241, 0.3) 0%, rgba(139, 92, 246, 0.4) 100%)",
-          borderRadius: "20px",
-          padding: "25px",
-          marginBottom: "20px",
-          border: "3px solid rgba(139, 92, 246, 0.5)",
-          boxShadow: "0 8px 32px rgba(139, 92, 246, 0.3)",
-          textAlign: "center",
-        }}
-      >
-        {/* Avatar */}
-        <motion.div
-          key={selectedSkin}
-          initial={{ scale: 0.5, rotate: -10 }}
-          animate={{ scale: 1, rotate: 0 }}
-          transition={{ type: "spring", stiffness: 300 }}
-          style={{
-            width: "100px",
-            height: "100px",
-            borderRadius: "50%",
-            background: "linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: "3em",
-            margin: "0 auto 15px",
-            border: "4px solid #c4b5fd",
-            boxShadow: "0 8px 24px rgba(139, 92, 246, 0.5), inset 0 2px 4px rgba(255,255,255,0.2)",
-          }}
-        >
-          {selectedSkin}
-        </motion.div>
+      {(() => {
+        const tier = getTierForLevel(player.level || 1);
+        const titleBadge = getTitleBadge(player.level || 1);
+        const profileBgStyle = getProfileBackgroundStyle(tier.tier);
+        const shopDiscount = getShopDiscount(player.level || 1);
 
-        {/* Name */}
-        <div style={{
-          fontSize: "1.4em",
-          fontWeight: "bold",
-          color: "white",
-          marginBottom: "5px",
-        }}>
-          {name || "Player"}
-        </div>
+        return (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            style={{
+              ...profileBgStyle,
+              borderRadius: "20px",
+              padding: "25px",
+              marginBottom: "20px",
+              textAlign: "center",
+            }}
+          >
+            {/* Avatar with Tier Frame */}
+            <motion.div
+              key={selectedSkin}
+              initial={{ scale: 0.5, rotate: -10 }}
+              animate={{ scale: 1, rotate: 0 }}
+              transition={{ type: "spring", stiffness: 300 }}
+              style={{ margin: "0 auto 15px", display: "inline-block" }}
+            >
+              <AvatarFrame level={player.level || 1} size={100}>
+                <span style={{ fontSize: "50px" }}>{selectedSkin}</span>
+              </AvatarFrame>
+            </motion.div>
 
-        {/* Level */}
-        <div style={{
-          fontSize: "0.95em",
-          color: "#c4b5fd",
-        }}>
-          Level {player.level || 1} • {player.totalStars || 0} ⭐
-        </div>
-      </motion.div>
+            {/* Tier Name */}
+            <div style={{
+              fontSize: "0.85em",
+              color: tier.color,
+              fontWeight: "bold",
+              textTransform: "uppercase",
+              letterSpacing: "2px",
+              marginBottom: "5px",
+            }}>
+              {tier.name}
+            </div>
+
+            {/* Name */}
+            <div style={{
+              fontSize: "1.4em",
+              fontWeight: "bold",
+              color: "white",
+              marginBottom: "5px",
+            }}>
+              {name || "Player"}
+            </div>
+
+            {/* Title Badge */}
+            {titleBadge && (
+              <div style={{
+                fontSize: "0.9em",
+                color: "#FFD700",
+                marginBottom: "8px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "5px",
+              }}>
+                <span>{titleBadge.emoji}</span>
+                <span>{titleBadge.title}</span>
+              </div>
+            )}
+
+            {/* Level & Stars */}
+            <div style={{
+              fontSize: "0.95em",
+              color: "#c4b5fd",
+              marginBottom: "8px",
+            }}>
+              Level {player.level || 1} • {player.totalStars || 0} ⭐
+            </div>
+
+            {/* Bonuses display */}
+            <div style={{
+              display: "flex",
+              justifyContent: "center",
+              gap: "15px",
+              flexWrap: "wrap",
+            }}>
+              {player.permanentXpBoost > 0 && (
+                <div style={{
+                  background: "rgba(34, 197, 94, 0.2)",
+                  borderRadius: "8px",
+                  padding: "4px 10px",
+                  fontSize: "0.8em",
+                  color: "#22C55E",
+                  border: "1px solid rgba(34, 197, 94, 0.3)",
+                }}>
+                  ⚡ +{player.permanentXpBoost}% XP
+                </div>
+              )}
+              {shopDiscount > 0 && (
+                <div style={{
+                  background: "rgba(245, 158, 11, 0.2)",
+                  borderRadius: "8px",
+                  padding: "4px 10px",
+                  fontSize: "0.8em",
+                  color: "#F59E0B",
+                  border: "1px solid rgba(245, 158, 11, 0.3)",
+                }}>
+                  🏷️ {shopDiscount}% Shop Off
+                </div>
+              )}
+            </div>
+          </motion.div>
+        );
+      })()}
 
       {/* Saved Notification */}
       <AnimatePresence>

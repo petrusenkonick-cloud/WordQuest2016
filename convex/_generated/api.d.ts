@@ -21,6 +21,7 @@ import type * as leaderboards from "../leaderboards.js";
 import type * as learning from "../learning.js";
 import type * as levels from "../levels.js";
 import type * as lifeSkills from "../lifeSkills.js";
+import type * as milestones from "../milestones.js";
 import type * as notifications from "../notifications.js";
 import type * as parents from "../parents.js";
 import type * as players from "../players.js";
@@ -53,6 +54,7 @@ declare const fullApi: ApiFromModules<{
   learning: typeof learning;
   levels: typeof levels;
   lifeSkills: typeof lifeSkills;
+  milestones: typeof milestones;
   notifications: typeof notifications;
   parents: typeof parents;
   players: typeof players;

@@ -10,9 +10,10 @@ interface GameWorldProps {
   children: ReactNode;
   playerId?: Id<"players"> | null;
   onProfileSettings?: () => void;
+  onLevelClick?: () => void;
 }
 
-export function GameWorld({ children, playerId, onProfileSettings }: GameWorldProps) {
+export function GameWorld({ children, playerId, onProfileSettings, onLevelClick }: GameWorldProps) {
   const particles = useAppStore((state) => state.particles);
   const floatingRewards = useAppStore((state) => state.floatingRewards);
 
@@ -35,7 +36,7 @@ export function GameWorld({ children, playerId, onProfileSettings }: GameWorldPr
       <div className="sun" />
 
       {/* HUD */}
-      <HUD playerId={playerId} onProfileSettings={onProfileSettings} />
+      <HUD playerId={playerId} onProfileSettings={onProfileSettings} onLevelClick={onLevelClick} />
 
       {/* Main Content */}
       <div className="main-container">{children}</div>

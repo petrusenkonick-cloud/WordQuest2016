@@ -168,6 +168,31 @@ export const updatePlayer = mutation({
   },
 });
 
+// Milestone levels for tracking
+const MILESTONE_LEVELS = [10, 20, 30, 40, 50, 60, 75, 100];
+
+// Get tier for level
+function getTierForLevel(level: number): number {
+  if (level >= 100) return 9;
+  if (level >= 75) return 8;
+  if (level >= 60) return 7;
+  if (level >= 50) return 6;
+  if (level >= 40) return 5;
+  if (level >= 30) return 4;
+  if (level >= 20) return 3;
+  if (level >= 10) return 2;
+  return 1;
+}
+
+// Calculate shop discount based on level
+function calculateShopDiscount(level: number): number {
+  if (level >= 100) return 35;
+  if (level >= 50) return 20;
+  if (level >= 30) return 10;
+  if (level >= 10) return 5;
+  return 0;
+}
+
 // Add XP and handle level ups
 export const addXP = mutation({
   args: {
@@ -178,9 +203,14 @@ export const addXP = mutation({
     const player = await ctx.db.get(args.playerId);
     if (!player) return;
 
-    let newXP = player.xp + args.amount;
+    // Apply permanent XP boost if player has one
+    const xpBoost = player.permanentXpBoost || 0;
+    const boostedAmount = Math.floor(args.amount * (1 + xpBoost / 100));
+
+    let newXP = player.xp + boostedAmount;
     let newLevel = player.level;
     let newXpNext = player.xpNext;
+    const oldLevel = player.level;
 
     // Level up logic
     while (newXP >= newXpNext) {
@@ -189,13 +219,40 @@ export const addXP = mutation({
       newXpNext = Math.floor(newXpNext * 1.5); // Increase XP needed each level
     }
 
+    // Check for new milestone reached
+    const claimedMilestones = player.milestonesClaimed || [];
+    let newMilestoneReached: number | null = null;
+
+    if (newLevel > oldLevel) {
+      // Check if we crossed a milestone level
+      for (const milestone of MILESTONE_LEVELS) {
+        if (oldLevel < milestone && newLevel >= milestone && !claimedMilestones.includes(milestone)) {
+          newMilestoneReached = milestone;
+          break; // Only trigger for the first unclaimed milestone
+        }
+      }
+    }
+
+    // Calculate new tier and shop discount
+    const newTier = getTierForLevel(newLevel);
+    const newShopDiscount = calculateShopDiscount(newLevel);
+
     await ctx.db.patch(args.playerId, {
       xp: newXP,
       level: newLevel,
       xpNext: newXpNext,
+      currentTier: newTier,
+      shopDiscount: newShopDiscount,
     });
 
-    return { leveledUp: newLevel > player.level, newLevel };
+    return {
+      leveledUp: newLevel > oldLevel,
+      newLevel,
+      xpBoosted: boostedAmount > args.amount,
+      boostedAmount,
+      newMilestoneReached,
+      newTier,
+    };
   },
 });
 

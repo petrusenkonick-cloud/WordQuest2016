@@ -88,6 +88,11 @@ export function useConvexSync() {
         perfectLevels: convexPlayer.perfectLevels,
         dailyDay: convexPlayer.dailyDay,
         dailyClaimed: convexPlayer.dailyClaimed,
+        // Tier system fields
+        currentTier: convexPlayer.currentTier || 1,
+        milestonesClaimed: convexPlayer.milestonesClaimed || [],
+        permanentXpBoost: convexPlayer.permanentXpBoost || 0,
+        shopDiscount: convexPlayer.shopDiscount || 0,
       });
 
       // Check daily login

@@ -46,6 +46,7 @@ import { LevelCompleteModal } from "@/components/modals/LevelCompleteModal";
 import { AchievementModal } from "@/components/modals/AchievementModal";
 import { ErrorModal } from "@/components/modals/ErrorModal";
 import { DuplicateHomeworkDialog } from "@/components/ui/DuplicateHomeworkDialog";
+import { MilestoneModal } from "@/components/modals/MilestoneModal";
 
 // Ambient Effects
 import { AmbientEffects } from "@/components/ui/AmbientEffects";
@@ -424,6 +425,13 @@ export default function Home() {
   // Streak tracking - record activity when player practices
   const recordActivity = useMutation(api.gamification.recordActivity);
 
+  // Milestone mutations
+  const claimMilestoneReward = useMutation(api.milestones.claimMilestoneReward);
+  const checkMilestoneQuery = useQuery(
+    api.milestones.checkMilestone,
+    playerId ? { playerId } : "skip"
+  );
+
   // Weekly quests query - for practice quest gameplay
   const weeklyQuestsData = useQuery(
     api.weeklyQuests.getWeeklyQuests,
@@ -555,6 +563,13 @@ export default function Home() {
   const showDailyRewardUI = useAppStore((state) => state.ui.showDailyReward);
   const showDailyRewardModalFn = useAppStore((state) => state.showDailyRewardModal);
   const hideDailyRewardModalFn = useAppStore((state) => state.hideDailyRewardModal);
+
+  // Milestone modal state
+  const showMilestoneModalUI = useAppStore((state) => state.ui.showMilestoneModal);
+  const milestoneLevel = useAppStore((state) => state.ui.milestoneLevel);
+  const showMilestoneModalFn = useAppStore((state) => state.showMilestoneModal);
+  const hideMilestoneModalFn = useAppStore((state) => state.hideMilestoneModal);
+
   const [showLevelComplete, setShowLevelComplete] = useState(false);
   const [levelCompleteData, setLevelCompleteData] = useState<{
     levelId: string;
@@ -753,6 +768,43 @@ export default function Home() {
   const handleOpenProfileSettings = useCallback(() => {
     setScreen("profile-settings");
   }, [setScreen]);
+
+  // Handle level click - show milestone modal if there's an unclaimed milestone
+  const handleLevelClick = useCallback(() => {
+    if (checkMilestoneQuery?.available && checkMilestoneQuery?.milestone) {
+      showMilestoneModalFn(checkMilestoneQuery.milestone);
+    } else {
+      // Show current level info even if no milestone
+      showMilestoneModalFn(player.level);
+    }
+  }, [checkMilestoneQuery, showMilestoneModalFn, player.level]);
+
+  // Handle claiming milestone reward
+  const handleClaimMilestone = useCallback(async () => {
+    if (!playerId || !milestoneLevel) return;
+
+    try {
+      const result = await claimMilestoneReward({ playerId, milestoneLevel });
+      if (result?.success && result.rewards) {
+        // Spawn celebration particles
+        spawnParticles(["🎉", "⭐", "✨", "🏆"]);
+
+        // Update local player state with rewards
+        setPlayer({
+          diamonds: player.diamonds + result.rewards.diamonds,
+          emeralds: player.emeralds + result.rewards.emeralds,
+          gold: player.gold + result.rewards.gold,
+          permanentXpBoost: result.permanentXpBoost || player.permanentXpBoost,
+          shopDiscount: result.shopDiscount || player.shopDiscount,
+          milestonesClaimed: [...(player.milestonesClaimed || []), milestoneLevel],
+        });
+      }
+      hideMilestoneModalFn();
+    } catch (error) {
+      console.error("Failed to claim milestone:", error);
+      hideMilestoneModalFn();
+    }
+  }, [playerId, milestoneLevel, claimMilestoneReward, spawnParticles, setPlayer, player, hideMilestoneModalFn]);
 
   // Play a saved homework session from WEEKLY QUESTS
   const handlePlayHomework = useCallback((homework: {
@@ -2681,6 +2733,7 @@ export default function Home() {
             diamonds={player.diamonds}
             emeralds={player.emeralds}
             gold={player.gold}
+            shopDiscount={player.shopDiscount}
             onPurchase={handlePurchase}
           />
         );
@@ -2863,7 +2916,7 @@ export default function Home() {
       {/* Ambient Effects - Snow & Day/Night */}
       <AmbientEffects enableSnow={true} enableDayNight={true} snowIntensity="medium" />
 
-      <GameWorld playerId={playerId} onProfileSettings={handleOpenProfileSettings}>{renderScreen()}</GameWorld>
+      <GameWorld playerId={playerId} onProfileSettings={handleOpenProfileSettings} onLevelClick={handleLevelClick}>{renderScreen()}</GameWorld>
 
       {/* Tutorial Overlay */}
       <TutorialOverlay />
@@ -2890,6 +2943,16 @@ export default function Home() {
         claimed={player.dailyClaimed}
         streak={player.streak}
         onClaim={handleClaimDailyReward}
+      />
+
+      {/* Milestone Modal - shows when clicking on level */}
+      <MilestoneModal
+        isOpen={showMilestoneModalUI}
+        onClose={hideMilestoneModalFn}
+        level={milestoneLevel || player.level}
+        playerSkin={player.skin}
+        onClaim={handleClaimMilestone}
+        isClaimed={(player.milestonesClaimed || []).includes(milestoneLevel || 0)}
       />
 
       {/* Mining Overlay - shows after correct answer */}
