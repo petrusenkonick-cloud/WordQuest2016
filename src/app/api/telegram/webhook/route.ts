@@ -285,6 +285,7 @@ Current settings can be viewed with /status`
         if (player) {
           await getConvexClient().mutation(api.parents.unlinkParent, {
             playerId: player._id,
+            callerClerkId: player.clerkId,
           });
           await sendTelegramMessage(
             chatId,

@@ -37,7 +37,7 @@ export function ParentLinkScreen({ playerId, onBack }: ParentLinkScreenProps) {
     setIsGenerating(true);
     try {
       const result = await generateCode({ playerId, callerClerkId: deviceId });
-      if ('code' in result && 'expiresAt' in result) {
+      if ('code' in result && result.code && 'expiresAt' in result && result.expiresAt) {
         setLinkCode(result.code);
         setExpiresAt(result.expiresAt);
       }

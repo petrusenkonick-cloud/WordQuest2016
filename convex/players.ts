@@ -604,3 +604,81 @@ export const deleteAllPlayers = mutation({
     return { success: true, deletedCount };
   },
 });
+
+// FULL DATABASE RESET - Deletes ALL player data from ALL tables
+export const resetAllData = mutation({
+  args: {
+    adminSecret: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const ADMIN_SECRET = process.env.ADMIN_SECRET || "CHANGE_THIS_SECRET_IN_ENV";
+    if (args.adminSecret !== ADMIN_SECRET) {
+      console.error("resetAllData: UNAUTHORIZED attempt");
+      return { success: false, reason: "Unauthorized" };
+    }
+
+    const tables = [
+      "players",
+      "inventory",
+      "completedLevels",
+      "playerAchievements",
+      "gameSessions",
+      "homeworkSessions",
+      "questionAttempts",
+      "topicProgress",
+      "learningProfile",
+      "parentLinks",
+      "pendingLinkCodes",
+      "parentNotifications",
+      "dailyStats",
+      "wizardProfile",
+      "questChapters",
+      "quests",
+      "spellBook",
+      "dailyQuests",
+      "petFamiliars",
+      "platformStats",
+      "leaderboards",
+      "challenges",
+      "challengeParticipants",
+      "competitionRewards",
+      "playerGems",
+      "gemCollections",
+      "craftingHistory",
+      "miningSessions",
+      "activeBoosts",
+      "gemDrops",
+      "errorTracking",
+      "weeklyPracticeQuests",
+      "weeklyChampion",
+      "spacedRepetition",
+      "playerInsights",
+      "weeklyInsightsSummary",
+      "learningSessionAnalytics",
+      "dailyChallenges",
+      "playerStreaks",
+      "purchasedGames",
+      "lifeSkillsProgress",
+      "lifeSkillsLessons",
+      "lifeSkillsWizard",
+      "learningPaths",
+    ] as const;
+
+    const results: Record<string, number> = {};
+
+    for (const tableName of tables) {
+      try {
+        const docs = await ctx.db.query(tableName as any).collect();
+        for (const doc of docs) {
+          await ctx.db.delete(doc._id);
+        }
+        results[tableName] = docs.length;
+      } catch (e) {
+        results[tableName] = -1; // error
+      }
+    }
+
+    console.log("resetAllData: Complete reset done", results);
+    return { success: true, deletedCounts: results };
+  },
+});
