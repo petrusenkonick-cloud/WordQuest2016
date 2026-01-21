@@ -461,7 +461,7 @@ export function QuestGameScreen({
       minHeight: "100vh",
       background: `linear-gradient(180deg, ${island?.gradientFrom || '#6366f1'} 0%, #0f172a 100%)`,
       padding: "20px",
-      paddingBottom: "120px",
+      paddingBottom: "calc(150px + env(safe-area-inset-bottom, 0px))",
     }}>
       {/* Header */}
       <div style={{
@@ -999,17 +999,17 @@ export function QuestGameScreen({
         </div>
       )}
 
-      {/* Feedback Panel */}
+      {/* Feedback Panel - positioned above bottom nav with safe area support */}
       {showFeedback && (
         <div
           className={`life-skills-feedback ${feedbackCorrect ? 'correct' : 'incorrect'}`}
           style={{
             position: "fixed",
-            bottom: "90px",
+            bottom: "calc(100px + env(safe-area-inset-bottom, 0px))",
             left: 0,
             right: 0,
             padding: "20px",
-            paddingBottom: "25px",
+            paddingBottom: "calc(25px + env(safe-area-inset-bottom, 0px))",
             borderTopLeftRadius: "20px",
             borderTopRightRadius: "20px",
             boxShadow: "0 -4px 20px rgba(0,0,0,0.3)",
