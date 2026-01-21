@@ -1334,7 +1334,7 @@ export default function Home() {
     try {
       const response = await createHomeworkSession({
         playerId: playerId || undefined,
-        guestId: playerId ? undefined : `guest_${Date.now()}`,
+        guestId: playerId ? undefined : deviceId,
         imageUrls: capturedImages,
         totalPages: capturedImages.length,
         subject: result.subject,
@@ -1409,7 +1409,7 @@ export default function Home() {
     try {
       const response = await createHomeworkSession({
         playerId: playerId || undefined,
-        guestId: playerId ? undefined : `guest_${Date.now()}`,
+        guestId: playerId ? undefined : deviceId,
         imageUrls: capturedImages,
         totalPages: capturedImages.length,
         subject: pendingHomeworkData.subject,
@@ -2986,6 +2986,7 @@ export default function Home() {
         return (
           <HomeworkScreen
             playerId={playerId}
+            guestId={playerId ? undefined : deviceId}
             onBack={() => setScreen("home")}
             onPlayHomework={handlePlayHomework}
             onScanHomework={handleScanHomework}

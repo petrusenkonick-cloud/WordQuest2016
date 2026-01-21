@@ -428,6 +428,28 @@ export const savePartialProgress = mutation({
   },
 });
 
+// DEBUG: Get ALL homework sessions (temporary)
+export const getAllHomeworkSessions = query({
+  args: {},
+  handler: async (ctx) => {
+    const sessions = await ctx.db
+      .query("homeworkSessions")
+      .order("desc")
+      .take(50);
+    return sessions.map(s => ({
+      _id: s._id,
+      playerId: s.playerId,
+      guestId: s.guestId,
+      gameName: s.gameName,
+      subject: s.subject,
+      status: s.status,
+      score: s.score,
+      createdAt: s.createdAt,
+      questionsCount: s.questions?.length || 0,
+    }));
+  },
+});
+
 // Get completed homework sessions for history
 export const getCompletedHomeworkSessions = query({
   args: {

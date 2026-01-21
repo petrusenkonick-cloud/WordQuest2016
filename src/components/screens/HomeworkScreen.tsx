@@ -36,6 +36,7 @@ interface HomeworkSession {
 
 interface HomeworkScreenProps {
   playerId: Id<"players"> | null;
+  guestId?: string;
   onBack: () => void;
   onPlayHomework: (homework: HomeworkSession) => void;
   onScanHomework: () => void;
@@ -44,6 +45,7 @@ interface HomeworkScreenProps {
 
 export function HomeworkScreen({
   playerId,
+  guestId,
   onBack,
   onPlayHomework,
   onScanHomework,
@@ -51,16 +53,16 @@ export function HomeworkScreen({
 }: HomeworkScreenProps) {
   const [showAnswersModal, setShowAnswersModal] = useState(false);
 
-  // Get active homework sessions
+  // Get active homework sessions (support both playerId and guestId for guests)
   const homeworkSessions = useQuery(
     api.homework.getActiveHomeworkSessions,
-    playerId ? { playerId } : "skip"
+    playerId ? { playerId } : guestId ? { guestId } : "skip"
   ) as HomeworkSession[] | undefined;
 
   // Get completed homework sessions
   const completedSessions = useQuery(
     api.homework.getCompletedHomeworkSessions,
-    playerId ? { playerId } : "skip"
+    playerId ? { playerId } : guestId ? { guestId } : "skip"
   ) as HomeworkSession[] | undefined;
 
   return (
