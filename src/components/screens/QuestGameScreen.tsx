@@ -1001,7 +1001,23 @@ export function QuestGameScreen({
 
       {/* Feedback Panel */}
       {showFeedback && (
-        <div className={`life-skills-feedback ${feedbackCorrect ? 'correct' : 'incorrect'}`}>
+        <div
+          className={`life-skills-feedback ${feedbackCorrect ? 'correct' : 'incorrect'}`}
+          style={{
+            position: "fixed",
+            bottom: "90px",
+            left: 0,
+            right: 0,
+            padding: "20px",
+            paddingBottom: "25px",
+            borderTopLeftRadius: "20px",
+            borderTopRightRadius: "20px",
+            boxShadow: "0 -4px 20px rgba(0,0,0,0.3)",
+            zIndex: 1000,
+            background: feedbackCorrect
+              ? "linear-gradient(180deg, rgba(34, 197, 94, 0.98), rgba(22, 163, 74, 0.98))"
+              : "linear-gradient(180deg, rgba(239, 68, 68, 0.98), rgba(220, 38, 38, 0.98))",
+          }}>
           <div style={{
             display: "flex",
             alignItems: "center",
