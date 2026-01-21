@@ -13,7 +13,7 @@ import {
 import { cn } from "@/lib/utils";
 
 // Fisher-Yates shuffle that returns indices mapping
-function shuffleWithIndices<T>(array: T[]): { shuffled: T[]; correctIndex: number; originalCorrectIndex: number } {
+function shuffleWithIndices<T extends { answer: boolean }>(array: T[]): { shuffled: T[]; correctIndex: number; originalCorrectIndex: number } {
   const indices = array.map((_, i) => i);
   const shuffled = [...array];
 

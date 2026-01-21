@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { SpeakButton } from "@/components/ui/SpeakButton";
 
@@ -50,6 +51,19 @@ export function HomeworkAnswersScreen({
   const totalCorrect = userAnswers.filter((a) => a.isCorrect).length;
   const totalQuestions = questions.length;
   const percentage = Math.round((totalCorrect / totalQuestions) * 100);
+
+  // Ref for first answer - auto-scroll to it
+  const firstAnswerRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll to first answer when component mounts
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (firstAnswerRef.current) {
+        firstAnswerRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    }, 300); // Small delay for animations
+    return () => clearTimeout(timer);
+  }, []);
 
   return (
     <div className="screen active" style={{ background: "linear-gradient(180deg, #1a1a2e 0%, #16213e 100%)" }}>
@@ -168,10 +182,12 @@ export function HomeworkAnswersScreen({
             {questionsByPage[pageNum].map((q, idx) => {
               const userAnswer = userAnswers.find((a) => a.questionIndex === q.index);
               const isCorrect = userAnswer?.isCorrect || false;
+              const isFirstQuestion = q.index === 0;
 
               return (
                 <motion.div
                   key={q.index}
+                  ref={isFirstQuestion ? firstAnswerRef : undefined}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: idx * 0.05 }}

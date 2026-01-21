@@ -3145,6 +3145,7 @@ export default function Home() {
         isHomework={!!currentHomeworkSessionId || !!completedHomeworkData}
         onViewAnswers={() => {
           setShowLevelComplete(false);
+          setShowAchievement(false); // Close achievement modal if showing
           setShowHomeworkAnswers(true);
         }}
       />
