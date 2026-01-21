@@ -1003,7 +1003,7 @@ export function QuestGameScreen({
       {showFeedback && (
         <div style={{
           position: "fixed",
-          bottom: 70,
+          bottom: "calc(100px + env(safe-area-inset-bottom, 0px))",
           left: 0,
           right: 0,
           background: feedbackCorrect
@@ -1014,6 +1014,7 @@ export function QuestGameScreen({
           borderTopLeftRadius: "20px",
           borderTopRightRadius: "20px",
           boxShadow: "0 -4px 20px rgba(0,0,0,0.3)",
+          zIndex: 1000,
         }}>
           <div style={{
             display: "flex",
