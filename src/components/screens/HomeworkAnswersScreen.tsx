@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import { motion } from "framer-motion";
+import { useState, useEffect, useRef } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { SpeakButton } from "@/components/ui/SpeakButton";
 
 interface Question {
@@ -52,30 +52,60 @@ export function HomeworkAnswersScreen({
   const totalQuestions = questions.length;
   const percentage = Math.round((totalCorrect / totalQuestions) * 100);
 
-  // Ref for first answer - auto-scroll to it
-  const firstAnswerRef = useRef<HTMLDivElement>(null);
+  // Track expanded state for each page (all expanded by default)
+  const [expandedPages, setExpandedPages] = useState<Record<number, boolean>>(() => {
+    const initial: Record<number, boolean> = {};
+    pages.forEach(p => initial[p] = true);
+    return initial;
+  });
 
-  // Auto-scroll to first answer when component mounts
+  // Track expanded details for individual questions
+  const [expandedDetails, setExpandedDetails] = useState<Record<number, boolean>>({});
+
+  // Ref for answers section
+  const answersRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll to answers section
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (firstAnswerRef.current) {
-        firstAnswerRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+      if (answersRef.current) {
+        answersRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
       }
-    }, 300); // Small delay for animations
+    }, 200);
     return () => clearTimeout(timer);
   }, []);
 
+  const togglePage = (page: number) => {
+    setExpandedPages(prev => ({ ...prev, [page]: !prev[page] }));
+  };
+
+  const toggleDetails = (index: number) => {
+    setExpandedDetails(prev => ({ ...prev, [index]: !prev[index] }));
+  };
+
+  // Expand/collapse all
+  const expandAll = () => {
+    const newState: Record<number, boolean> = {};
+    pages.forEach(p => newState[p] = true);
+    setExpandedPages(newState);
+  };
+
+  const collapseAll = () => {
+    const newState: Record<number, boolean> = {};
+    pages.forEach(p => newState[p] = false);
+    setExpandedPages(newState);
+  };
+
   return (
     <div className="screen active" style={{ background: "linear-gradient(180deg, #1a1a2e 0%, #16213e 100%)" }}>
-      {/* Header */}
+      {/* Compact Header */}
       <div
         style={{
           background: "linear-gradient(135deg, #22c55e 0%, #16a34a 100%)",
-          padding: "16px 20px",
+          padding: "12px 16px",
           display: "flex",
           alignItems: "center",
-          gap: "12px",
-          boxShadow: "0 4px 20px rgba(34, 197, 94, 0.3)",
+          gap: "10px",
         }}
       >
         <button
@@ -83,249 +113,293 @@ export function HomeworkAnswersScreen({
           style={{
             background: "rgba(255,255,255,0.2)",
             border: "none",
-            borderRadius: "8px",
-            padding: "8px 12px",
+            borderRadius: "6px",
+            padding: "6px 10px",
             color: "white",
             cursor: "pointer",
-            fontSize: "1em",
+            fontSize: "0.9em",
           }}
         >
-          ← Back
+          ←
         </button>
         <div style={{ flex: 1 }}>
-          <h2 style={{ margin: 0, color: "white", fontSize: "1.1em" }}>
+          <h2 style={{ margin: 0, color: "white", fontSize: "1em" }}>
             {gameIcon} {gameName}
           </h2>
-          <p style={{ margin: 0, color: "rgba(255,255,255,0.8)", fontSize: "0.85em" }}>
-            Answers to copy to paper
-          </p>
+        </div>
+        {/* Stats inline */}
+        <div style={{ display: "flex", gap: "12px", fontSize: "0.85em" }}>
+          <span style={{ color: "#bbf7d0" }}>✓{totalCorrect}</span>
+          <span style={{ color: "#fecaca" }}>✗{totalQuestions - totalCorrect}</span>
+          <span style={{ color: "white", fontWeight: "bold" }}>{percentage}%</span>
         </div>
       </div>
 
-      {/* Stats Banner */}
+      {/* Quick Actions Bar */}
       <div
+        ref={answersRef}
         style={{
-          background: "rgba(255,255,255,0.05)",
-          padding: "12px 20px",
-          display: "flex",
-          justifyContent: "space-around",
-          borderBottom: "1px solid rgba(255,255,255,0.1)",
-        }}
-      >
-        <div style={{ textAlign: "center" }}>
-          <div style={{ fontSize: "1.5em", color: "#22c55e" }}>{totalCorrect}</div>
-          <div style={{ fontSize: "0.75em", color: "#888" }}>Correct</div>
-        </div>
-        <div style={{ textAlign: "center" }}>
-          <div style={{ fontSize: "1.5em", color: "#ef4444" }}>{totalQuestions - totalCorrect}</div>
-          <div style={{ fontSize: "0.75em", color: "#888" }}>Wrong</div>
-        </div>
-        <div style={{ textAlign: "center" }}>
-          <div style={{ fontSize: "1.5em", color: "#a855f7" }}>{percentage}%</div>
-          <div style={{ fontSize: "0.75em", color: "#888" }}>Score</div>
-        </div>
-      </div>
-
-      {/* Instructions */}
-      <div
-        style={{
-          background: "rgba(34, 197, 94, 0.1)",
-          border: "1px solid rgba(34, 197, 94, 0.3)",
-          borderRadius: "12px",
-          padding: "12px 16px",
-          margin: "16px",
+          background: "rgba(34, 197, 94, 0.15)",
+          padding: "8px 16px",
           display: "flex",
           alignItems: "center",
-          gap: "12px",
+          justifyContent: "space-between",
+          borderBottom: "1px solid rgba(34, 197, 94, 0.3)",
         }}
       >
-        <span style={{ fontSize: "1.5em" }}>📝</span>
-        <div>
-          <p style={{ margin: 0, color: "#22c55e", fontWeight: "bold", fontSize: "0.9em" }}>
-            Copy these answers to your homework paper!
-          </p>
-          <p style={{ margin: "4px 0 0 0", color: "#a5b4fc", fontSize: "0.8em" }}>
-            The correct answers are highlighted in green
-          </p>
+        <span style={{ color: "#22c55e", fontSize: "0.85em", fontWeight: "bold" }}>
+          📝 Copy answers to paper
+        </span>
+        <div style={{ display: "flex", gap: "8px" }}>
+          <button
+            onClick={expandAll}
+            style={{
+              background: "rgba(255,255,255,0.1)",
+              border: "1px solid rgba(255,255,255,0.2)",
+              borderRadius: "4px",
+              padding: "4px 8px",
+              color: "#a5b4fc",
+              cursor: "pointer",
+              fontSize: "0.75em",
+            }}
+          >
+            Expand All
+          </button>
+          <button
+            onClick={collapseAll}
+            style={{
+              background: "rgba(255,255,255,0.1)",
+              border: "1px solid rgba(255,255,255,0.2)",
+              borderRadius: "4px",
+              padding: "4px 8px",
+              color: "#a5b4fc",
+              cursor: "pointer",
+              fontSize: "0.75em",
+            }}
+          >
+            Collapse
+          </button>
         </div>
       </div>
 
-      {/* Questions List */}
+      {/* Compact Answers List */}
       <div
         style={{
           flex: 1,
           overflowY: "auto",
-          padding: "0 16px 100px 16px",
+          padding: "8px 12px 80px 12px",
         }}
       >
-        {pages.map((pageNum) => (
-          <div key={pageNum} style={{ marginBottom: "24px" }}>
-            {/* Page Header */}
-            {pages.length > 1 && (
-              <div
+        {pages.map((pageNum) => {
+          const pageQuestions = questionsByPage[pageNum];
+          const pageCorrect = pageQuestions.filter(q =>
+            userAnswers.find(a => a.questionIndex === q.index)?.isCorrect
+          ).length;
+          const isExpanded = expandedPages[pageNum];
+
+          return (
+            <div key={pageNum} style={{ marginBottom: "8px" }}>
+              {/* Page Header - Clickable to expand/collapse */}
+              <button
+                onClick={() => togglePage(pageNum)}
                 style={{
+                  width: "100%",
                   background: "rgba(139, 92, 246, 0.2)",
-                  padding: "8px 12px",
+                  border: "1px solid rgba(139, 92, 246, 0.4)",
                   borderRadius: "8px",
-                  marginBottom: "12px",
+                  padding: "10px 12px",
                   display: "flex",
                   alignItems: "center",
-                  gap: "8px",
+                  justifyContent: "space-between",
+                  cursor: "pointer",
+                  color: "white",
                 }}
               >
-                <span style={{ fontSize: "1.2em" }}>📄</span>
-                <span style={{ color: "#a855f7", fontWeight: "bold" }}>Page {pageNum}</span>
-              </div>
-            )}
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <span style={{
+                    transform: isExpanded ? "rotate(90deg)" : "rotate(0deg)",
+                    transition: "transform 0.2s",
+                    fontSize: "0.8em",
+                  }}>
+                    ▶
+                  </span>
+                  <span style={{ fontSize: "1em" }}>📄</span>
+                  <span style={{ fontWeight: "bold" }}>
+                    {pages.length > 1 ? `Page ${pageNum}` : "Answers"}
+                  </span>
+                  <span style={{ color: "#a5b4fc", fontSize: "0.85em" }}>
+                    ({pageQuestions.length} questions)
+                  </span>
+                </div>
+                <div style={{ display: "flex", gap: "8px", fontSize: "0.8em" }}>
+                  <span style={{ color: "#22c55e" }}>✓{pageCorrect}</span>
+                  <span style={{ color: "#ef4444" }}>✗{pageQuestions.length - pageCorrect}</span>
+                </div>
+              </button>
 
-            {/* Questions for this page */}
-            {questionsByPage[pageNum].map((q, idx) => {
-              const userAnswer = userAnswers.find((a) => a.questionIndex === q.index);
-              const isCorrect = userAnswer?.isCorrect || false;
-              const isFirstQuestion = q.index === 0;
-
-              return (
-                <motion.div
-                  key={q.index}
-                  ref={isFirstQuestion ? firstAnswerRef : undefined}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: idx * 0.05 }}
-                  style={{
-                    background: isCorrect
-                      ? "rgba(34, 197, 94, 0.1)"
-                      : "rgba(239, 68, 68, 0.1)",
-                    border: `2px solid ${isCorrect ? "rgba(34, 197, 94, 0.4)" : "rgba(239, 68, 68, 0.4)"}`,
-                    borderRadius: "12px",
-                    padding: "16px",
-                    marginBottom: "12px",
-                  }}
-                >
-                  {/* Question Number & Status */}
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      marginBottom: "8px",
-                    }}
+              {/* Questions for this page - Compact list */}
+              <AnimatePresence>
+                {isExpanded && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.2 }}
+                    style={{ overflow: "hidden" }}
                   >
-                    <span
-                      style={{
-                        background: isCorrect ? "#22c55e" : "#ef4444",
-                        color: "white",
-                        padding: "4px 10px",
-                        borderRadius: "20px",
-                        fontSize: "0.8em",
-                        fontWeight: "bold",
-                      }}
-                    >
-                      #{q.index + 1} {isCorrect ? "✓" : "✗"}
-                    </span>
-                    <SpeakButton text={q.text} size="sm" variant="minimal" />
-                  </div>
+                    <div style={{
+                      background: "rgba(0,0,0,0.2)",
+                      borderRadius: "0 0 8px 8px",
+                      padding: "6px",
+                      marginTop: "-1px",
+                    }}>
+                      {pageQuestions.map((q) => {
+                        const userAnswer = userAnswers.find((a) => a.questionIndex === q.index);
+                        const isCorrect = userAnswer?.isCorrect || false;
+                        const showDetails = expandedDetails[q.index];
 
-                  {/* Question Text */}
-                  <p
-                    style={{
-                      color: "#e2e8f0",
-                      fontSize: "0.95em",
-                      lineHeight: 1.5,
-                      margin: "0 0 12px 0",
-                    }}
-                  >
-                    {q.text}
-                  </p>
+                        return (
+                          <div
+                            key={q.index}
+                            style={{
+                              background: isCorrect
+                                ? "rgba(34, 197, 94, 0.1)"
+                                : "rgba(239, 68, 68, 0.1)",
+                              borderLeft: `3px solid ${isCorrect ? "#22c55e" : "#ef4444"}`,
+                              borderRadius: "4px",
+                              padding: "8px 10px",
+                              marginBottom: "4px",
+                            }}
+                          >
+                            {/* Compact answer row */}
+                            <div
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "8px",
+                              }}
+                            >
+                              {/* Question number */}
+                              <span
+                                style={{
+                                  background: isCorrect ? "#22c55e" : "#ef4444",
+                                  color: "white",
+                                  padding: "2px 6px",
+                                  borderRadius: "4px",
+                                  fontSize: "0.75em",
+                                  fontWeight: "bold",
+                                  minWidth: "28px",
+                                  textAlign: "center",
+                                }}
+                              >
+                                {q.index + 1}
+                              </span>
 
-                  {/* Your Answer (if wrong) */}
-                  {!isCorrect && userAnswer && (
-                    <div
-                      style={{
-                        background: "rgba(239, 68, 68, 0.15)",
-                        padding: "8px 12px",
-                        borderRadius: "8px",
-                        marginBottom: "8px",
-                      }}
-                    >
-                      <span style={{ color: "#888", fontSize: "0.75em" }}>Your answer: </span>
-                      <span style={{ color: "#ef4444", textDecoration: "line-through" }}>
-                        {userAnswer.userAnswer}
-                      </span>
+                              {/* Answer - THE MAIN THING */}
+                              <span
+                                style={{
+                                  color: "#22c55e",
+                                  fontWeight: "bold",
+                                  fontSize: "0.95em",
+                                  flex: 1,
+                                }}
+                              >
+                                {q.correct}
+                              </span>
+
+                              {/* Wrong indicator */}
+                              {!isCorrect && userAnswer && (
+                                <span style={{
+                                  color: "#ef4444",
+                                  fontSize: "0.75em",
+                                  textDecoration: "line-through",
+                                  opacity: 0.7,
+                                }}>
+                                  {userAnswer.userAnswer}
+                                </span>
+                              )}
+
+                              {/* Expand button for details */}
+                              <button
+                                onClick={() => toggleDetails(q.index)}
+                                style={{
+                                  background: "rgba(255,255,255,0.1)",
+                                  border: "none",
+                                  borderRadius: "4px",
+                                  padding: "4px 6px",
+                                  color: "#a5b4fc",
+                                  cursor: "pointer",
+                                  fontSize: "0.7em",
+                                }}
+                              >
+                                {showDetails ? "−" : "+"}
+                              </button>
+
+                              {/* Speak button */}
+                              <SpeakButton text={q.correct} size="sm" variant="minimal" />
+                            </div>
+
+                            {/* Expanded details */}
+                            <AnimatePresence>
+                              {showDetails && (
+                                <motion.div
+                                  initial={{ height: 0, opacity: 0 }}
+                                  animate={{ height: "auto", opacity: 1 }}
+                                  exit={{ height: 0, opacity: 0 }}
+                                  style={{ overflow: "hidden" }}
+                                >
+                                  <div style={{
+                                    marginTop: "8px",
+                                    paddingTop: "8px",
+                                    borderTop: "1px solid rgba(255,255,255,0.1)",
+                                  }}>
+                                    {/* Question text */}
+                                    <p style={{
+                                      color: "#94a3b8",
+                                      fontSize: "0.8em",
+                                      margin: "0 0 6px 0",
+                                      lineHeight: 1.4,
+                                    }}>
+                                      {q.text}
+                                    </p>
+
+                                    {/* Explanation */}
+                                    {q.explanation && (
+                                      <p style={{
+                                        color: "#a5b4fc",
+                                        fontSize: "0.75em",
+                                        margin: 0,
+                                        paddingLeft: "8px",
+                                        borderLeft: "2px solid rgba(165, 180, 252, 0.3)",
+                                      }}>
+                                        💡 {q.explanation}
+                                      </p>
+                                    )}
+                                  </div>
+                                </motion.div>
+                              )}
+                            </AnimatePresence>
+                          </div>
+                        );
+                      })}
                     </div>
-                  )}
-
-                  {/* Correct Answer - THE MAIN THING TO COPY */}
-                  <div
-                    style={{
-                      background: "rgba(34, 197, 94, 0.2)",
-                      border: "2px solid #22c55e",
-                      padding: "12px 16px",
-                      borderRadius: "8px",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                    }}
-                  >
-                    <div>
-                      <span style={{ color: "#22c55e", fontSize: "0.75em", fontWeight: "bold" }}>
-                        ✅ CORRECT ANSWER:
-                      </span>
-                      <p
-                        style={{
-                          color: "white",
-                          fontSize: "1.1em",
-                          fontWeight: "bold",
-                          margin: "4px 0 0 0",
-                        }}
-                      >
-                        {q.correct}
-                      </p>
-                    </div>
-                    <SpeakButton text={q.correct} size="md" />
-                  </div>
-
-                  {/* Explanation (collapsed by default) */}
-                  {q.explanation && (
-                    <details style={{ marginTop: "12px" }}>
-                      <summary
-                        style={{
-                          color: "#a5b4fc",
-                          cursor: "pointer",
-                          fontSize: "0.85em",
-                        }}
-                      >
-                        💡 Why this is correct
-                      </summary>
-                      <p
-                        style={{
-                          color: "#94a3b8",
-                          fontSize: "0.85em",
-                          lineHeight: 1.5,
-                          marginTop: "8px",
-                          paddingLeft: "12px",
-                          borderLeft: "2px solid rgba(165, 180, 252, 0.3)",
-                        }}
-                      >
-                        {q.explanation}
-                      </p>
-                    </details>
-                  )}
-                </motion.div>
-              );
-            })}
-          </div>
-        ))}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          );
+        })}
       </div>
 
-      {/* Bottom Action Bar */}
+      {/* Bottom Action Bar - Compact */}
       <div
         style={{
           position: "fixed",
           bottom: 0,
           left: 0,
           right: 0,
-          background: "linear-gradient(180deg, transparent 0%, #1a1a2e 20%)",
-          padding: "20px",
+          background: "linear-gradient(180deg, transparent 0%, #1a1a2e 30%)",
+          padding: "12px 16px",
           display: "flex",
           justifyContent: "center",
         }}
@@ -335,16 +409,16 @@ export function HomeworkAnswersScreen({
           style={{
             background: "linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%)",
             border: "none",
-            borderRadius: "12px",
-            padding: "14px 32px",
+            borderRadius: "10px",
+            padding: "12px 28px",
             color: "white",
-            fontSize: "1em",
+            fontSize: "0.95em",
             fontWeight: "bold",
             cursor: "pointer",
-            boxShadow: "0 4px 20px rgba(139, 92, 246, 0.4)",
+            boxShadow: "0 4px 15px rgba(139, 92, 246, 0.4)",
           }}
         >
-          ✓ Done - Go Home
+          ✓ Done
         </button>
       </div>
     </div>
