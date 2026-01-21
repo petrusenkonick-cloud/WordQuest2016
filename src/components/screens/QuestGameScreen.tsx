@@ -1003,15 +1003,17 @@ export function QuestGameScreen({
       {showFeedback && (
         <div style={{
           position: "fixed",
-          bottom: 0,
+          bottom: 70,
           left: 0,
           right: 0,
           background: feedbackCorrect
             ? "linear-gradient(180deg, rgba(34, 197, 94, 0.95), rgba(22, 163, 74, 0.95))"
             : "linear-gradient(180deg, rgba(239, 68, 68, 0.95), rgba(220, 38, 38, 0.95))",
           padding: "20px",
+          paddingBottom: "25px",
           borderTopLeftRadius: "20px",
           borderTopRightRadius: "20px",
+          boxShadow: "0 -4px 20px rgba(0,0,0,0.3)",
         }}>
           <div style={{
             display: "flex",
