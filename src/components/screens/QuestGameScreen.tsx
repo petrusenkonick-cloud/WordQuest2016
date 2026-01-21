@@ -1005,7 +1005,7 @@ export function QuestGameScreen({
           className={`life-skills-feedback ${feedbackCorrect ? 'correct' : 'incorrect'}`}
           style={{
             position: "fixed",
-            bottom: "calc(100px + env(safe-area-inset-bottom, 0px))",
+            bottom: "calc(120px + env(safe-area-inset-bottom, 0px))",
             left: 0,
             right: 0,
             padding: "20px",
