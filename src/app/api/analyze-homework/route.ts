@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
       };
     });
 
-    // This prompt extracts EXACT questions from homework to help children solve and write answers on paper
+    // This prompt extracts EXACT questions from homework with format detection
     const prompt = `You are a homework helper AI. Analyze these ${images.length} images and determine if they contain REAL SCHOOL HOMEWORK.
 
 ## STEP 1: VALIDATION - Is this actual homework?
@@ -60,8 +60,9 @@ VALID homework includes:
 - Textbook pages with questions
 - Printed or handwritten homework assignments
 - Math problems, language exercises, science questions
-- Fill-in-the-blank sheets
+- Fill-in-the-blank sheets, matching exercises, ordering tasks
 - Multiple choice tests/quizzes
+- Reading comprehension passages
 
 INVALID (NOT homework):
 - Random photos (selfies, pets, landscapes, food)
@@ -83,72 +84,166 @@ Use these REJECTION_REASON values:
 - "UNREADABLE" - Text is too blurry or unclear to read
 - "INAPPROPRIATE" - Content is not appropriate for children
 
-## STEP 2: If valid homework, extract the EXACT questions
+## STEP 2: DETECT QUESTION FORMAT
 
-IMPORTANT: Extract the REAL questions FROM the homework page - do NOT invent new questions!
-The child needs to solve THEIR homework, then write answers on paper.
+CRITICAL: Detect the ACTUAL format of each question from the homework image!
+DO NOT force all questions into multiple choice format.
 
-Return this JSON structure:
+Supported question types:
+
+1. **multiple_choice** - ONLY when A, B, C, D options are PRINTED on the homework
+   {
+     "type": "multiple_choice",
+     "text": "Question text",
+     "options": ["A option", "B option", "C option", "D option"],
+     "correct": "The correct option text"
+   }
+
+2. **fill_blank** - Single blank to fill (___), may or may not have word bank
+   {
+     "type": "fill_blank",
+     "text": "Fill in the blank question",
+     "sentence": "The cat ___ over the fence.",
+     "options": ["jumped", "ran", "flew", "swam"],  // ONLY if word bank shown on page
+     "acceptableAnswers": ["jumped", "leaped"],     // Alternative correct spellings
+     "correct": "jumped"
+   }
+
+3. **writing_short** - Write a word or short phrase answer
+   {
+     "type": "writing_short",
+     "text": "What is the capital of France?",
+     "acceptableAnswers": ["Paris", "paris"],
+     "correct": "Paris"
+   }
+
+4. **true_false** - True/False questions
+   {
+     "type": "true_false",
+     "text": "The Earth is flat.",
+     "correctValue": false,
+     "correct": "False"
+   }
+
+5. **matching** - Connect items from left column to right column
+   {
+     "type": "matching",
+     "text": "Match the word with its definition",
+     "leftColumn": [
+       { "id": "1", "text": "happy" },
+       { "id": "2", "text": "sad" },
+       { "id": "3", "text": "angry" }
+     ],
+     "rightColumn": [
+       { "id": "A", "text": "feeling sorrow" },
+       { "id": "B", "text": "feeling joy" },
+       { "id": "C", "text": "feeling mad" }
+     ],
+     "correctPairs": [
+       { "left": "1", "right": "B" },
+       { "left": "2", "right": "A" },
+       { "left": "3", "right": "C" }
+     ],
+     "correct": "1-B, 2-A, 3-C"
+   }
+
+6. **ordering** - Put items in correct sequence
+   {
+     "type": "ordering",
+     "text": "Put these events in order",
+     "items": ["C. He ate breakfast", "A. He woke up", "D. He went to school", "B. He brushed teeth"],
+     "correctOrder": ["A. He woke up", "B. He brushed teeth", "C. He ate breakfast", "D. He went to school"],
+     "correct": "A, B, C, D"
+   }
+
+7. **reading_comprehension** - Passage with sub-questions
+   {
+     "type": "reading_comprehension",
+     "text": "Read the passage and answer the questions",
+     "passage": "Full passage text here...",
+     "passageTitle": "The Little Red Hen",
+     "subQuestions": [
+       { "type": "multiple_choice", "text": "Who helped the hen?", "options": [...], "correct": "..." },
+       { "type": "writing_short", "text": "Why didn't the cat help?", "correct": "..." }
+     ],
+     "correct": "a) No one\\nb) The cat was lazy"
+   }
+
+8. **fill_blanks_multi** - Multiple blanks in one sentence/paragraph
+   {
+     "type": "fill_blanks_multi",
+     "text": "Fill in the blanks",
+     "sentence": "The ___1___ jumped over the ___2___ moon.",
+     "blanks": [
+       { "id": "1", "acceptableAnswers": ["cow"] },
+       { "id": "2", "acceptableAnswers": ["bright", "full"] }
+     ],
+     "options": ["cow", "dog", "bright", "full", "moon"],  // ONLY if word bank shown
+     "correct": "(1) cow (2) bright"
+   }
+
+9. **writing_sentence** - Write complete sentence(s)
+   {
+     "type": "writing_sentence",
+     "text": "Write a sentence using the word 'because'",
+     "modelAnswer": "I was late because the bus broke down.",
+     "keyElements": ["because"],
+     "correct": "I was late because the bus broke down."
+   }
+
+10. **correction** - Find and fix errors in text
+    {
+      "type": "correction",
+      "text": "Find and correct the errors",
+      "errorText": "She walk to the store yesterday.",
+      "correctedText": "She walked to the store yesterday.",
+      "errors": [{ "original": "walk", "correction": "walked" }],
+      "correct": "walked (not walk)"
+    }
+
+11. **categorization** - Sort items into groups
+    {
+      "type": "categorization",
+      "text": "Sort these words into nouns and verbs",
+      "items": ["cat", "run", "dog", "jump", "tree", "swim"],
+      "categories": [
+        { "name": "Nouns", "correctItems": ["cat", "dog", "tree"] },
+        { "name": "Verbs", "correctItems": ["run", "jump", "swim"] }
+      ],
+      "correct": "Nouns: cat, dog, tree | Verbs: run, jump, swim"
+    }
+
+## CRITICAL RULES:
+
+1. **DETECT THE REAL FORMAT** - Look at the homework image and identify what type of question it actually is
+2. **DO NOT FORCE OPTIONS** - Only include "options" if they are PRINTED on the homework page
+3. For fill-in-blank without word bank: use "fill_blank" with NO options field
+4. For matching exercises: use "matching" type, NOT multiple choice
+5. For ordering/sequencing: use "ordering" type
+6. **The "correct" field MUST be paper-ready** - exactly what child writes on paper
+7. Extract questions EXACTLY as written on the homework page
+8. Keep the SAME order as on the paper
+9. Include original question number (1, 2, a, b, etc.)
+10. "pageRef" = which photo (1 to ${images.length}) the question is from
+11. Extract ALL questions visible on all ${images.length} pages
+
+## RESPONSE FORMAT:
+
 {
   "isValid": true,
-  "subject": "the subject (Math, English, Science, etc.)",
+  "subject": "English/Math/Science/etc.",
   "grade": "estimated grade level",
   "topics": ["topics covered"],
   "gameName": "HOMEWORK HELPER: [SUBJECT]",
   "gameIcon": "📚",
   "questions": [
-    {
-      "text": "EXACT question text from the homework page",
-      "originalNumber": "1" or "a)" or whatever numbering is on the page,
-      "type": "multiple_choice OR fill_blank OR short_answer",
-      "options": ["option1", "option2", "option3", "option4"] (if multiple choice on the page),
-      "correct": "THE COMPLETE CORRECT ANSWER - child will write this on paper!",
-      "explanation": "Step-by-step explanation how to get this answer",
-      "hint": "Helpful hint without giving away the answer",
-      "pageRef": 1
-    }
-  ]
-}
-
-## CRITICAL RULES FOR QUESTION EXTRACTION:
-
-1. Extract questions EXACTLY as written on the homework page
-2. Keep the SAME order as on the paper
-3. Include the original question number (1, 2, a, b, etc.)
-4. The "correct" field must have the FULL answer the child will write on paper:
-   - Math: "56" (the answer)
-   - Fill-blank: "running" (the missing word)
-   - Sentence: The complete sentence answer
-5. "pageRef" = which photo (1 to ${images.length}) the question is from
-6. Extract ALL questions visible on all ${images.length} pages
-7. For math problems, show the answer AND brief solution steps in explanation
-8. Explanations should help the child UNDERSTAND, not just copy
-
-## MANDATORY: ALWAYS PROVIDE 4 OPTIONS FOR EVERY QUESTION!
-
-CRITICAL: Every question MUST have exactly 4 "options" - realistic answers that could confuse a student:
-
-- "opposite of X" → [correct opposite, word with different prefix, similar word, related word]
-  Example: "opposite of unload" → ["load", "reload", "upload", "download"]
-
-- "fill in blank" → [correct word, similar grammar form, common mistake, related word]
-  Example: "She ___ to school" → ["walks", "walk", "walking", "walked"]
-
-- "math problem" → [correct answer, common calculation error, off-by-one, reversed digits]
-  Example: "7 × 8 = ?" → ["56", "54", "48", "65"]
-
-NEVER use generic options like "None of the above", "All of the above", "Cannot be determined"!
-Options must be REALISTIC wrong answers that test the child's knowledge.
-
-## DIFFICULTY ANALYSIS (REQUIRED):
-
-You MUST include a "difficulty" object in your response:
-{
+    // Array of questions with appropriate type-specific fields
+  ],
   "difficulty": {
-    "gradeLevel": 5,           // Estimated grade level 1-11 based on content complexity
-    "multiplier": 1.3,         // Score multiplier: Grade 1-2 = 1.0, Grade 3-4 = 1.2, Grade 5-6 = 1.4, Grade 7-8 = 1.6, Grade 9-11 = 1.8-2.0
-    "topics": ["fractions", "word problems"],  // Main topics detected
-    "complexity": "medium"     // "easy", "medium", "hard" based on cognitive demands
+    "gradeLevel": 5,
+    "multiplier": 1.4,
+    "topics": ["grammar", "vocabulary"],
+    "complexity": "medium"
   }
 }
 
@@ -371,22 +466,12 @@ Return ONLY the JSON, no markdown, no extra text.`;
     // Add totalPages and ensure all required fields exist for ordering
     result.totalPages = images.length;
     result.isHomework = true; // Mark as validated homework
-    result.questions = result.questions.map((q: {
-      pageRef?: number;
-      text?: string;
-      correct?: string;
-      explanation?: string;
-      originalNumber?: string;
-      options?: string[];
-    }, index: number) => {
-      // CRITICAL: Shuffle the options to prevent first-answer-always-correct bug
-      const shuffledOptions = q.options && Array.isArray(q.options)
-        ? shuffleArray(q.options)
-        : q.options;
 
-      return {
+    // Process each question based on its type
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    result.questions = result.questions.map((q: any, index: number) => {
+      const processedQuestion = {
         ...q,
-        options: shuffledOptions,
         pageRef: q.pageRef || Math.floor(index / Math.ceil(result.questions.length / images.length)) + 1,
         // Ensure full answer is preserved for paper writing
         fullAnswer: q.correct,
@@ -394,6 +479,62 @@ Return ONLY the JSON, no markdown, no extra text.`;
         // Keep original numbering for matching with paper
         questionNumber: q.originalNumber || `${index + 1}`,
       };
+
+      // Type-specific processing
+      switch (q.type) {
+        case "multiple_choice":
+        case "fill_blank":
+        case "fill_blanks_multi":
+          // Shuffle options if they exist (for MCQ and word banks)
+          if (q.options && Array.isArray(q.options)) {
+            processedQuestion.options = shuffleArray(q.options);
+          }
+          break;
+
+        case "matching":
+          // Shuffle right column for matching exercises
+          if (q.rightColumn && Array.isArray(q.rightColumn)) {
+            processedQuestion.rightColumn = shuffleArray(q.rightColumn);
+          }
+          break;
+
+        case "ordering":
+          // Shuffle items for ordering exercises (they come pre-shuffled from AI but ensure it)
+          if (q.items && Array.isArray(q.items)) {
+            processedQuestion.items = shuffleArray(q.items);
+          }
+          break;
+
+        case "categorization":
+          // Shuffle items for categorization
+          if (q.items && Array.isArray(q.items)) {
+            processedQuestion.items = shuffleArray(q.items);
+          }
+          break;
+
+        case "reading_comprehension":
+          // Process sub-questions recursively
+          if (q.subQuestions && Array.isArray(q.subQuestions)) {
+            processedQuestion.subQuestions = q.subQuestions.map((sq: { type: string; options?: string[] }, sqIndex: number) => {
+              const processedSub = { ...sq };
+              if (sq.type === "multiple_choice" && sq.options && Array.isArray(sq.options)) {
+                processedSub.options = shuffleArray(sq.options);
+              }
+              return {
+                ...processedSub,
+                subIndex: sqIndex,
+              };
+            });
+          }
+          break;
+
+        default:
+          // For text input types (writing_short, writing_sentence, correction, true_false)
+          // No shuffling needed
+          break;
+      }
+
+      return processedQuestion;
     });
 
     console.log(`Successfully extracted ${result.questions.length} homework questions from ${images.length} pages`);

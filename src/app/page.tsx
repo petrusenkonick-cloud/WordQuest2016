@@ -37,6 +37,11 @@ import { GemHubScreen } from "@/components/screens/GemHubScreen";
 import { WeeklyQuestsScreen } from "@/components/screens/WeeklyQuestsScreen";
 import { HomeworkAnswersScreen } from "@/components/screens/HomeworkAnswersScreen";
 import { HomeworkScreen } from "@/components/screens/HomeworkScreen";
+
+// Homework question renderers and validation
+import { QuestionRenderer } from "@/components/homework/QuestionRenderers";
+import { validateAnswer, type ValidationResult } from "@/lib/homework/answerValidation";
+import type { HomeworkQuestion } from "@/types/homework";
 import { GamesScreen } from "@/components/screens/GamesScreen";
 import { ChapterMapScreen } from "@/components/screens/ChapterMapScreen";
 import { QuestGameScreen } from "@/components/screens/QuestGameScreen";
@@ -602,7 +607,7 @@ export default function Home() {
   const [homeworkAnswers, setHomeworkAnswers] = useState<Array<{ questionIndex: number; userAnswer: string; isCorrect: boolean }>>([]);
   const [showHomeworkAnswers, setShowHomeworkAnswers] = useState(false);
   const [completedHomeworkData, setCompletedHomeworkData] = useState<AIAnalysisResult | null>(null);
-  const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
+  const [selectedAnswer, setSelectedAnswer] = useState<string | boolean | string[] | Record<string, string> | Record<string, string[]> | null>(null);
   const [showFeedback, setShowFeedback] = useState(false);
   const [feedbackCorrect, setFeedbackCorrect] = useState(false);
   const [showExplanation, setShowExplanation] = useState(false);
@@ -1476,8 +1481,9 @@ export default function Home() {
   }, []);
 
   // Handle answer selection in AI game - Multiple attempts system
+  // Supports both string answers (legacy) and complex answer types (new format)
   const handleAnswerSelect = useCallback(
-    async (answer: string) => {
+    async (answer: string | boolean | string[] | Record<string, string> | Record<string, string[]>) => {
       if (showFeedback || !aiGameData) return;
 
       // Anti-cheat: Record response time (only on first attempt per question)
@@ -1505,30 +1511,59 @@ export default function Home() {
       setSelectedAnswer(answer);
       const currentQ = aiGameData.questions[aiGameProgress.current];
 
-      // Smart answer comparison to handle multiple formats:
-      // - Direct match: "Perfect and without any mistakes" === "Perfect and without any mistakes"
-      // - Letter match: "E) Perfect..." starts with "E" (when correct is just a letter)
-      // - Text match: "E) Perfect..." contains "Perfect..." (when correct is the text without letter)
-      const answerLower = answer.toLowerCase().trim();
-      const correctLower = currentQ.correct.toLowerCase().trim();
+      // Convert answer to string for functions that expect string parameters
+      const answerAsString = typeof answer === 'string' ? answer
+        : typeof answer === 'boolean' ? String(answer)
+        : Array.isArray(answer) ? answer.join(', ')
+        : JSON.stringify(answer);
 
-      // Extract letter prefix if present (e.g., "E)" from "E) Perfect...")
-      const answerLetterMatch = answerLower.match(/^([a-e])\)/);
-      const answerLetter = answerLetterMatch ? answerLetterMatch[1] : null;
-      const answerTextOnly = answerLower.replace(/^[a-e]\)\s*/, '');
+      // Use the new flexible validation system for homework questions
+      // This handles multiple question types: MCQ, fill-blank, matching, ordering, etc.
+      let isCorrect = false;
+      let validationFeedback: string | undefined;
 
-      // Check if correct is just a letter (A, B, C, D, E)
-      const correctIsJustLetter = /^[a-e]\.?$/.test(correctLower);
-      const correctLetter = correctIsJustLetter ? correctLower.replace('.', '') : null;
-      const correctTextOnly = correctLower.replace(/^[a-e]\)\s*/, '');
+      // Check if this is a new-format homework question (has explicit type)
+      if (currentQ.type && ["multiple_choice", "fill_blank", "writing_short", "true_false",
+        "matching", "ordering", "reading_comprehension", "fill_blanks_multi",
+        "writing_sentence", "correction", "categorization"].includes(currentQ.type)) {
+        // Use the new validation system
+        const validationResult: ValidationResult = validateAnswer(
+          currentQ as HomeworkQuestion,
+          answer
+        );
+        isCorrect = validationResult.isCorrect;
+        validationFeedback = validationResult.feedback;
+      } else {
+        // Legacy validation for older questions (fallback to string comparison)
+        // Smart answer comparison to handle multiple formats:
+        // - Direct match: "Perfect and without any mistakes" === "Perfect and without any mistakes"
+        // - Letter match: "E) Perfect..." starts with "E" (when correct is just a letter)
+        const answerLower = (typeof answer === 'string' ? answer : String(answer)).toLowerCase().trim();
+        const correctLower = currentQ.correct.toLowerCase().trim();
 
-      const isCorrect =
-        answerLower === correctLower || // Direct match
-        (answerLetter && correctLetter && answerLetter === correctLetter) || // Letter matches letter
-        (answerLetter && answerLetter === correctLower.charAt(0) && correctIsJustLetter) || // Answer letter matches correct letter
-        answerTextOnly === correctTextOnly || // Text without letters matches
-        answerTextOnly === correctLower || // Answer text matches full correct
-        answerLower === correctTextOnly; // Full answer matches correct text
+        // Extract letter prefix if present (e.g., "E)" from "E) Perfect...")
+        const answerLetterMatch = answerLower.match(/^([a-e])\)/);
+        const answerLetter = answerLetterMatch ? answerLetterMatch[1] : null;
+        const answerTextOnly = answerLower.replace(/^[a-e]\)\s*/, '');
+
+        // Check if correct is just a letter (A, B, C, D, E)
+        const correctIsJustLetter = /^[a-e]\.?$/.test(correctLower);
+        const correctLetter = correctIsJustLetter ? correctLower.replace('.', '') : null;
+        const correctTextOnly = correctLower.replace(/^[a-e]\)\s*/, '');
+
+        isCorrect =
+          answerLower === correctLower || // Direct match
+          (answerLetter && correctLetter && answerLetter === correctLetter) || // Letter matches letter
+          (answerLetter && answerLetter === correctLower.charAt(0) && correctIsJustLetter) || // Answer letter matches correct letter
+          answerTextOnly === correctTextOnly || // Text without letters matches
+          answerTextOnly === correctLower || // Answer text matches full correct
+          answerLower === correctTextOnly; // Full answer matches correct text
+      }
+
+      // Store validation feedback for display
+      if (validationFeedback) {
+        console.log("Validation feedback:", validationFeedback);
+      }
 
       setFeedbackCorrect(isCorrect);
       setShowFeedback(true);
@@ -1539,7 +1574,7 @@ export default function Home() {
           await answerPracticeQuestion({
             questId: currentPracticeQuestId,
             questionIndex: aiGameProgress.current,
-            answer,
+            answer: answerAsString,
             isCorrect,
           });
         } catch (err) {
@@ -1565,10 +1600,16 @@ export default function Home() {
       if (isCorrect) {
         // Track final answer for homework summary (correct after any attempts)
         if (currentHomeworkSessionId) {
+          // Convert complex answer types to string for storage
+          const answerStr = typeof answer === 'string' ? answer
+            : typeof answer === 'boolean' ? String(answer)
+            : Array.isArray(answer) ? answer.join(', ')
+            : JSON.stringify(answer);
+
           // Calculate new answers for both state and database
           const newAnswer = {
             questionIndex: aiGameProgress.current,
-            userAnswer: answer,
+            userAnswer: answerStr,
             isCorrect: true,
           };
 
@@ -1682,9 +1723,15 @@ export default function Home() {
 
         // Track homework answer only on first wrong attempt
         if (currentHomeworkSessionId && currentQuestionAttempts === 0) {
+          // Convert complex answer types to string for storage
+          const answerStr = typeof answer === 'string' ? answer
+            : typeof answer === 'boolean' ? String(answer)
+            : Array.isArray(answer) ? answer.join(', ')
+            : JSON.stringify(answer);
+
           const newAnswer = {
             questionIndex: aiGameProgress.current,
-            userAnswer: answer,
+            userAnswer: answerStr,
             isCorrect: false,
           };
 
@@ -1710,9 +1757,9 @@ export default function Home() {
               playerId,
               topic,
               subject: aiGameData.subject,
-              errorType: detectErrorType(currentQ.text, answer, currentQ.correct),
+              errorType: detectErrorType(currentQ.text, answerAsString, currentQ.correct),
               question: currentQ.text,
-              wrongAnswer: answer,
+              wrongAnswer: answerAsString,
               correctAnswer: currentQ.correct,
               source: "homework",
               homeworkSessionId: currentHomeworkSessionId || undefined,
@@ -1748,7 +1795,7 @@ export default function Home() {
                   originalCorrect: currentQ.correct,
                   topic,
                   subject: aiGameData.subject,
-                  wrongAnswer: answer,
+                  wrongAnswer: answerAsString,
                   difficulty: "easier",
                 }),
               });
@@ -1763,7 +1810,7 @@ export default function Home() {
                 setLoadingSimilarQuestion(false);
                 setExplanationData({
                   question: currentQ.text,
-                  userAnswer: answer,
+                  userAnswer: answerAsString,
                   correctAnswer: currentQ.correct,
                   explanation: currentQ.explanation,
                   hint: currentQ.hint,
@@ -1777,7 +1824,7 @@ export default function Home() {
               setLoadingSimilarQuestion(false);
               setExplanationData({
                 question: currentQ.text,
-                userAnswer: answer,
+                userAnswer: answerAsString,
                 correctAnswer: currentQ.correct,
                 explanation: currentQ.explanation,
                 hint: currentQ.hint,
@@ -2799,43 +2846,58 @@ export default function Home() {
         )}
 
         {!showSimilarQuestion && !loadingSimilarQuestion && !showVerificationQuestion && !loadingVerificationQuestion && (
-          currentQ.type === "fill_blank" ? (
-            <div className="fill-blank-input">
-              <input
-                type="text"
-                placeholder="Type your answer..."
-                className="player-input"
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    handleAnswerSelect((e.target as HTMLInputElement).value);
-                  }
-                }}
-                disabled={showFeedback}
-              />
-              <button
-                className="btn btn-primary"
-                onClick={() => {
-                  const input = document.querySelector(".fill-blank-input input") as HTMLInputElement;
-                  handleAnswerSelect(input?.value || "");
-                }}
-                disabled={showFeedback}
-              >
-                CHECK
-              </button>
-            </div>
+          // Use the new flexible QuestionRenderer for new-format questions
+          currentQ.type && ["multiple_choice", "fill_blank", "writing_short", "true_false",
+            "matching", "ordering", "reading_comprehension", "fill_blanks_multi",
+            "writing_sentence", "correction", "categorization"].includes(currentQ.type) ? (
+            <QuestionRenderer
+              question={currentQ as HomeworkQuestion}
+              onAnswer={handleAnswerSelect}
+              disabled={showFeedback}
+              showFeedback={showFeedback}
+              isCorrect={feedbackCorrect}
+              selectedAnswer={selectedAnswer}
+            />
           ) : (
-            <div className="options-grid">
-              {currentQ.options?.map((option) => (
+            // Legacy rendering for older questions (simple fill_blank or MCQ)
+            currentQ.type === "fill_blank" || (!currentQ.options || currentQ.options.length === 0) ? (
+              <div className="fill-blank-input">
+                <input
+                  type="text"
+                  placeholder="Type your answer..."
+                  className="player-input"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      handleAnswerSelect((e.target as HTMLInputElement).value);
+                    }
+                  }}
+                  disabled={showFeedback}
+                />
                 <button
-                  key={option}
-                  className={`option-btn ${selectedAnswer === option ? (feedbackCorrect ? "correct" : "wrong") : ""}`}
-                  onClick={() => handleAnswerSelect(option)}
+                  className="btn btn-primary"
+                  onClick={() => {
+                    const input = document.querySelector(".fill-blank-input input") as HTMLInputElement;
+                    handleAnswerSelect(input?.value || "");
+                  }}
                   disabled={showFeedback}
                 >
-                  {option}
+                  CHECK
                 </button>
-              ))}
-            </div>
+              </div>
+            ) : (
+              <div className="options-grid">
+                {currentQ.options?.map((option) => (
+                  <button
+                    key={option}
+                    className={`option-btn ${selectedAnswer === option ? (feedbackCorrect ? "correct" : "wrong") : ""}`}
+                    onClick={() => handleAnswerSelect(option)}
+                    disabled={showFeedback}
+                  >
+                    {option}
+                  </button>
+                ))}
+              </div>
+            )
           )
         )}
         </div>

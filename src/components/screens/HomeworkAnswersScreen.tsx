@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { SpeakButton } from "@/components/ui/SpeakButton";
 
@@ -12,6 +12,25 @@ interface Question {
   explanation?: string;
   hint?: string;
   pageRef?: number;
+  originalNumber?: string; // Original question number from homework (e.g., "1", "a)", "Q1")
+  questionNumber?: string; // Processed question number
+  // Extended fields for new question types
+  sentence?: string;
+  leftColumn?: { id: string; text: string }[];
+  rightColumn?: { id: string; text: string }[];
+  correctPairs?: { left: string; right: string }[];
+  items?: string[];
+  correctOrder?: string[];
+  passage?: string;
+  passageTitle?: string;
+  subQuestions?: Question[];
+  blanks?: { id: string; acceptableAnswers: string[] }[];
+  modelAnswer?: string;
+  errorText?: string;
+  correctedText?: string;
+  errors?: { original: string; correction: string }[];
+  categories?: { name: string; correctItems: string[] }[];
+  correctValue?: boolean;
 }
 
 interface UserAnswer {
@@ -27,6 +46,129 @@ interface HomeworkAnswersScreenProps {
   questions: Question[];
   userAnswers: UserAnswer[];
   onClose: () => void;
+}
+
+// Helper function to get question type icon
+function getTypeIcon(type: string): string {
+  switch (type) {
+    case "multiple_choice": return "🔘";
+    case "fill_blank": return "✏️";
+    case "writing_short": return "📝";
+    case "true_false": return "✓✗";
+    case "matching": return "🔗";
+    case "ordering": return "📊";
+    case "reading_comprehension": return "📖";
+    case "fill_blanks_multi": return "✏️";
+    case "writing_sentence": return "📝";
+    case "correction": return "🔧";
+    case "categorization": return "📁";
+    default: return "•";
+  }
+}
+
+// Helper function to render matching pairs visually
+function renderMatchingPairs(q: Question): React.ReactNode {
+  if (!q.correctPairs || !q.leftColumn || !q.rightColumn) return q.correct;
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+      {q.correctPairs.map((pair, i) => {
+        const leftItem = q.leftColumn?.find(l => l.id === pair.left);
+        const rightItem = q.rightColumn?.find(r => r.id === pair.right);
+        return (
+          <span key={i} style={{ fontSize: "0.85em" }}>
+            {leftItem?.text || pair.left} → {rightItem?.text || pair.right}
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
+// Helper function to render ordering visually
+function renderOrderingAnswer(q: Question): React.ReactNode {
+  if (!q.correctOrder) return q.correct;
+
+  return (
+    <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
+      {q.correctOrder.map((item, i) => (
+        <span
+          key={i}
+          style={{
+            background: "rgba(34, 197, 94, 0.2)",
+            padding: "2px 6px",
+            borderRadius: "4px",
+            fontSize: "0.85em",
+          }}
+        >
+          {i + 1}. {item}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+// Helper function to render categorization answer
+function renderCategorizationAnswer(q: Question): React.ReactNode {
+  if (!q.categories) return q.correct;
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+      {q.categories.map((cat, i) => (
+        <div key={i} style={{ fontSize: "0.85em" }}>
+          <span style={{ fontWeight: "bold", color: "#a5b4fc" }}>{cat.name}:</span>{" "}
+          {cat.correctItems.join(", ")}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// Format answer display based on question type
+function formatAnswerDisplay(q: Question & { index: number }): React.ReactNode {
+  // For complex types, show structured display
+  switch (q.type) {
+    case "matching":
+      return renderMatchingPairs(q);
+    case "ordering":
+      return renderOrderingAnswer(q);
+    case "categorization":
+      return renderCategorizationAnswer(q);
+    case "reading_comprehension":
+      // Show sub-question answers
+      if (q.subQuestions) {
+        return (
+          <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+            {q.subQuestions.map((sub, i) => (
+              <span key={i} style={{ fontSize: "0.85em" }}>
+                {String.fromCharCode(97 + i)}) {sub.correct}
+              </span>
+            ))}
+          </div>
+        );
+      }
+      return q.correct;
+    case "correction":
+      // Show the corrected text
+      if (q.correctedText) {
+        return (
+          <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+            <span style={{ fontSize: "0.85em" }}>{q.correctedText}</span>
+            {q.errors && q.errors.length > 0 && (
+              <span style={{ fontSize: "0.75em", color: "#fbbf24" }}>
+                ({q.errors.map(e => `${e.original}→${e.correction}`).join(", ")})
+              </span>
+            )}
+          </div>
+        );
+      }
+      return q.correct;
+    case "true_false":
+      return q.correctValue ? "✓ True" : "✗ False";
+    default:
+      // Simple text answer for MCQ, fill_blank, writing types
+      return q.correct;
+  }
 }
 
 export function HomeworkAnswersScreen({
@@ -271,72 +413,93 @@ export function HomeworkAnswersScreen({
                               marginBottom: "4px",
                             }}
                           >
-                            {/* Compact answer row */}
+                            {/* Paper-friendly answer row - easy to copy */}
                             <div
                               style={{
                                 display: "flex",
-                                alignItems: "center",
-                                gap: "8px",
+                                alignItems: "flex-start",
+                                gap: "10px",
                               }}
                             >
-                              {/* Question number */}
+                              {/* Question number - matches homework format */}
                               <span
                                 style={{
                                   background: isCorrect ? "#22c55e" : "#ef4444",
                                   color: "white",
-                                  padding: "2px 6px",
-                                  borderRadius: "4px",
-                                  fontSize: "0.75em",
+                                  padding: "4px 8px",
+                                  borderRadius: "6px",
+                                  fontSize: "0.9em",
                                   fontWeight: "bold",
-                                  minWidth: "28px",
+                                  minWidth: "36px",
                                   textAlign: "center",
+                                  fontFamily: "monospace",
                                 }}
                               >
-                                {q.index + 1}
+                                {q.originalNumber || q.questionNumber || `${q.index + 1}`}
                               </span>
 
-                              {/* Answer - THE MAIN THING */}
-                              <span
-                                style={{
-                                  color: "#22c55e",
-                                  fontWeight: "bold",
-                                  fontSize: "0.95em",
-                                  flex: 1,
-                                }}
-                              >
-                                {q.correct}
-                              </span>
+                              {/* Answer in paper-ready format */}
+                              <div style={{ flex: 1 }}>
+                                {/* Main answer - big and clear for copying */}
+                                <div
+                                  style={{
+                                    color: "#22c55e",
+                                    fontWeight: "bold",
+                                    fontSize: "1.1em",
+                                    lineHeight: 1.4,
+                                    padding: "2px 0",
+                                  }}
+                                >
+                                  {formatAnswerDisplay(q)}
+                                </div>
+
+                                {/* Show sentence context for fill_blank */}
+                                {q.type === "fill_blank" && q.sentence && (
+                                  <div style={{
+                                    color: "#94a3b8",
+                                    fontSize: "0.8em",
+                                    marginTop: "4px",
+                                    fontStyle: "italic",
+                                  }}>
+                                    {q.sentence.replace(/___+/g, `[${q.correct}]`)}
+                                  </div>
+                                )}
+                              </div>
 
                               {/* Wrong indicator */}
                               {!isCorrect && userAnswer && (
                                 <span style={{
                                   color: "#ef4444",
-                                  fontSize: "0.75em",
+                                  fontSize: "0.8em",
                                   textDecoration: "line-through",
                                   opacity: 0.7,
+                                  padding: "4px 6px",
+                                  background: "rgba(239, 68, 68, 0.1)",
+                                  borderRadius: "4px",
                                 }}>
                                   {userAnswer.userAnswer}
                                 </span>
                               )}
 
-                              {/* Expand button for details */}
-                              <button
-                                onClick={() => toggleDetails(q.index)}
-                                style={{
-                                  background: "rgba(255,255,255,0.1)",
-                                  border: "none",
-                                  borderRadius: "4px",
-                                  padding: "4px 6px",
-                                  color: "#a5b4fc",
-                                  cursor: "pointer",
-                                  fontSize: "0.7em",
-                                }}
-                              >
-                                {showDetails ? "−" : "+"}
-                              </button>
-
-                              {/* Speak button */}
-                              <SpeakButton text={q.correct} size="sm" variant="minimal" />
+                              {/* Actions */}
+                              <div style={{ display: "flex", gap: "4px", alignItems: "center" }}>
+                                <button
+                                  onClick={() => toggleDetails(q.index)}
+                                  style={{
+                                    background: "rgba(255,255,255,0.1)",
+                                    border: "none",
+                                    borderRadius: "4px",
+                                    padding: "6px 8px",
+                                    color: "#a5b4fc",
+                                    cursor: "pointer",
+                                    fontSize: "0.75em",
+                                  }}
+                                  title="Show question details"
+                                >
+                                  {showDetails ? "−" : "?"}
+                                </button>
+                                <SpeakButton text={q.correct} size="sm" variant="minimal" />
+                              </div>
                             </div>
 
                             {/* Expanded details */}
