@@ -9,7 +9,7 @@ function getDeviceId(): string {
 }
 import { useAppStore } from "@/lib/store";
 import { useConvexSync } from "@/components/providers/ConvexSyncProvider";
-import { useMutation, useQuery } from "convex/react";
+import { useMutation, useQuery, useConvex } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 
@@ -482,6 +482,7 @@ export default function Home() {
     isLoading: convexLoading,
     isLoggedIn,
     playerId,
+    effectiveUserId, // Use this for security checks instead of deviceId
     levelProgress,
     inventory: convexInventory,
     ownedItems: convexOwnedItems,
@@ -501,6 +502,7 @@ export default function Home() {
   const createHomeworkSession = useMutation(api.homework.createHomeworkSession);
   const completeHomeworkSession = useMutation(api.homework.completeHomeworkSession);
   const savePartialProgress = useMutation(api.homework.savePartialProgress);
+  const convex = useConvex(); // For imperative queries
 
   // Error tracking mutation
   const trackError = useMutation(api.errors.trackError);
@@ -896,7 +898,7 @@ export default function Home() {
     if (!playerId || !milestoneLevel) return;
 
     try {
-      const result = await claimMilestoneReward({ playerId, milestoneLevel, callerClerkId: deviceId });
+      const result = await claimMilestoneReward({ playerId, milestoneLevel, callerClerkId: effectiveUserId });
       if (result?.success && result.rewards) {
         // Spawn celebration particles
         spawnParticles(["🎉", "⭐", "✨", "🏆"]);
@@ -916,10 +918,10 @@ export default function Home() {
       console.error("Failed to claim milestone:", error);
       hideMilestoneModalFn();
     }
-  }, [playerId, milestoneLevel, claimMilestoneReward, spawnParticles, setPlayer, player, hideMilestoneModalFn, deviceId]);
+  }, [playerId, milestoneLevel, claimMilestoneReward, spawnParticles, setPlayer, player, hideMilestoneModalFn, effectiveUserId]);
 
   // Play a saved homework session from WEEKLY QUESTS
-  const handlePlayHomework = useCallback((homework: {
+  const handlePlayHomework = useCallback(async (homework: {
     _id: Id<"homeworkSessions">;
     subject: string;
     grade: string;
@@ -941,15 +943,29 @@ export default function Home() {
       isCorrect: boolean;
     }[];
   }) => {
+    // Fetch fresh session data to get latest userAnswers (progress)
+    let freshHomework = homework;
+    try {
+      const freshData = await convex.query(api.homework.getHomeworkSession, { sessionId: homework._id });
+      if (freshData) {
+        freshHomework = freshData as typeof homework;
+        if (freshHomework.userAnswers && freshHomework.userAnswers.length > 0) {
+          console.log(`📚 Resuming homework with ${freshHomework.userAnswers.length} saved answers`);
+        }
+      }
+    } catch (err) {
+      console.warn("Could not fetch fresh homework data:", err);
+    }
+
     // VALIDATION: Check if homework has questions
-    if (!homework.questions || homework.questions.length === 0) {
-      console.error("Homework has no questions:", homework);
+    if (!freshHomework.questions || freshHomework.questions.length === 0) {
+      console.error("Homework has no questions:", freshHomework);
       alert("Error: No questions found in homework! Try scanning again.");
       return;
     }
 
     // VALIDATION: Filter out invalid questions
-    const validQuestions = homework.questions.filter(q => {
+    const validQuestions = freshHomework.questions.filter(q => {
       // Must have text and correct answer
       if (!q.text || !q.correct) return false;
       // For multiple choice, must have at least 2 options
@@ -958,13 +974,13 @@ export default function Home() {
     });
 
     if (validQuestions.length === 0) {
-      console.error("No valid questions in homework:", homework);
+      console.error("No valid questions in homework:", freshHomework);
       alert("Error: Homework questions are invalid! Try scanning again.");
       return;
     }
 
     // Check if resuming from partial progress
-    const savedAnswers = homework.userAnswers || [];
+    const savedAnswers = freshHomework.userAnswers || [];
     const isResuming = savedAnswers.length > 0 && savedAnswers.length < validQuestions.length;
 
     // Convert homework session to AIAnalysisResult format
@@ -983,17 +999,21 @@ export default function Home() {
     });
 
     const gameData: AIAnalysisResult = {
-      subject: homework.subject,
-      grade: homework.grade,
-      topics: homework.topics,
+      subject: freshHomework.subject,
+      grade: freshHomework.grade,
+      topics: freshHomework.topics,
       totalPages: 1,
-      gameName: homework.gameName,
-      gameIcon: homework.gameIcon,
+      gameName: freshHomework.gameName,
+      gameIcon: freshHomework.gameIcon,
       questions: isResuming ? mappedQuestions : shuffleArray(mappedQuestions), // Only shuffle on fresh start
     };
 
     // Set the homework session ID for completion tracking
-    setCurrentHomeworkSessionId(homework._id);
+    setCurrentHomeworkSessionId(freshHomework._id);
+
+    // Clear any previous homework answers screen state
+    setShowHomeworkAnswers(false);
+    setCompletedHomeworkData(null);
 
     // Calculate progress from saved answers
     const correctCount = savedAnswers.filter(a => a.isCorrect).length;
@@ -1019,7 +1039,7 @@ export default function Home() {
     if (isResuming) {
       console.log(`📚 Resuming homework: ${startQuestion}/${validQuestions.length} questions completed`);
     }
-  }, []);
+  }, [convex]);
 
   // View answers for a completed homework session (from history)
   const handleViewHomeworkAnswers = useCallback((homework: {
@@ -1621,7 +1641,7 @@ export default function Home() {
             savePartialProgress({
               sessionId: currentHomeworkSessionId,
               userAnswers: updatedAnswers,
-              callerClerkId: deviceId || undefined,
+              callerClerkId: effectiveUserId || undefined,
             }).catch(err => console.error("Failed to save partial progress:", err));
 
             return updatedAnswers;
@@ -1742,7 +1762,7 @@ export default function Home() {
             savePartialProgress({
               sessionId: currentHomeworkSessionId,
               userAnswers: updatedAnswers,
-              callerClerkId: deviceId || undefined,
+              callerClerkId: effectiveUserId || undefined,
             }).catch(err => console.error("Failed to save partial progress:", err));
 
             return updatedAnswers;

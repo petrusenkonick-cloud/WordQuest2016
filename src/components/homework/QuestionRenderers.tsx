@@ -381,6 +381,17 @@ export function MatchingRenderer({
   const [selectedLeft, setSelectedLeft] = useState<string | null>(null);
   const [pairs, setPairs] = useState<Record<string, string>>({});
 
+  // Safety check - if question doesn't have required properties, show error
+  if (!q.leftColumn || !q.rightColumn || !q.correctPairs) {
+    console.error("MatchingRenderer: Invalid question format", q);
+    return (
+      <div style={{ color: "#ef4444", padding: "20px", textAlign: "center" }}>
+        <p>Invalid matching question format</p>
+        <p style={{ fontSize: "0.8em", color: "#888" }}>Missing required columns. Please try a different question.</p>
+      </div>
+    );
+  }
+
   const handleLeftClick = (id: string) => {
     if (disabled) return;
     setSelectedLeft(selectedLeft === id ? null : id);
@@ -1272,8 +1283,20 @@ export function QuestionRenderer(props: RendererProps) {
       return <WritingShortRenderer {...props} />;
     case "true_false":
       return <TrueFalseRenderer {...props} />;
-    case "matching":
+    case "matching": {
+      // Validate matching question has required properties
+      const matchQ = question as MatchingQuestion;
+      if (!matchQ.leftColumn || !matchQ.rightColumn || !matchQ.correctPairs) {
+        console.error("QuestionRenderer: Invalid matching question", matchQ);
+        return (
+          <div style={{ color: "#ef4444", padding: "20px", textAlign: "center" }}>
+            <p>Invalid matching question format</p>
+            <p style={{ fontSize: "0.8em", color: "#888" }}>This question is corrupted. Please skip it.</p>
+          </div>
+        );
+      }
       return <MatchingRenderer {...props} />;
+    }
     case "ordering":
       return <OrderingRenderer {...props} />;
     case "reading_comprehension":

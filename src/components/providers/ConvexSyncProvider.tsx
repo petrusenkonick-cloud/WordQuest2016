@@ -24,6 +24,7 @@ interface ConvexSyncContextType {
   isLoggedIn: boolean;
   isSignedIn: boolean; // Clerk authentication status
   playerId: Id<"players"> | null;
+  effectiveUserId: string; // Clerk userId or deviceId for guest - use for security checks
   levelProgress: Record<string, { stars: number; done: boolean }>;
   inventory: Array<{ itemId: string; itemType: string; equipped: boolean }>;
   ownedItems: string[];
@@ -61,6 +62,7 @@ export function useConvexSync() {
       isLoggedIn: false,
       isSignedIn: false,
       playerId: null,
+      effectiveUserId: "guest",
       levelProgress: {},
       inventory: [],
       ownedItems: ["steve"],
@@ -361,6 +363,7 @@ export function ConvexSyncProvider({ children }: { children: ReactNode }) {
     isLoggedIn: !!convexPlayer,
     isSignedIn: !!isSignedIn,
     playerId,
+    effectiveUserId, // Expose for security checks in page.tsx
     levelProgress: levelProgressQuery || {},
     inventory: inventoryQuery || [],
     ownedItems,

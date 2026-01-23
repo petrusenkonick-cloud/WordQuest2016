@@ -384,27 +384,34 @@ export function HomeworkScreen({
                 }}>
                   {/* View Answers Button */}
                   {onViewAnswers && hw.userAnswers && hw.userAnswers.length > 0 && (
-                    <button
+                    <motion.button
                       onClick={() => onViewAnswers(hw)}
+                      whileHover={{ scale: 1.02, y: -1 }}
+                      whileTap={{ scale: 0.98, y: 2 }}
                       style={{
                         flex: 1,
-                        padding: "8px 12px",
-                        borderRadius: "8px",
-                        border: "2px solid #22c55e",
-                        background: "rgba(34, 197, 94, 0.15)",
-                        color: "#22c55e",
-                        fontSize: "0.8em",
+                        padding: "10px 14px",
+                        borderRadius: "12px",
+                        border: "none",
+                        background: "linear-gradient(135deg, #22c55e 0%, #16a34a 100%)",
+                        color: "white",
+                        fontSize: "0.85em",
                         fontWeight: "bold",
                         cursor: "pointer",
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
                         gap: "6px",
-                        transition: "all 0.2s ease",
+                        boxShadow: `
+                          inset 2px 2px 0 rgba(255, 255, 255, 0.3),
+                          inset -2px -2px 0 rgba(0, 0, 0, 0.2),
+                          0 4px 0 #15803d,
+                          0 6px 15px rgba(34, 197, 94, 0.4)
+                        `,
                       }}
                     >
                       📝 View Answers
-                    </button>
+                    </motion.button>
                   )}
 
                   {/* Retry Button */}

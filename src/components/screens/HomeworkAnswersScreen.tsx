@@ -567,22 +567,29 @@ export function HomeworkAnswersScreen({
           justifyContent: "center",
         }}
       >
-        <button
+        <motion.button
           onClick={onClose}
+          whileHover={{ scale: 1.02, y: -1 }}
+          whileTap={{ scale: 0.98, y: 2 }}
           style={{
-            background: "linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%)",
+            background: "linear-gradient(135deg, #22c55e 0%, #16a34a 100%)",
             border: "none",
-            borderRadius: "10px",
-            padding: "12px 28px",
+            borderRadius: "12px",
+            padding: "14px 32px",
             color: "white",
-            fontSize: "0.95em",
+            fontSize: "1em",
             fontWeight: "bold",
             cursor: "pointer",
-            boxShadow: "0 4px 15px rgba(139, 92, 246, 0.4)",
+            boxShadow: `
+              inset 2px 2px 0 rgba(255, 255, 255, 0.3),
+              inset -2px -2px 0 rgba(0, 0, 0, 0.2),
+              0 4px 0 #15803d,
+              0 6px 15px rgba(34, 197, 94, 0.4)
+            `,
           }}
         >
           ✓ Done
-        </button>
+        </motion.button>
       </div>
     </div>
   );
